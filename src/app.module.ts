@@ -22,10 +22,13 @@ import { CatDepartamentosModule } from './cat-departamentos/cat-departamentos.mo
 import { ReportesModule } from './reportes/reportes.module';
 import { MailServiceModule } from './mail-service/mail-service.module'
 import Joi from 'joi';
+import { join } from 'path';
 
 @Module({
   imports: [ConfigModule.forRoot({
     isGlobal: true,
+    // Carga .env junto al proyecto (src/ o dist/), no solo desde process.cwd()
+    envFilePath: join(__dirname, '..', '.env'),
     validationSchema: Joi.object({
       DB_HOST: Joi.string().required(),
       DB_PORT: Joi.number().default(3306),
@@ -34,6 +37,7 @@ import Joi from 'joi';
       DB_DATABASE: Joi.string().required(),
       JWT_SECRET: Joi.string().required(),
       JWT_EXPIRES_IN: Joi.string().required(),
+      JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
       DB_TZ: Joi.string().default('-06:00'),
     }),
   }),

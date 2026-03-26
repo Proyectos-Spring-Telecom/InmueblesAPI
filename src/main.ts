@@ -43,7 +43,7 @@ async function bootstrap() {
         description: 'Introduce tu token JWT aquí',
       },
       'access-token',
-    ).addServer('http://localhost:3000/api','local').addServer('https://springtelecom.mx/inmueblesAPI/api','produccion')
+    ).addServer('http://localhost:3002/api','local').addServer('https://springtelecom.mx/inmueblesAPI/api','produccion')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

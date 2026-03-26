@@ -30,7 +30,7 @@ async function bootstrap() {
 
 
   const config = new DocumentBuilder()
-    .setTitle('Video Analítica')
+    .setTitle('Inmuebles Spring')
     .setDescription('Documentación automática de la API de NestJS')
     .setVersion('1.0.0')
     .addBearerAuth(
@@ -43,7 +43,7 @@ async function bootstrap() {
         description: 'Introduce tu token JWT aquí',
       },
       'access-token',
-    ).addServer('http://localhost:3000/api','local').addServer('https://springtelecom.mx/analiticaVideoAPI/api','produccion')
+    ).addServer('http://localhost:3000/api','local').addServer('https://springtelecom.mx/inmueblesAPI/api','produccion')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
@@ -54,7 +54,9 @@ async function bootstrap() {
     },
   });
 
-  app.setGlobalPrefix('api'); // prefijo global para todas las rutas
-  await app.listen( 3000);
+  app.setGlobalPrefix('api'); 
+  const portRaw = process.env.PORT;
+  const port = portRaw ? Number.parseInt(portRaw, 10) : 3002;
+  await app.listen(Number.isFinite(port) ? port : 3002);
 }
 bootstrap();

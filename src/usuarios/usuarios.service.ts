@@ -494,6 +494,8 @@ export class UsuariosService {
           if (fotoPerfilFile) {
             const uploadResult = await this.s3Service.uploadFile(fotoPerfilFile, 'Usuarios', Number(idUser), 2);
             createUsuarioDto.fotoPerfil = uploadResult.url;
+          }else{
+          createUsuarioDto.fotoPerfil = "https://inmueblespring.s3.us-east-1.amazonaws.com/imagenes/user.png"
           }
     
           const hashedPassword = await bcrypt.hash(

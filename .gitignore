@@ -3,6 +3,18 @@
 /node_modules
 /build
 
+# eng.traineddata
+*.eng.traineddata
+.eng.traineddata
+
+# spa.traineddata
+*.spa.traineddata
+.spa.traineddata
+
+# === Tesseract OCR ===
+*.traineddata
+.tesseract-cache/
+
 .
 # IDEs and editors
 /.idea

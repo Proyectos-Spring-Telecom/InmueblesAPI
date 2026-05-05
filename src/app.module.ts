@@ -20,6 +20,7 @@ import { InstalacionEquipoModule } from './instalacion-equipo/instalacion-equipo
 import { S3Module } from './s3/s3.module';
 import { CatDepartamentosModule } from './cat-departamentos/cat-departamentos.module';
 import { ReportesModule } from './reportes/reportes.module';
+import { PdfOcrModule } from './pdf-ocr/pdf-ocr.module';
 import { MailServiceModule } from './mail-service/mail-service.module'
 import Joi from 'joi';
 import { join } from 'path';
@@ -88,7 +89,8 @@ import { join } from 'path';
     InstalacionEquipoModule,
     S3Module,
     CatDepartamentosModule,
-    ReportesModule],
+    ReportesModule,
+    PdfOcrModule],
     
   controllers: [AppController],
   providers: [MailServiceService],

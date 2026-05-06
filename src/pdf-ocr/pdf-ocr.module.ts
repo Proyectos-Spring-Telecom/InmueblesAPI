@@ -7,6 +7,7 @@ import { PdfOcrService } from './pdf-ocr.service';
 import { PdfDetectorService } from './services/pdf-detector.service';
 import { PdfNativeExtractorService } from './services/pdf-native-extractor.service';
 import { PdfOcrExtractorService } from './services/pdf-ocr-extractor.service';
+import { ConstanciaFiscalParserService } from './services/constancia-fiscal-parser.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([DocumentOcr]), BitacoraModule],
@@ -16,6 +17,7 @@ import { PdfOcrExtractorService } from './services/pdf-ocr-extractor.service';
     PdfDetectorService,
     PdfNativeExtractorService,
     PdfOcrExtractorService,
+    ConstanciaFiscalParserService,
   ],
 })
 export class PdfOcrModule {}

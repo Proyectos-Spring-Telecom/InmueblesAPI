@@ -8,6 +8,7 @@ import { PdfDetectorService } from './services/pdf-detector.service';
 import { PdfNativeExtractorService } from './services/pdf-native-extractor.service';
 import { PdfOcrExtractorService } from './services/pdf-ocr-extractor.service';
 import { ConstanciaFiscalParserService } from './services/constancia-fiscal-parser.service';
+import { IneParserService } from './services/ine-parser.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([DocumentOcr]), BitacoraModule],
@@ -18,6 +19,7 @@ import { ConstanciaFiscalParserService } from './services/constancia-fiscal-pars
     PdfNativeExtractorService,
     PdfOcrExtractorService,
     ConstanciaFiscalParserService,
+    IneParserService,
   ],
 })
 export class PdfOcrModule {}

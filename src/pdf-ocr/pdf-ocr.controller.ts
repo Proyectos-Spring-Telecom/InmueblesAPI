@@ -82,6 +82,63 @@ export class PdfOcrController {
     return this.pdfOcrService.processPdf(file, idUser, PDF_OCR_ID_MODULE);
   }
 
+  @Post('constancia-fiscal')
+  @ApiSecurity('access-token')
+  @ApiOperation({
+    summary:
+      'Extraer datos estructurados de una Constancia de Situación Fiscal (SAT)',
+    description:
+      'Recibe el PDF de la Constancia de Situación Fiscal del SAT. ' +
+      'Detecta automáticamente si es PDF nativo o escaneado y devuelve un JSON ' +
+      'con RFC, razón social, domicilio, actividades económicas, regímenes y obligaciones fiscales.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'PDF de la Constancia de Situación Fiscal (máx. 25 MB)',
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'PDF Constancia de Situación Fiscal',
+        },
+      },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 25 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        if (file.mimetype !== 'application/pdf') {
+          return cb(
+            new Error('Solo se permiten archivos PDF'),
+            false,
+          );
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadConstanciaFiscal(
+    @UploadedFile() file: Express.Multer.File,
+    @Request() req,
+  ) {
+    const idUser = req.user.userId;
+
+    if (!file) {
+      throw new BadRequestException('Archivo PDF de constancia requerido');
+    }
+
+    return this.pdfOcrService.processConstanciaFiscal(
+      file,
+      idUser,
+      PDF_OCR_ID_MODULE,
+    );
+  }
+
   @Post('upload-ine')
   @ApiSecurity('access-token')
   @ApiOperation({

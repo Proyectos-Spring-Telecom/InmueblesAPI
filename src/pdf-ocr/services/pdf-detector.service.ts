@@ -3,20 +3,13 @@ import {
   getDocument,
   GlobalWorkerOptions,
 } from 'pdfjs-dist';
-import * as path from 'path';
-import { pathToFileURL } from 'url';
 import type { TextContent } from 'pdfjs-dist/types/src/display/api';
 
-// Fix pdfjs-dist v4 en Node:
-// 1) workerSrc no acepta string vacío.
-// 2) En Windows, ESM exige file:// URL, no rutas C:\ o A:\
-const pdfjsWorkerPath = path.join(
-  path.dirname(require.resolve('pdfjs-dist/package.json')),
-  'legacy',
-  'build',
-  'pdf.worker.mjs',
-);
-GlobalWorkerOptions.workerSrc = pathToFileURL(pdfjsWorkerPath).href;
+// pdfjs-dist v3 legacy build es CJS puro. En Node.js no se necesita
+// un worker separado. workerSrc = '' activa el fake worker interno
+// que corre en el mismo hilo, sin archivos externos.
+// Funciona en Windows, Linux y Docker sin cambios.
+GlobalWorkerOptions.workerSrc = '';
 
 function textFromContent(textContent: TextContent): string {
   let out = '';

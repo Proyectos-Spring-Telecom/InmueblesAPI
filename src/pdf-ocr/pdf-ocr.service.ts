@@ -16,6 +16,8 @@ import { DocumentOcr, ProcessingType } from 'src/entities/DocumentOcr';
 import { PdfDetectorService } from './services/pdf-detector.service';
 import { PdfNativeExtractorService } from './services/pdf-native-extractor.service';
 import { PdfOcrExtractorService } from './services/pdf-ocr-extractor.service';
+import { ConstanciaFiscalParserService } from './services/constancia-fiscal-parser.service';
+import type { ConstanciaFiscalData } from './interfaces/constancia-fiscal.interface';
 
 export type PdfOcrProcessResponse = ApiCrudResponse & {
   processingType: ProcessingType;
@@ -31,6 +33,16 @@ export type PdfOcrIneProcessResponse = PdfOcrProcessResponse & {
   };
 };
 
+export type PdfConstanciaFiscalResponse = Omit<ApiCrudResponse, 'data'> & {
+  processingType: ProcessingType;
+  pageCount: number;
+  data: {
+    id: number;
+    nombre: string;
+    constancia: ConstanciaFiscalData;
+  };
+};
+
 @Injectable()
 export class PdfOcrService {
   private readonly logger = new Logger(PdfOcrService.name);
@@ -41,8 +53,10 @@ export class PdfOcrService {
     private readonly detector: PdfDetectorService,
     private readonly nativeExtractor: PdfNativeExtractorService,
     private readonly ocrExtractor: PdfOcrExtractorService,
+    private readonly constanciaParser: ConstanciaFiscalParserService,
     private readonly bitacoraLogger: BitacoraService,
   ) {}
+
 
   async processPdf(
     file: Express.Multer.File,
@@ -161,6 +175,133 @@ export class PdfOcrService {
         throw error;
       }
       throw new InternalServerErrorException('Error procesando PDF');
+    }
+  }
+
+  /**
+   * Constancia de Situación Fiscal (SAT): flujo híbrido + parseo estructurado.
+   */
+  async processConstanciaFiscal(
+    file: Express.Multer.File,
+    idUser: number,
+    idModule: number,
+  ): Promise<PdfConstanciaFiscalResponse> {
+    try {
+      if (!file || file.mimetype !== 'application/pdf') {
+        this.logger.warn(
+          `processConstanciaFiscal: mime inválido=${file?.mimetype ?? '(sin file)'}`,
+        );
+        throw new BadRequestException('Se requiere un archivo PDF válido');
+      }
+
+      this.logger.log(
+        `Inicio processConstanciaFiscal: archivo="${file.originalname}" size=${file.size}B idUser=${idUser} idModule=${idModule}`,
+      );
+
+      const rawMax = Number(process.env.UPLOAD_MAX_SIZE);
+      const maxSize =
+        Number.isFinite(rawMax) && rawMax > 0 ? rawMax : 10 * 1024 * 1024;
+      if (file.size >= maxSize) {
+        throw new BadRequestException('Archivo demasiado grande');
+      }
+
+      if (!file.buffer) {
+        throw new BadRequestException('Contenido de archivo inválido');
+      }
+
+      const magic = file.buffer
+        .subarray(0, Math.min(5, file.buffer.length))
+        .toString('latin1');
+      if (!magic.startsWith('%PDF')) {
+        throw new BadRequestException(
+          'El PDF no se recibió bien (no empieza con %PDF)',
+        );
+      }
+
+      const { isNative, pageCount } = await this.detector.hasNativeText(
+        file.buffer,
+      );
+      this.logger.log(
+        `processConstanciaFiscal: isNative=${isNative} páginas=${pageCount}`,
+      );
+
+      const result = isNative
+        ? await this.nativeExtractor.extract(file.buffer)
+        : await this.ocrExtractor.extract(file.buffer, file.originalname);
+
+      const constanciaData = this.constanciaParser.parse(result.text);
+
+      const row = this.documentOcrRepository.create({
+        fileName: file.originalname,
+        extractedText: result.text,
+        processingType: result.processingType,
+        pageCount: result.pageCount,
+      });
+      const saved = await this.documentOcrRepository.save(row);
+
+      await this.bitacoraLogger.logToBitacora(
+        'PdfOcr',
+        `Constancia fiscal procesada: ${file.originalname} (${result.processingType})`,
+        'CREATE',
+        {
+          fileName: file.originalname,
+          processingType: result.processingType,
+          pageCount: result.pageCount,
+          rfc: constanciaData.rfc,
+        },
+        idUser,
+        idModule,
+        EstatusEnumBitcora.SUCCESS,
+      );
+
+      this.logger.log(
+        `processConstanciaFiscal OK: id=${saved.id} rfc=${constanciaData.rfc ?? 'null'} tipo=${result.processingType}`,
+      );
+
+      this.logger.log('TEXTO_CRUDO: ' + JSON.stringify(result.text));
+
+      return {
+        status: 'success',
+        message: 'Constancia fiscal procesada correctamente',
+        processingType: result.processingType,
+        pageCount: result.pageCount,
+        data: {
+          id: saved.id,
+          nombre: saved.fileName,
+          constancia: constanciaData,
+        },
+      };
+    } catch (error: unknown) {
+      const errMsg =
+        error instanceof Error ? error.message : 'Error desconocido';
+      const origenNombre = file?.originalname ?? '(sin archivo)';
+
+      if (error instanceof HttpException) {
+        this.logger.warn(
+          `Fallo controlado processConstanciaFiscal: "${origenNombre}" → ${error.constructor.name}: ${errMsg}`,
+        );
+      } else {
+        this.logger.error(
+          `Error no HTTP processConstanciaFiscal: "${origenNombre}" → ${errMsg}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+
+      await this.bitacoraLogger.logToBitacora(
+        'PdfOcr',
+        `Error procesando constancia fiscal: ${origenNombre}`,
+        'CREATE',
+        { fileName: origenNombre },
+        idUser,
+        idModule,
+        EstatusEnumBitcora.ERROR,
+        errMsg,
+      );
+
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException(
+        'Error procesando constancia fiscal',
+      );
     }
   }
 

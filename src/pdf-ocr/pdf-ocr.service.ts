@@ -18,6 +18,8 @@ import { PdfNativeExtractorService } from './services/pdf-native-extractor.servi
 import { PdfOcrExtractorService } from './services/pdf-ocr-extractor.service';
 import { ConstanciaFiscalParserService } from './services/constancia-fiscal-parser.service';
 import type { ConstanciaFiscalData } from './interfaces/constancia-fiscal.interface';
+import type { IneData } from './interfaces/ine-data.interface';
+import { IneParserService } from './services/ine-parser.service';
 
 export type PdfOcrProcessResponse = ApiCrudResponse & {
   processingType: ProcessingType;
@@ -30,6 +32,7 @@ export type PdfOcrIneProcessResponse = PdfOcrProcessResponse & {
     nombre: string;
     extractedText: string;
     confidence: { frente: number | null; reverso: number | null };
+    ine: IneData;
   };
 };
 
@@ -54,6 +57,7 @@ export class PdfOcrService {
     private readonly nativeExtractor: PdfNativeExtractorService,
     private readonly ocrExtractor: PdfOcrExtractorService,
     private readonly constanciaParser: ConstanciaFiscalParserService,
+    private readonly ineParser: IneParserService,
     private readonly bitacoraLogger: BitacoraService,
   ) {}
 
@@ -385,6 +389,8 @@ export class PdfOcrService {
       });
       const saved = await this.documentOcrRepository.save(entity);
 
+      const ineData = this.ineParser.parse(combinedText);
+
       this.logger.log(
         `processImagesIne: guardado id=${saved.id}, tipo=${saved.processingType}, páginas=${saved.pageCount}, longitud=${combinedText.length}`,
       );
@@ -413,9 +419,18 @@ export class PdfOcrService {
           nombre: saved.fileName,
           extractedText: combinedText,
           confidence: {
-            frente: resFrente.confidence,
-            reverso: resReverso.confidence,
+            frente:
+              resFrente.confidence !== null &&
+              Number.isFinite(resFrente.confidence)
+                ? Math.round(resFrente.confidence)
+                : null,
+            reverso:
+              resReverso.confidence !== null &&
+              Number.isFinite(resReverso.confidence)
+                ? Math.round(resReverso.confidence)
+                : null,
           },
+          ine: ineData,
         },
         processingType: saved.processingType,
         pageCount: saved.pageCount,

@@ -21,6 +21,7 @@ import { S3Module } from './s3/s3.module';
 import { CatDepartamentosModule } from './cat-departamentos/cat-departamentos.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { MailServiceModule } from './mail-service/mail-service.module'
+import { CatServiciosModule } from './cat-servicios/cat-servicios.module';
 import Joi from 'joi';
 import { join } from 'path';
 
@@ -88,6 +89,7 @@ import { join } from 'path';
     InstalacionEquipoModule,
     S3Module,
     CatDepartamentosModule,
+    CatServiciosModule,
     ReportesModule],
     
   controllers: [AppController],

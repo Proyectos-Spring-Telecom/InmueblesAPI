@@ -21,7 +21,8 @@ import { S3Module } from './s3/s3.module';
 import { CatDepartamentosModule } from './cat-departamentos/cat-departamentos.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { PdfOcrModule } from './pdf-ocr/pdf-ocr.module';
-import { MailServiceModule } from './mail-service/mail-service.module'
+import { MailServiceModule } from './mail-service/mail-service.module';
+import { AiToolsModule } from './ai-tools/ai-tools.module';
 import Joi from 'joi';
 import { join } from 'path';
 
@@ -40,6 +41,7 @@ import { join } from 'path';
       JWT_EXPIRES_IN: Joi.string().required(),
       JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
       DB_TZ: Joi.string().default('-06:00'),
+      AI_SERVICE_KEY: Joi.string().required(),
     }),
   }),
 
@@ -90,7 +92,9 @@ import { join } from 'path';
     S3Module,
     CatDepartamentosModule,
     ReportesModule,
-    PdfOcrModule],
+    PdfOcrModule,
+    AiToolsModule,
+  ],
     
   controllers: [AppController],
   providers: [MailServiceService],

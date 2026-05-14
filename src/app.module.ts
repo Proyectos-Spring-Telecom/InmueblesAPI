@@ -21,9 +21,12 @@ import { S3Module } from './s3/s3.module';
 import { CatDepartamentosModule } from './cat-departamentos/cat-departamentos.module';
 import { ReportesModule } from './reportes/reportes.module';
 import { PdfOcrModule } from './pdf-ocr/pdf-ocr.module';
-import { MailServiceModule } from './mail-service/mail-service.module';
+import { MailServiceModule } from './mail-service/mail-service.module'
+import { CatServiciosModule } from './cat-servicios/cat-servicios.module';
 import { AiToolsModule } from './ai-tools/ai-tools.module';
 import { ChatModule } from './chat/chat.module';
+import { InmueblesModule } from './inmuebles/inmuebles.module';
+import { ArrendatariosModule } from './arrendatarios/arrendatarios.module';
 import Joi from 'joi';
 import { join } from 'path';
 
@@ -94,6 +97,9 @@ import { join } from 'path';
     InstalacionEquipoModule,
     S3Module,
     CatDepartamentosModule,
+    CatServiciosModule,
+    InmueblesModule,
+    ArrendatariosModule,
     ReportesModule,
     PdfOcrModule,
     AiToolsModule,

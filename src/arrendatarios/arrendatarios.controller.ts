@@ -1,8 +1,12 @@
 import {
   BadRequestException,
   Controller,
+  Get,
   HttpCode,
+  Param,
+  ParseIntPipe,
   Post,
+  Query,
   Req,
   UploadedFiles,
   UseGuards,
@@ -29,6 +33,25 @@ import { parseTopLevelJsonStrings } from "./utils/parse-top-level-json";
 @Controller("arrendatarios")
 export class ArrendatariosController {
   constructor(private readonly arrendatariosService: ArrendatariosService) {}
+
+  @Get("paginated")
+  @ApiOperation({
+    summary: "Listar arrendatarios paginados (con relaciones).",
+  })
+  findAllPaginated(
+    @Query("page", ParseIntPipe) page: number,
+    @Query("limit", ParseIntPipe) limit: number,
+  ) {
+    return this.arrendatariosService.findAllPaginated(page, limit);
+  }
+
+  @Get(":id")
+  @ApiOperation({
+    summary: "Obtener arrendatario por ID (con relaciones).",
+  })
+  findOne(@Param("id", ParseIntPipe) id: number) {
+    return this.arrendatariosService.findOne(id);
+  }
 
   @Post()
   @HttpCode(200)

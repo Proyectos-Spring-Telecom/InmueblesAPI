@@ -1,10 +1,12 @@
 import {
   BadRequestException,
+  ServiceUnavailableException,
   HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { BitacoraService } from 'src/bitacora/bitacora.service';
@@ -20,19 +22,26 @@ import { ConstanciaFiscalParserService } from './services/constancia-fiscal-pars
 import type { ConstanciaFiscalData } from './interfaces/constancia-fiscal.interface';
 import type { IneData } from './interfaces/ine-data.interface';
 import { IneParserService } from './services/ine-parser.service';
+import {
+  PaddleOcrClientService,
+  type PaddleOcrIneResponse,
+} from './services/paddleocr-client.service';
 
 export type PdfOcrProcessResponse = ApiCrudResponse & {
   processingType: ProcessingType;
   pageCount: number;
 };
 
-export type PdfOcrIneProcessResponse = PdfOcrProcessResponse & {
+export type PdfOcrIneProcessResponse = Omit<ApiCrudResponse, 'data'> & {
+  processingType: ProcessingType | 'ocr_paddleocr';
+  pageCount: number;
   data: {
     id: number;
     nombre: string;
     extractedText: string;
     confidence: { frente: number | null; reverso: number | null };
     ine: IneData;
+    extraction_id?: string;
   };
 };
 
@@ -58,6 +67,8 @@ export class PdfOcrService {
     private readonly ocrExtractor: PdfOcrExtractorService,
     private readonly constanciaParser: ConstanciaFiscalParserService,
     private readonly ineParser: IneParserService,
+    private readonly paddleOcrClient: PaddleOcrClientService,
+    private readonly configService: ConfigService,
     private readonly bitacoraLogger: BitacoraService,
   ) {}
 
@@ -364,6 +375,31 @@ export class PdfOcrService {
     }
 
     try {
+      const configuredEngine = this.configService.get<string>(
+        'OCR_ENGINE',
+        'tesseract',
+      );
+      let ocrEngine = configuredEngine.toLowerCase();
+      this.logger.log(`[PdfOcrService] OCR_ENGINE configurado: ${ocrEngine}`);
+      if (ocrEngine === 'paddleocr' && !this.paddleOcrClient.isConfigured()) {
+        this.logger.warn(
+          `[PdfOcrService] PADDLEOCR_SERVICE_URL no configurado. Se usará tesseract`,
+        );
+        ocrEngine = 'tesseract';
+      }
+
+      if (ocrEngine === 'paddleocr') {
+        return await this.processImagesIneWithPaddle(
+          frente,
+          reverso,
+          frente.buffer,
+          reverso.buffer,
+          idUser,
+          idModule,
+          fileNameCombo,
+        );
+      }
+
       const resFrente = await this.ocrExtractor.extractFromImage(
         frente.buffer,
         'frente',
@@ -472,5 +508,85 @@ export class PdfOcrService {
       );
       throw new InternalServerErrorException('Error procesando imágenes de INE');
     }
+  }
+
+  private async processImagesIneWithPaddle(
+    frente: Express.Multer.File,
+    reverso: Express.Multer.File,
+    frenteBuffer: Buffer,
+    reversoBuffer: Buffer,
+    idUser: number,
+    idModule: number,
+    fileNameCombo: string,
+  ): Promise<PdfOcrIneProcessResponse> {
+    this.logger.log('[PdfOcrService] Llamando a microservicio PaddleOCR...');
+    const startedAt = Date.now();
+    let result: PaddleOcrIneResponse;
+    try {
+      result = await this.paddleOcrClient.extractIne(frenteBuffer, reversoBuffer, {
+        frente: frente.originalname,
+        reverso: reverso.originalname,
+      });
+    } catch (error: unknown) {
+      if (error instanceof HttpException) throw error;
+      throw new ServiceUnavailableException(
+        `Servicio PaddleOCR no disponible. Verifica que esté corriendo en ${this.paddleOcrClient.getBaseUrl()}`,
+      );
+    }
+
+    const elapsed = Date.now() - startedAt;
+    this.logger.log(
+      `[PdfOcrService] PaddleOCR respondió en ${elapsed}ms confianza_frente=${result.ocr_confidence?.frente ?? 'n/a'} confianza_reverso=${result.ocr_confidence?.reverso ?? 'n/a'}`,
+    );
+
+    const entity = this.documentOcrRepository.create({
+      fileName: fileNameCombo,
+      extractedText: result.raw_text ?? '',
+      processingType: ProcessingType.OCR,
+      pageCount: 2,
+    });
+    const saved = await this.documentOcrRepository.save(entity);
+
+    await this.bitacoraLogger.logToBitacora(
+      'PdfOcr',
+      `INE procesada: ${fileNameCombo} (engine=paddleocr)`,
+      'CREATE',
+      {
+        fileName: fileNameCombo,
+        processingType: 'ocr_paddleocr',
+        pageCount: 2,
+        confidenceFrente: result.ocr_confidence?.frente ?? null,
+        confidenceReverso: result.ocr_confidence?.reverso ?? null,
+        extractionId: result.extraction_id,
+        engine: 'paddleocr',
+      },
+      idUser,
+      idModule,
+      EstatusEnumBitcora.SUCCESS,
+    );
+
+    return {
+      status: 'success',
+      message: 'INE procesada correctamente',
+      processingType: 'ocr_paddleocr',
+      pageCount: 2,
+      data: {
+        id: saved.id,
+        nombre: saved.fileName,
+        extractedText: result.raw_text ?? '',
+        confidence: {
+          frente:
+            typeof result.ocr_confidence?.frente === 'number'
+              ? Math.round(result.ocr_confidence.frente)
+              : null,
+          reverso:
+            typeof result.ocr_confidence?.reverso === 'number'
+              ? Math.round(result.ocr_confidence.reverso)
+              : null,
+        },
+        ine: result.data,
+        extraction_id: result.extraction_id,
+      },
+    };
   }
 }

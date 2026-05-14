@@ -1,11 +1,13 @@
-import { Injectable } from "@nestjs/common";
-import { DataSource } from "typeorm";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { DataSource, In, Repository } from "typeorm";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { ArchivosArrendatarios } from "src/entities/ArchivosArrendatarios";
 import { SociosArrendatarios } from "src/entities/SociosArrendatarios";
 import { S3Service } from "src/s3/s3.service";
+import { ApiResponseCommon } from "src/common/ApiResponse";
 import {
   RegistrarArrendatarioFormDto,
   SocioItemDto,
@@ -19,6 +21,16 @@ const FOLDER_SOCIO_CONST = "Socios Arrendatarios/ConstanciaSituacionFiscal";
 const FOLDER_SOCIO_COMP = "Socios Arrendatarios/ComprobanteDomicilio";
 const FOLDER_SOCIO_ID = "Socios Arrendatarios/IdentificacionOficial";
 const ID_MODULE = 1;
+
+const FULL_RELATIONS = [
+  "arrendador",
+  "servicios",
+  "servicios.tipoServicio",
+  "archivos",
+  "socios",
+  "contratos",
+  "contratos.inmueble",
+] as const;
 
 function decStr(v: number | undefined | null): string | null {
   if (v === undefined || v === null) return null;
@@ -35,7 +47,63 @@ export class ArrendatariosService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly s3Service: S3Service,
+    @InjectRepository(Arrendatarios)
+    private readonly arrendatariosRepository: Repository<Arrendatarios>,
   ) {}
+
+  async findOne(id: number): Promise<Arrendatarios> {
+    const row = await this.arrendatariosRepository.findOne({
+      where: { id },
+      relations: [...FULL_RELATIONS],
+    });
+    if (!row) {
+      throw new NotFoundException(`Arrendatario con id ${id} no encontrado.`);
+    }
+    return row;
+  }
+
+  async findAllPaginated(
+    page: number,
+    limit: number,
+  ): Promise<ApiResponseCommon> {
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.max(1, limit);
+    const skip = (safePage - 1) * safeLimit;
+
+    const [idRows, total] = await this.arrendatariosRepository.findAndCount({
+      select: ["id"],
+      order: { id: "DESC" },
+      skip,
+      take: safeLimit,
+    });
+
+    if (idRows.length === 0) {
+      return {
+        data: [],
+        paginated: {
+          total,
+          page: safePage,
+          lastPage: total === 0 ? 0 : Math.ceil(total / safeLimit),
+        },
+      };
+    }
+
+    const ids = idRows.map((r) => r.id);
+    const data = await this.arrendatariosRepository.find({
+      where: { id: In(ids) },
+      relations: [...FULL_RELATIONS],
+      order: { id: "DESC" },
+    });
+
+    return {
+      data,
+      paginated: {
+        total,
+        page: safePage,
+        lastPage: Math.ceil(total / safeLimit),
+      },
+    };
+  }
 
   async registrarCompleto(
     dto: RegistrarArrendatarioFormDto,

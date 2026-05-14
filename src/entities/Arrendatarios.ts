@@ -4,10 +4,15 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { applySchema } from "src/utils/schema";
 import { Clientes } from "./Clientes";
+import { ServiciosArrendatarios } from "./ServiciosArrendatarios";
+import { ArchivosArrendatarios } from "./ArchivosArrendatarios";
+import { SociosArrendatarios } from "./SociosArrendatarios";
+import { ContratoArrendatarios } from "./ContratoArrendatarios";
 
 @Index("FK_Arrendatario_Arrendador_idx", ["idArrendador"], {})
 @Entity("Arrendatarios")
@@ -76,4 +81,16 @@ export class Arrendatarios {
   })
   @JoinColumn([{ name: "IdArrendador", referencedColumnName: "id" }])
   arrendador: Clientes;
+
+  @OneToMany(() => ServiciosArrendatarios, (s) => s.arrendatario)
+  servicios: ServiciosArrendatarios[];
+
+  @OneToMany(() => ArchivosArrendatarios, (a) => a.arrendatario)
+  archivos: ArchivosArrendatarios[];
+
+  @OneToMany(() => SociosArrendatarios, (s) => s.arrendatario)
+  socios: SociosArrendatarios[];
+
+  @OneToMany(() => ContratoArrendatarios, (c) => c.arrendatario)
+  contratos: ContratoArrendatarios[];
 }

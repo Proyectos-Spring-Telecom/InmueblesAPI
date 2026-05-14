@@ -23,6 +23,7 @@ import { ReportesModule } from './reportes/reportes.module';
 import { PdfOcrModule } from './pdf-ocr/pdf-ocr.module';
 import { MailServiceModule } from './mail-service/mail-service.module';
 import { AiToolsModule } from './ai-tools/ai-tools.module';
+import { ChatModule } from './chat/chat.module';
 import Joi from 'joi';
 import { join } from 'path';
 
@@ -42,6 +43,8 @@ import { join } from 'path';
       JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
       DB_TZ: Joi.string().default('-06:00'),
       AI_SERVICE_KEY: Joi.string().required(),
+      SPRINGAGENT_URL: Joi.string().default('http://localhost:8001'),
+      SPRINGAGENT_TIMEOUT: Joi.number().default(120000),
     }),
   }),
 
@@ -94,6 +97,7 @@ import { join } from 'path';
     ReportesModule,
     PdfOcrModule,
     AiToolsModule,
+    ChatModule,
   ],
     
   controllers: [AppController],

@@ -52,12 +52,6 @@ export class CatServiciosController {
     return this.catServiciosService.activar(id, req);
   }
 
-  @Get(":id")
-  @ApiOperation({ summary: "Obtener servicio por ID" })
-  findOne(@Param("id", ParseIntPipe) id: number) {
-    return this.catServiciosService.findOne(id);
-  }
-
   @Get("paginated")
   @ApiOperation({ summary: "Obtener servicios paginados" })
   findAllPaginated(
@@ -65,6 +59,12 @@ export class CatServiciosController {
     @Query("limit", ParseIntPipe) limit: number,
   ) {
     return this.catServiciosService.findAllPaginated(page, limit);
+  }
+
+  @Get(":id")
+  @ApiOperation({ summary: "Obtener servicio por ID" })
+  findOne(@Param("id", ParseIntPipe) id: number) {
+    return this.catServiciosService.findOne(id);
   }
 }
 

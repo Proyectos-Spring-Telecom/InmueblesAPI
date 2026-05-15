@@ -28,6 +28,11 @@ import { ChatModule } from './chat/chat.module';
 import { InmueblesModule } from './inmuebles/inmuebles.module';
 import { ArrendatariosModule } from './arrendatarios/arrendatarios.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
+import { InpcModule } from './inpc/inpc.module';
+import { FactoresModule } from './factores/factores.module';
+import { FormulasModule } from './formulas/formulas.module';
+import { CatMetodosPagoModule } from './cat-metodos-pago/cat-metodos-pago.module';
+import { PagoModule } from './pago/pago.module';
 import Joi from 'joi';
 import { join } from 'path';
 
@@ -102,6 +107,11 @@ import { join } from 'path';
     InmueblesModule,
     ArrendatariosModule,
     NotificacionesModule,
+    InpcModule,
+    FactoresModule,
+    FormulasModule,
+    CatMetodosPagoModule,
+    PagoModule,
     ReportesModule,
     PdfOcrModule,
     AiToolsModule,

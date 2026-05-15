@@ -124,6 +124,8 @@ export class ArrendatariosService {
         representanteLegal: a.representanteLegal ?? null,
         telefonoRepresentante: a.telefonoRepresentante ?? null,
         correoRepresentante: a.correoRepresentante ?? null,
+        lat: a.lat ?? null,
+        lng: a.lng ?? null,
       });
       const savedA = await manager.save(Arrendatarios, arrendatario);
       const idArrendatario = Number(savedA.id);

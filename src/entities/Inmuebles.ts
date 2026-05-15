@@ -68,6 +68,12 @@ export class Inmuebles {
   @Column("tinyint", { name: "Estatus", nullable: true, default: () => "'1'" })
   estatus: number | null;
 
+  @Column("double", { name: "Lat", nullable: true })
+  lat: number | null;
+
+  @Column("double", { name: "Lng", nullable: true })
+  lng: number | null;
+
   @ManyToOne(() => Clientes, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",

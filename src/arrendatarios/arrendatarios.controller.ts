@@ -82,7 +82,7 @@ export class ArrendatariosController {
     summary:
       "Registrar arrendatario completo (FormData: JSON arrendatario/contrato + arrays con archivos).",
     description:
-      "Campos texto: `arrendatario` y opcional `contratoArrendatario` como JSON. " +
+      "Campos texto: `arrendatario` (JSON con lat, lng, etc.) y opcional `contratoArrendatario` como JSON. " +
       "Arrays: `servicios[i].*`, `servicios[i].archivo`, `archivos[i].nombre`, `archivos[i].archivo`, " +
       "`imagenes[i].*`, `socios[i].nombre`, `socios[i].rfc`, `socios[i].constanciaFiscalArchivo`, etc.",
   })

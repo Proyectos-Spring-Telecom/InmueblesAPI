@@ -5,6 +5,7 @@ import {
   IsDateString,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsOptional,
   IsString,
   MaxLength,
@@ -20,7 +21,7 @@ import { CreateArchivoInmuebleDto } from "./create-archivo-inmueble.dto";
  * Campos planos del inmueble:
  *   inmueble, idArrendador, direccionFiscal, estatusInmueble, vigenciaAnios,
  *   fechaInicio, fechaFin, nombreRepresentante, telefonoRepresentante,
- *   correoRepresentante
+ *   correoRepresentante, lat, lng
  *
  * Arreglos (notación bracket por índice):
  *   servicios[i].idTipoServicio   servicios[i].numeroContrato
@@ -89,6 +90,18 @@ export class CreateInmuebleDto {
   @IsString()
   @MaxLength(100)
   correoRepresentante?: string;
+
+  @ApiPropertyOptional({ example: 19.4326 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lat?: number;
+
+  @ApiPropertyOptional({ example: -99.1332 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lng?: number;
 
   @ApiPropertyOptional({
     description:

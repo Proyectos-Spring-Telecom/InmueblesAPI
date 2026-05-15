@@ -27,6 +27,7 @@ import { AiToolsModule } from './ai-tools/ai-tools.module';
 import { ChatModule } from './chat/chat.module';
 import { InmueblesModule } from './inmuebles/inmuebles.module';
 import { ArrendatariosModule } from './arrendatarios/arrendatarios.module';
+import { NotificacionesModule } from './notificaciones/notificaciones.module';
 import Joi from 'joi';
 import { join } from 'path';
 
@@ -100,6 +101,7 @@ import { join } from 'path';
     CatServiciosModule,
     InmueblesModule,
     ArrendatariosModule,
+    NotificacionesModule,
     ReportesModule,
     PdfOcrModule,
     AiToolsModule,

@@ -43,6 +43,8 @@ export class InmueblesService {
     private readonly s3Service: S3Service,
     @InjectRepository(Inmuebles)
     private readonly inmueblesRepository: Repository<Inmuebles>,
+    @InjectRepository(ZonasInmuebles)
+    private readonly zonasRepository: Repository<ZonasInmuebles>,
   ) {}
 
   /**
@@ -68,6 +70,8 @@ export class InmueblesService {
         nombreRepresentante: dto.nombreRepresentante ?? null,
         telefonoRepresentante: dto.telefonoRepresentante ?? null,
         correoRepresentante: dto.correoRepresentante ?? null,
+        lat: dto.lat ?? null,
+        lng: dto.lng ?? null,
       });
       const savedInmueble = await manager.save(Inmuebles, inmueble);
       const idInmueble = Number(savedInmueble.id);
@@ -172,6 +176,22 @@ export class InmueblesService {
       throw new NotFoundException(`Inmueble con id ${id} no encontrado.`);
     }
     return data;
+  }
+
+  /** Inmuebles de un arrendador (Cliente) con todas sus relaciones. */
+  async findByIdArrendador(idArrendador: number) {
+    return this.inmueblesRepository.find({
+      where: { idArrendador },
+      relations: FULL_RELATIONS,
+      order: { id: "DESC" },
+    });
+  }
+
+  async findZonasByIdInmueble(idInmueble: number) {
+    return this.zonasRepository.find({
+      where: { idInmueble },
+      order: { numeroZona: "ASC", id: "ASC" },
+    });
   }
 
   /**

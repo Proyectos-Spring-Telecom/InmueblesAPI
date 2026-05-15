@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
 import { NotificacionesService } from "./notificaciones.service";
 
-@ApiTags("notificaciones")
+@ApiTags("Notificaciones")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth("access-token")
 @Controller("notificaciones")

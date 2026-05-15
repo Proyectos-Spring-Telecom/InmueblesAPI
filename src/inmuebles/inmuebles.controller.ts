@@ -61,9 +61,8 @@ export class InmueblesController {
   @ApiOperation({
     summary: "Registrar inmueble (Inmuebles + Servicios + Zonas + Archivos).",
     description:
-      "FormData con notación anidada. Ej: servicios[0].idTipoServicio, " +
-      "servicios[0].archivo (FILE), archivos[0].nombre, archivos[0].archivo (FILE), " +
-      "imagenes[0].nombre, imagenes[0].archivo (FILE), zonas[0].zonaPrincipal, etc.",
+      "Campos planos: inmueble, idArrendador, lat, lng, direccionFiscal, etc. " +
+      "Arrays: servicios[0].*, archivos[0].nombre/archivo, imagenes[0].*, zonas[0].*, etc.",
   })
   async registrar(
     @Req() req: any,
@@ -101,6 +100,24 @@ export class InmueblesController {
     @Query("limit", ParseIntPipe) limit: number,
   ) {
     return this.inmueblesService.findAllPaginated(page, limit);
+  }
+
+  @Get("arrendador/:idArrendador")
+  @ApiOperation({
+    summary: "Listar inmuebles por idArrendador (con todas sus relaciones).",
+  })
+  findByIdArrendador(
+    @Param("idArrendador", ParseIntPipe) idArrendador: number,
+  ) {
+    return this.inmueblesService.findByIdArrendador(idArrendador);
+  }
+
+  @Get("zonas/:idInmueble")
+  @ApiOperation({ summary: "Listar zonas de un inmueble por idInmueble." })
+  findZonasByIdInmueble(
+    @Param("idInmueble", ParseIntPipe) idInmueble: number,
+  ) {
+    return this.inmueblesService.findZonasByIdInmueble(idInmueble);
   }
 
   @Get(":id")

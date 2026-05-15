@@ -12,7 +12,7 @@ import {
   ValidateNested,
 } from "class-validator";
 
-/** JSON en el campo FormData `arrendatario` (sin id, fhRegistro ni estatus). */
+/** JSON en el campo FormData `arrendatario` (sin id, fhRegistro ni estatus; incluye lat/lng). */
 export class ArrendatarioJsonDto {
   @ApiPropertyOptional({ example: "Empresa Arrendataria SA" })
   @IsOptional()
@@ -70,6 +70,18 @@ export class ArrendatarioJsonDto {
   @IsString()
   @MaxLength(100)
   correoRepresentante?: string;
+
+  @ApiPropertyOptional({ example: 19.4326 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lat?: number;
+
+  @ApiPropertyOptional({ example: -99.1332 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  lng?: number;
 }
 
 /** JSON en el campo FormData `contratoArrendatario` (sin id, idArrendatario, fhRegistro ni estatus). */
@@ -259,7 +271,22 @@ export class RegistrarArrendatarioFormDto {
   @ApiProperty({
     type: () => ArrendatarioJsonDto,
     description:
-      "En FormData enviar como JSON string; el servidor lo parsea antes de validar.",
+      "En FormData enviar como JSON string; el servidor lo parsea antes de validar. " +
+      "Todos los campos de Arrendatarios (más lat/lng); ver schema ArrendatarioJsonDto.",
+    example: {
+      idArrendador: 1,
+      arrendatario: "Empresa ACME",
+      tipoPersona: 1,
+      renta: 12000.5,
+      fechaInicio: "2026-01-01",
+      fechaFin: "2027-01-01",
+      tiempoRenta: "12",
+      representanteLegal: "Juan Pérez",
+      telefonoRepresentante: "5551234567",
+      correoRepresentante: "contacto@empresa.com",
+      lat: 19.4326,
+      lng: -99.1332,
+    },
   })
   @ValidateNested()
   @Type(() => ArrendatarioJsonDto)

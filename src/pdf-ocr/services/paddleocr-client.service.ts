@@ -8,7 +8,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import FormData from 'form-data';
-import { AxiosError } from 'axios';
+import { AxiosError, type AxiosResponse } from 'axios';
 import type { IneData } from '../interfaces/ine-data.interface';
 
 export interface PaddleOcrIneResponse {
@@ -63,7 +63,7 @@ export class PaddleOcrClientService {
     form.append('reverso', reverso, { filename: fileNames.reverso });
 
     try {
-      const response = await firstValueFrom(
+      const response = await firstValueFrom<AxiosResponse<PaddleOcrIneResponse>>(
         this.httpService.post<PaddleOcrIneResponse>(url, form, {
           headers: form.getHeaders(),
           timeout: this.timeoutMs,

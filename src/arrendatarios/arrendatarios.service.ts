@@ -134,7 +134,7 @@ export class ArrendatariosService {
       if (dto.contratoArrendatario) {
         const c = dto.contratoArrendatario;
         const contrato = manager.create(ContratoArrendatarios, {
-          idArrendatario,
+          idArrendatario:idArrendatario ?? null,
           idInmueble: c.idInmueble ?? null,
           fechaInicioContrato: c.fechaInicioContrato
             ? new Date(c.fechaInicioContrato)

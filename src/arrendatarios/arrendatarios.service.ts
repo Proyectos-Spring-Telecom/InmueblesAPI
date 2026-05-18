@@ -51,6 +51,28 @@ export class ArrendatariosService {
     private readonly arrendatariosRepository: Repository<Arrendatarios>,
   ) {}
 
+  async findByIdInmueble(idInmueble: number): Promise<Arrendatarios[]> {
+    const idRows = await this.arrendatariosRepository
+      .createQueryBuilder("a")
+      .select("a.id", "id")
+      .distinct(true)
+      .innerJoin("a.contratos", "contrato")
+      .where("contrato.idInmueble = :idInmueble", { idInmueble })
+      .orderBy("a.id", "DESC")
+      .getRawMany<{ id: string }>();
+
+    if (idRows.length === 0) {
+      return [];
+    }
+
+    const ids = idRows.map((r) => Number(r.id));
+    return this.arrendatariosRepository.find({
+      where: { id: In(ids) },
+      relations: [...FULL_RELATIONS],
+      order: { id: "DESC" },
+    });
+  }
+
   async findOne(id: number): Promise<Arrendatarios> {
     const row = await this.arrendatariosRepository.findOne({
       where: { id },

@@ -4,10 +4,15 @@ import { ClientesController } from './clientes.controller';
 import { BitacoraModule } from 'src/bitacora/bitacora.module';
 import { S3Module } from 'src/s3/s3.module';
 import { Clientes } from 'src/entities/Clientes';
+import { SociosArrendadores } from 'src/entities/SociosArrendadores';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Clientes]), BitacoraModule, S3Module],
+  imports: [
+    TypeOrmModule.forFeature([Clientes, SociosArrendadores]),
+    BitacoraModule,
+    S3Module,
+  ],
   controllers: [ClientesController],
   providers: [ClientesService],
   exports: [ClientesService]

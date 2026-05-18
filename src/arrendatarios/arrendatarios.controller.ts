@@ -45,6 +45,15 @@ export class ArrendatariosController {
     return this.arrendatariosService.findAllPaginated(page, limit);
   }
 
+  @Get("inmueble/:idInmueble")
+  @ApiOperation({
+    summary:
+      "Listar arrendatarios por idInmueble (vía ContratoArrendatarios).",
+  })
+  findByIdInmueble(@Param("idInmueble", ParseIntPipe) idInmueble: number) {
+    return this.arrendatariosService.findByIdInmueble(idInmueble);
+  }
+
   @Get(":id")
   @ApiOperation({
     summary: "Obtener arrendatario por ID (con relaciones).",

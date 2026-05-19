@@ -14,7 +14,9 @@ import {
   CLIENTE_ARCHIVO_FIELDS,
   ClienteArchivoField,
 } from './cliente-archivos.constants';
+import { resolveEntityId } from 'src/common/resolve-entity-id';
 import { SocioArrendadorItemDto } from './dto/socio-arrendador-item.dto';
+import { UpdateSocioArrendadorDto } from './dto/update-socio-arrendador.dto';
 
 const FOLDER_SOCIO_CONST = 'Socios Arrendadores/ConstanciaSituacionFiscal';
 const FOLDER_SOCIO_COMP = 'Socios Arrendadores/ComprobanteDomicilio';
@@ -62,13 +64,15 @@ export class ClientesService {
     }
   }
 
-  private extractSociosPayload(dto: CreateClienteDto | UpdateClienteDto) {
-    const socios = dto.socios ?? [];
+  private extractSociosPayload(
+    dto: CreateClienteDto | UpdateClienteDto,
+  ): UpdateSocioArrendadorDto[] {
+    const socios = (dto.socios ?? []) as UpdateSocioArrendadorDto[];
     delete dto.socios;
     return socios;
   }
 
-  private sociosResumenBitacora(socios: SocioArrendadorItemDto[]) {
+  private sociosResumenBitacora(socios: UpdateSocioArrendadorDto[]) {
     return socios.map((s) => ({
       nombre: s.nombre,
       rfc: s.rfc ?? null,
@@ -78,23 +82,28 @@ export class ClientesService {
     }));
   }
 
-  private async guardarSocioArrendador(
-    socio: SocioArrendadorItemDto,
-    idCliente: number,
-    idUser: number,
-    manager?: import('typeorm').EntityManager,
-  ): Promise<{ id: number; nombre: string }> {
-    const repo = manager
-      ? manager.getRepository(SociosArrendadores)
-      : this.sociosArrendadoresRepository;
+  private buildSocioArrendadorPatch(
+    socio: UpdateSocioArrendadorDto,
+  ): Partial<SociosArrendadores> {
+    const patch: Partial<SociosArrendadores> = {};
+    if (socio.nombre !== undefined) {
+      patch.nombre = socio.nombre ?? null;
+    }
+    if (socio.rfc !== undefined) {
+      patch.rfc = socio.rfc ?? null;
+    }
+    return patch;
+  }
 
-    let urlConst: string | null = null;
-    let urlComp: string | null = null;
-    let urlId: string | null = null;
+  private async uploadSocioArrendadorDocumentos(
+    socio: UpdateSocioArrendadorDto,
+    idUser: number,
+  ): Promise<Partial<SociosArrendadores>> {
+    const patch: Partial<SociosArrendadores> = {};
 
     const fConst = this.getMulterFile(socio.constanciaFiscalArchivo);
     if (fConst) {
-      urlConst = (
+      patch.constanciaSituacionFiscal = (
         await this.s3Service.uploadFile(
           fConst,
           FOLDER_SOCIO_CONST,
@@ -103,9 +112,10 @@ export class ClientesService {
         )
       ).url;
     }
+
     const fComp = this.getMulterFile(socio.comprobanteDomicilioArchivo);
     if (fComp) {
-      urlComp = (
+      patch.comprobanteDomicilio = (
         await this.s3Service.uploadFile(
           fComp,
           FOLDER_SOCIO_COMP,
@@ -114,34 +124,105 @@ export class ClientesService {
         )
       ).url;
     }
+
     const fId = this.getMulterFile(socio.identificacionOficialArchivo);
     if (fId) {
-      urlId = (
+      patch.identificacionOficial = (
         await this.s3Service.uploadFile(fId, FOLDER_SOCIO_ID, idUser, ID_MODULE)
       ).url;
+    }
+
+    return patch;
+  }
+
+  private async upsertSocioArrendador(
+    socio: UpdateSocioArrendadorDto,
+    idCliente: number,
+    idUser: number,
+    manager: import('typeorm').EntityManager | undefined,
+    upsert: boolean,
+  ): Promise<{ id: number; nombre: string }> {
+    const repo = manager
+      ? manager.getRepository(SociosArrendadores)
+      : this.sociosArrendadoresRepository;
+
+    const entityId = upsert ? resolveEntityId(socio.id) : undefined;
+    const filePatch = await this.uploadSocioArrendadorDocumentos(socio, idUser);
+
+    if (entityId !== undefined) {
+      const existing = await repo.findOne({
+        where: { id: entityId, idCliente },
+      });
+      if (!existing) {
+        throw new BadRequestException(
+          `Socio con id ${entityId} no pertenece al cliente ${idCliente}.`,
+        );
+      }
+      const patch = {
+        ...this.buildSocioArrendadorPatch(socio),
+        ...filePatch,
+      };
+      if (Object.keys(patch).length > 0) {
+        await repo.update(entityId, patch);
+      }
+      const updated = await repo.findOne({ where: { id: entityId } });
+      return {
+        id: entityId,
+        nombre: updated?.nombre ?? existing.nombre ?? '',
+      };
+    }
+
+    if (!socio.nombre?.trim()) {
+      throw new BadRequestException(
+        'Para crear un socio nuevo se requiere nombre.',
+      );
     }
 
     const row = repo.create({
       idCliente,
       nombre: socio.nombre,
       rfc: socio.rfc ?? null,
-      constanciaSituacionFiscal: urlConst,
-      comprobanteDomicilio: urlComp,
-      identificacionOficial: urlId,
+      constanciaSituacionFiscal: filePatch.constanciaSituacionFiscal ?? null,
+      comprobanteDomicilio: filePatch.comprobanteDomicilio ?? null,
+      identificacionOficial: filePatch.identificacionOficial ?? null,
     });
     const saved = await repo.save(row);
     return { id: Number(saved.id), nombre: socio.nombre };
   }
 
   private async appendSociosArrendadores(
-    socios: SocioArrendadorItemDto[],
+    socios: SocioArrendadorItemDto[] | UpdateSocioArrendadorDto[],
     idCliente: number,
     idUser: number,
     manager?: import('typeorm').EntityManager,
   ): Promise<{ id: number; nombre: string }[]> {
+    return this.upsertSociosArrendadores(
+      socios as UpdateSocioArrendadorDto[],
+      idCliente,
+      idUser,
+      manager,
+      false,
+    );
+  }
+
+  private async upsertSociosArrendadores(
+    socios: UpdateSocioArrendadorDto[],
+    idCliente: number,
+    idUser: number,
+    manager?: import('typeorm').EntityManager,
+    upsert = true,
+  ): Promise<{ id: number; nombre: string }[]> {
     const out: { id: number; nombre: string }[] = [];
     for (const socio of socios) {
-      out.push(await this.guardarSocioArrendador(socio, idCliente, idUser, manager));
+      out.push(
+        await this.upsertSocioArrendador(
+          socio,
+          idCliente,
+          idUser,
+          manager,
+          upsert,
+        ),
+      );
     }
     return out;
   }
@@ -572,7 +653,7 @@ ORDER BY Id ASC;
       await this.clienteRepository.update(id, clienteData);
 
       if (socios.length > 0) {
-        await this.appendSociosArrendadores(socios, id, idUser);
+        await this.upsertSociosArrendadores(socios, id, idUser);
       }
 
       //-----Registro en la bitacora----- SUCCESS

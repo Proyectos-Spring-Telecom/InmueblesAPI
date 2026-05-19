@@ -139,7 +139,7 @@ export class ClientesController {
   @ApiOperation({
     summary: "Actualizar información completa del cliente",
     description:
-      "Actualiza el cliente y puede adjuntar nuevos socios en socios[i].* (append). " +
+      "Actualiza el cliente. socios[i].id actualiza socio existente; sin id crea uno nuevo. " +
       "Archivos del cliente y documentos de socios se suben a S3.",
   })
   @ApiParam({
@@ -152,7 +152,7 @@ export class ClientesController {
   @ApiBody({
     type: UpdateClienteDto,
     description:
-      "Campos opcionales del cliente, archivos y socios[i].* para agregar socios.",
+      "Campos opcionales del cliente, archivos y socios[i].* (con id actualiza, sin id crea).",
   })
   async updateCliente(
     @Param("id") id: string,

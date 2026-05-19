@@ -3,32 +3,202 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { BitacoraService } from 'src/bitacora/bitacora.service';
 import { S3Service } from 'src/s3/s3.service';
 import { Clientes } from 'src/entities/Clientes';
-import { Repository } from 'typeorm';
+import { SociosArrendadores } from 'src/entities/SociosArrendadores';
+import { DataSource, In, Repository } from 'typeorm';
 import { CreateClienteDto } from './dto/create-cliente.dto';
 import { ApiCrudResponse, ApiResponseCommon, EstatusEnumBitcora } from 'src/common/ApiResponse';
 import { UpdateClienteDto } from './dto/update-cliente.dto';
 import { UpdateClienteEstatusDto } from './dto/update-cliente-estatus.dto';
 import { getClienteHijos, getClienteHijosPag } from 'src/utils/cliente-utils';
+import {
+  CLIENTE_ARCHIVO_FIELDS,
+  ClienteArchivoField,
+} from './cliente-archivos.constants';
+import { SocioArrendadorItemDto } from './dto/socio-arrendador-item.dto';
+
+const FOLDER_SOCIO_CONST = 'Socios Arrendadores/ConstanciaSituacionFiscal';
+const FOLDER_SOCIO_COMP = 'Socios Arrendadores/ComprobanteDomicilio';
+const FOLDER_SOCIO_ID = 'Socios Arrendadores/IdentificacionOficial';
+const ID_MODULE = 1;
 
 @Injectable()
 export class ClientesService {
     constructor(
+    private readonly dataSource: DataSource,
     @InjectRepository(Clientes)
     private readonly clienteRepository: Repository<Clientes>,
+    @InjectRepository(SociosArrendadores)
+    private readonly sociosArrendadoresRepository: Repository<SociosArrendadores>,
     private readonly bitacoraLogger: BitacoraService,
     private readonly s3Service: S3Service,
   ) {}
-  //Crear cliente
+
+  private getMulterFile(value: unknown): Express.Multer.File | undefined {
+    if (!value) return undefined;
+    if (Array.isArray(value)) return value[0];
+    if (typeof value === 'object' && 'buffer' in (value as object)) {
+      return value as Express.Multer.File;
+    }
+    return undefined;
+  }
+
+  private async applyClienteArchivos(
+    dto: CreateClienteDto | UpdateClienteDto,
+    idUser: number,
+  ): Promise<void> {
+    for (const field of CLIENTE_ARCHIVO_FIELDS) {
+      const file = this.getMulterFile((dto as Record<string, unknown>)[field]);
+      if (file) {
+        const uploadResult = await this.s3Service.uploadFile(
+          file,
+          'Clientes',
+          idUser,
+          ID_MODULE,
+        );
+        (dto as Record<string, unknown>)[field] = uploadResult.url;
+      } else {
+        delete (dto as Record<string, unknown>)[field];
+      }
+    }
+  }
+
+  private extractSociosPayload(dto: CreateClienteDto | UpdateClienteDto) {
+    const socios = dto.socios ?? [];
+    delete dto.socios;
+    return socios;
+  }
+
+  private sociosResumenBitacora(socios: SocioArrendadorItemDto[]) {
+    return socios.map((s) => ({
+      nombre: s.nombre,
+      rfc: s.rfc ?? null,
+      constanciaFiscalArchivo: s.constanciaFiscalArchivo ? 'Sí' : 'No',
+      comprobanteDomicilioArchivo: s.comprobanteDomicilioArchivo ? 'Sí' : 'No',
+      identificacionOficialArchivo: s.identificacionOficialArchivo ? 'Sí' : 'No',
+    }));
+  }
+
+  private async guardarSocioArrendador(
+    socio: SocioArrendadorItemDto,
+    idCliente: number,
+    idUser: number,
+    manager?: import('typeorm').EntityManager,
+  ): Promise<{ id: number; nombre: string }> {
+    const repo = manager
+      ? manager.getRepository(SociosArrendadores)
+      : this.sociosArrendadoresRepository;
+
+    let urlConst: string | null = null;
+    let urlComp: string | null = null;
+    let urlId: string | null = null;
+
+    const fConst = this.getMulterFile(socio.constanciaFiscalArchivo);
+    if (fConst) {
+      urlConst = (
+        await this.s3Service.uploadFile(
+          fConst,
+          FOLDER_SOCIO_CONST,
+          idUser,
+          ID_MODULE,
+        )
+      ).url;
+    }
+    const fComp = this.getMulterFile(socio.comprobanteDomicilioArchivo);
+    if (fComp) {
+      urlComp = (
+        await this.s3Service.uploadFile(
+          fComp,
+          FOLDER_SOCIO_COMP,
+          idUser,
+          ID_MODULE,
+        )
+      ).url;
+    }
+    const fId = this.getMulterFile(socio.identificacionOficialArchivo);
+    if (fId) {
+      urlId = (
+        await this.s3Service.uploadFile(fId, FOLDER_SOCIO_ID, idUser, ID_MODULE)
+      ).url;
+    }
+
+    const row = repo.create({
+      idCliente,
+      nombre: socio.nombre,
+      rfc: socio.rfc ?? null,
+      constanciaSituacionFiscal: urlConst,
+      comprobanteDomicilio: urlComp,
+      identificacionOficial: urlId,
+    });
+    const saved = await repo.save(row);
+    return { id: Number(saved.id), nombre: socio.nombre };
+  }
+
+  private async appendSociosArrendadores(
+    socios: SocioArrendadorItemDto[],
+    idCliente: number,
+    idUser: number,
+    manager?: import('typeorm').EntityManager,
+  ): Promise<{ id: number; nombre: string }[]> {
+    const out: { id: number; nombre: string }[] = [];
+    for (const socio of socios) {
+      out.push(await this.guardarSocioArrendador(socio, idCliente, idUser, manager));
+    }
+    return out;
+  }
+
+  private async attachSociosArrendadores<T extends { id: number }>(
+    clientes: T[],
+  ): Promise<(T & { sociosArrendadores: SociosArrendadores[] })[]> {
+    if (clientes.length === 0) return [];
+
+    const ids = clientes.map((c) => c.id);
+    const socios = await this.sociosArrendadoresRepository.find({
+      where: { idCliente: In(ids) },
+      order: { id: 'ASC' },
+    });
+
+    const byCliente = new Map<number, SociosArrendadores[]>();
+    for (const socio of socios) {
+      const key = Number(socio.idCliente);
+      const list = byCliente.get(key) ?? [];
+      list.push(socio);
+      byCliente.set(key, list);
+    }
+
+    return clientes.map((c) => ({
+      ...c,
+      sociosArrendadores: byCliente.get(c.id) ?? [],
+    }));
+  }
+
+  private omitClienteArchivos(
+    dto: CreateClienteDto | UpdateClienteDto,
+  ): Omit<CreateClienteDto, ClienteArchivoField> {
+    const copy = { ...dto } as Record<string, unknown>;
+    for (const field of CLIENTE_ARCHIVO_FIELDS) {
+      delete copy[field];
+    }
+    return copy as Omit<CreateClienteDto, ClienteArchivoField>;
+  }
+
+  private archivosSubidosFlags(
+    dto: CreateClienteDto | UpdateClienteDto,
+  ): Record<ClienteArchivoField, string> {
+    const record = dto as Record<string, unknown>;
+    return Object.fromEntries(
+      CLIENTE_ARCHIVO_FIELDS.map((field) => [
+        field,
+        record[field] ? 'Sí' : 'No',
+      ]),
+    ) as Record<ClienteArchivoField, string>;
+  }
+
   async createCliente(
     createClienteDto: CreateClienteDto,
     idUser: number,
-    files?: {
-      logotipo?: Express.Multer.File[];
-      constanciaSituacionFiscal?: Express.Multer.File[];
-      comprobanteDomicilio?: Express.Multer.File[];
-      actaConstitutiva?: Express.Multer.File[];
-    },
   ): Promise<ApiCrudResponse> {
+    const socios = this.extractSociosPayload(createClienteDto);
+
     try {
       const clienteCreate = await this.clienteRepository.findOne({
         where: {
@@ -41,52 +211,32 @@ export class ClientesService {
         );
       }
 
-      // Subir archivos a S3 si existen
-      if (files?.logotipo && files.logotipo[0]) {
-        const uploadResult = await this.s3Service.uploadFile(files.logotipo[0], 'Clientes', idUser, 1);
-        createClienteDto.logotipo = uploadResult.url;
-      } else {
-        // Limpiar el campo si no se subió archivo (puede venir como objeto o string vacío desde form-data)
-        delete createClienteDto.logotipo;
-      }
-      
-      if (files?.constanciaSituacionFiscal && files.constanciaSituacionFiscal[0]) {
-        const uploadResult = await this.s3Service.uploadFile(files.constanciaSituacionFiscal[0], 'Clientes', idUser, 1);
-        createClienteDto.constanciaSituacionFiscal = uploadResult.url;
-      } else {
-        delete createClienteDto.constanciaSituacionFiscal;
-      }
-      
-      if (files?.comprobanteDomicilio && files.comprobanteDomicilio[0]) {
-        const uploadResult = await this.s3Service.uploadFile(files.comprobanteDomicilio[0], 'Clientes', idUser, 1);
-        createClienteDto.comprobanteDomicilio = uploadResult.url;
-      } else {
-        delete createClienteDto.comprobanteDomicilio;
-      }
-      
-      if (files?.actaConstitutiva && files.actaConstitutiva[0]) {
-        const uploadResult = await this.s3Service.uploadFile(files.actaConstitutiva[0], 'Clientes', idUser, 1);
-        createClienteDto.actaConstitutiva = uploadResult.url;
-      } else {
-        delete createClienteDto.actaConstitutiva;
-      }
+      await this.applyClienteArchivos(createClienteDto, idUser);
 
-      const clienteData = await this.clienteRepository.create(createClienteDto);
-      const clienteCreado = await this.clienteRepository.save(clienteData);
+      const clienteCreado = await this.dataSource.transaction(async (manager) => {
+        const clienteData = manager.create(Clientes, createClienteDto);
+        const saved = await manager.save(Clientes, clienteData);
+        const idCliente = Number(saved.id);
+
+        if (socios.length > 0) {
+          await this.appendSociosArrendadores(
+            socios,
+            idCliente,
+            idUser,
+            manager,
+          );
+        }
+        return saved;
+      });
 
       //-----Registro en la bitacora----- SUCCESS
-      // Excluir campos de archivo (URLs largas) para evitar exceder el límite del campo Query
-      const { logotipo, constanciaSituacionFiscal, comprobanteDomicilio, actaConstitutiva, ...clienteDtoSinArchivos } = createClienteDto;
-      // Convertir a objeto plano para evitar problemas de serialización
-      const querylogger = JSON.parse(JSON.stringify({ 
-        createClienteDto: clienteDtoSinArchivos,
-        archivosSubidos: {
-          logotipo: logotipo ? 'Sí' : 'No',
-          constanciaSituacionFiscal: constanciaSituacionFiscal ? 'Sí' : 'No',
-          comprobanteDomicilio: comprobanteDomicilio ? 'Sí' : 'No',
-          actaConstitutiva: actaConstitutiva ? 'Sí' : 'No',
-        }
-      }));
+      const querylogger = JSON.parse(
+        JSON.stringify({
+          createClienteDto: this.omitClienteArchivos(createClienteDto),
+          archivosSubidos: this.archivosSubidosFlags(createClienteDto),
+          socios: this.sociosResumenBitacora(socios),
+        }),
+      );
       await this.bitacoraLogger.logToBitacora(
         'Clientes',
         `Cliente creado correctamente con RFC: ${createClienteDto.rfc}.`,
@@ -110,18 +260,13 @@ export class ClientesService {
       return result;
     } catch (error) {
       //-----Registro en la bitacora----- ERROR
-      // Excluir campos de archivo (URLs largas) para evitar exceder el límite del campo Query
-      const { logotipo, constanciaSituacionFiscal, comprobanteDomicilio, actaConstitutiva, ...clienteDtoSinArchivos } = createClienteDto;
-      // Convertir a objeto plano para evitar problemas de serialización
-      const querylogger = JSON.parse(JSON.stringify({ 
-        createClienteDto: clienteDtoSinArchivos,
-        archivosSubidos: {
-          logotipo: logotipo ? 'Sí' : 'No',
-          constanciaSituacionFiscal: constanciaSituacionFiscal ? 'Sí' : 'No',
-          comprobanteDomicilio: comprobanteDomicilio ? 'Sí' : 'No',
-          actaConstitutiva: actaConstitutiva ? 'Sí' : 'No',
-        }
-      }));
+      const querylogger = JSON.parse(
+        JSON.stringify({
+          createClienteDto: this.omitClienteArchivos(createClienteDto),
+          archivosSubidos: this.archivosSubidosFlags(createClienteDto),
+          socios: this.sociosResumenBitacora(socios),
+        }),
+      );
       await this.bitacoraLogger.logToBitacora(
         'Clientes',
         `Error al crear cliente con RFC: ${createClienteDto.rfc}.`,
@@ -186,7 +331,13 @@ SELECT
   ComprobanteDomicilio AS comprobanteDomicilio,
   ActaConstitutiva AS actaConstitutiva,
   Logotipo AS logotipo,
-  Estatus AS estatus
+  Estatus AS estatus,
+  LicenciaFuncionamiento AS licenciaFuncionamiento,
+  ConstanciaProteccionCivil AS constanciaProteccionCivil,
+  UsoSuelo AS usoSuelo,
+  PlanoCatastral AS planoCatastral,
+  PoderRepresentanteLegal AS poderRepresentanteLegal,
+  IneRepresentanteLegal AS ineRepresentanteLegal
   
 FROM Clientes
 ORDER BY Id ASC
@@ -239,7 +390,13 @@ SELECT
   ComprobanteDomicilio AS comprobanteDomicilio,
   ActaConstitutiva AS actaConstitutiva,
   Logotipo AS logotipo,
-  Estatus AS estatus
+  Estatus AS estatus,
+  LicenciaFuncionamiento AS licenciaFuncionamiento,
+  ConstanciaProteccionCivil AS constanciaProteccionCivil,
+  UsoSuelo AS usoSuelo,
+  PlanoCatastral AS planoCatastral,
+  PoderRepresentanteLegal AS poderRepresentanteLegal,
+  IneRepresentanteLegal AS ineRepresentanteLegal
   
 FROM Clientes
 WHERE Id IN (${placeholders})   -- 🔹 aquí colocas el ID del cliente que quieres consultar
@@ -264,11 +421,12 @@ ORDER BY Id ASC
           break;
       }
 
-      // 🔥 Forzamos ids a number y agregamos nombreCompleto
-      const data = clientes.map((item) => ({
-        ...item,
-        id: Number(item.id),
-      }));
+      const data = await this.attachSociosArrendadores(
+        clientes.map((item) => ({
+          ...item,
+          id: Number(item.id),
+        })),
+      );
 
       const total = Number(totalResult[0]?.total || 0);
 
@@ -372,6 +530,7 @@ ORDER BY Id ASC;
     try {
       const cliente = await this.clienteRepository.findOne({
         where: { id: id },
+        relations: ['sociosArrendadores'],
       });
       if (!cliente) {
         throw new NotFoundException(
@@ -394,13 +553,9 @@ ORDER BY Id ASC;
     id: number,
     idUser: number,
     updateClienteDto: UpdateClienteDto,
-    files?: {
-      logotipo?: Express.Multer.File[];
-      constanciaSituacionFiscal?: Express.Multer.File[];
-      comprobanteDomicilio?: Express.Multer.File[];
-      actaConstitutiva?: Express.Multer.File[];
-    },
   ): Promise<ApiCrudResponse> {
+    const socios = this.extractSociosPayload(updateClienteDto);
+
     try {
       const Cliente = await this.clienteRepository.findOne({
         where: { id: id },
@@ -411,52 +566,23 @@ ORDER BY Id ASC;
         );
       }
 
-      // Subir archivos a S3 si existen (solo actualizar si se envía un nuevo archivo)
-      if (files?.logotipo && files.logotipo[0]) {
-        const uploadResult = await this.s3Service.uploadFile(files.logotipo[0], 'Clientes', idUser, 1);
-        updateClienteDto.logotipo = uploadResult.url;
-      } else {
-        // Limpiar el campo si no se subió archivo (puede venir como objeto o string vacío desde form-data)
-        delete updateClienteDto.logotipo;
-      }
-      
-      if (files?.constanciaSituacionFiscal && files.constanciaSituacionFiscal[0]) {
-        const uploadResult = await this.s3Service.uploadFile(files.constanciaSituacionFiscal[0], 'Clientes', idUser, 1);
-        updateClienteDto.constanciaSituacionFiscal = uploadResult.url;
-      } else {
-        delete updateClienteDto.constanciaSituacionFiscal;
-      }
-      
-      if (files?.comprobanteDomicilio && files.comprobanteDomicilio[0]) {
-        const uploadResult = await this.s3Service.uploadFile(files.comprobanteDomicilio[0], 'Clientes', idUser, 1);
-        updateClienteDto.comprobanteDomicilio = uploadResult.url;
-      } else {
-        delete updateClienteDto.comprobanteDomicilio;
-      }
-      
-      if (files?.actaConstitutiva && files.actaConstitutiva[0]) {
-        const uploadResult = await this.s3Service.uploadFile(files.actaConstitutiva[0], 'Clientes', idUser, 1);
-        updateClienteDto.actaConstitutiva = uploadResult.url;
-      } else {
-        delete updateClienteDto.actaConstitutiva;
-      }
+      await this.applyClienteArchivos(updateClienteDto, idUser);
 
       const clienteData = await this.clienteRepository.create(updateClienteDto);
       await this.clienteRepository.update(id, clienteData);
 
+      if (socios.length > 0) {
+        await this.appendSociosArrendadores(socios, id, idUser);
+      }
+
       //-----Registro en la bitacora----- SUCCESS
-      // Excluir campos de archivo (URLs largas) para evitar exceder el límite del campo Query
-      const { logotipo, constanciaSituacionFiscal, comprobanteDomicilio, actaConstitutiva, ...clienteDtoSinArchivos } = updateClienteDto;
-      // Convertir a objeto plano para evitar problemas de serialización
-      const querylogger = JSON.parse(JSON.stringify({ 
-        updateClienteDto: clienteDtoSinArchivos,
-        archivosSubidos: {
-          logotipo: logotipo ? 'Sí' : 'No',
-          constanciaSituacionFiscal: constanciaSituacionFiscal ? 'Sí' : 'No',
-          comprobanteDomicilio: comprobanteDomicilio ? 'Sí' : 'No',
-          actaConstitutiva: actaConstitutiva ? 'Sí' : 'No',
-        }
-      }));
+      const querylogger = JSON.parse(
+        JSON.stringify({
+          updateClienteDto: this.omitClienteArchivos(updateClienteDto),
+          archivosSubidos: this.archivosSubidosFlags(updateClienteDto),
+          socios: this.sociosResumenBitacora(socios),
+        }),
+      );
       await this.bitacoraLogger.logToBitacora(
         'Clientes',
         `Cliente con ID: ${id} actualizado correctamente.`,
@@ -470,6 +596,7 @@ ORDER BY Id ASC;
       //Hacemos un expose que convierta los atributos en PascalCase
       const clientefind = await this.clienteRepository.findOne({
         where: { id: id },
+        relations: ['sociosArrendadores'],
       });
       //Api response
       const result: ApiCrudResponse = {
@@ -484,18 +611,13 @@ ORDER BY Id ASC;
       return result;
     } catch (error) {
       //-----Registro en la bitacora----- ERROR
-      // Excluir campos de archivo (URLs largas) para evitar exceder el límite del campo Query
-      const { logotipo, constanciaSituacionFiscal, comprobanteDomicilio, actaConstitutiva, ...clienteDtoSinArchivos } = updateClienteDto;
-      // Convertir a objeto plano para evitar problemas de serialización
-      const querylogger = JSON.parse(JSON.stringify({ 
-        updateClienteDto: clienteDtoSinArchivos,
-        archivosSubidos: {
-          logotipo: logotipo ? 'Sí' : 'No',
-          constanciaSituacionFiscal: constanciaSituacionFiscal ? 'Sí' : 'No',
-          comprobanteDomicilio: comprobanteDomicilio ? 'Sí' : 'No',
-          actaConstitutiva: actaConstitutiva ? 'Sí' : 'No',
-        }
-      }));
+      const querylogger = JSON.parse(
+        JSON.stringify({
+          updateClienteDto: this.omitClienteArchivos(updateClienteDto),
+          archivosSubidos: this.archivosSubidosFlags(updateClienteDto),
+          socios: this.sociosResumenBitacora(socios),
+        }),
+      );
       await this.bitacoraLogger.logToBitacora(
         'Clientes',
         `Error al actualizar cliente con ID: ${id}.`,

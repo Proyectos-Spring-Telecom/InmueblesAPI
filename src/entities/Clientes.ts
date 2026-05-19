@@ -14,6 +14,7 @@ import { Equipos } from "./Equipos";
 import { InstalacionCentral } from "./InstalacionCentral";
 import { InstalacionEquipo } from "./InstalacionEquipo";
 import { CatDepartamentos } from "./CatDepartamentos";
+import { SociosArrendadores } from "./SociosArrendadores";
 
 
 @Index("UQ_Clientes_RFC", ["rfc"], { unique: true })
@@ -119,6 +120,39 @@ export class Clientes {
   @Column("tinyint", { name: "Estatus", default: () => "'1'" })
   estatus: number;
 
+  @Column("varchar", {
+    name: "LicenciaFuncionamiento",
+    nullable: true,
+    length: 500,
+  })
+  licenciaFuncionamiento: string | null;
+
+  @Column("varchar", {
+    name: "ConstanciaProteccionCivil",
+    nullable: true,
+    length: 500,
+  })
+  constanciaProteccionCivil: string | null;
+
+  @Column("varchar", { name: "UsoSuelo", nullable: true, length: 500 })
+  usoSuelo: string | null;
+
+  @Column("varchar", { name: "PlanoCatastral", nullable: true, length: 500 })
+  planoCatastral: string | null;
+
+  @Column("varchar", {
+    name: "PoderRepresentanteLegal",
+    nullable: true,
+    length: 500,
+  })
+  poderRepresentanteLegal: string | null;
+
+  @Column("varchar", {
+    name: "IneRepresentanteLegal",
+    nullable: true,
+    length: 500,
+  })
+  ineRepresentanteLegal: string | null;
 
   @ManyToOne(() => Clientes, (clientes) => clientes.clientes, {
     onDelete: "NO ACTION",
@@ -145,4 +179,7 @@ export class Clientes {
 
   @OneToMany(() => CatDepartamentos, (departamento) => departamento.cliente)
   departamentos: CatDepartamentos[];
+
+  @OneToMany(() => SociosArrendadores, (socio) => socio.cliente)
+  sociosArrendadores: SociosArrendadores[];
 }

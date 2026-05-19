@@ -7,8 +7,11 @@ import {
   MaxLength,
   IsEmail,
   IsIn,
+  IsArray,
+  ValidateNested,
 } from "class-validator";
-import { Transform } from "class-transformer";
+import { Transform, Type } from "class-transformer";
+import { SocioArrendadorItemDto } from "./socio-arrendador-item.dto";
 
 export class CreateClienteDto {
   @IsOptional()
@@ -167,6 +170,80 @@ export class CreateClienteDto {
     required: false 
   })
   actaConstitutiva?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description:
+      "Licencia de funcionamiento (PNG, JPG, JPEG o PDF, máximo 10MB). Se subirá automáticamente a S3.",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  licenciaFuncionamiento?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description:
+      "Constancia de protección civil (PNG, JPG, JPEG o PDF, máximo 10MB). Se subirá automáticamente a S3.",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  constanciaProteccionCivil?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description:
+      "Uso de suelo (PNG, JPG, JPEG o PDF, máximo 10MB). Se subirá automáticamente a S3.",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  usoSuelo?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description:
+      "Plano catastral (PNG, JPG, JPEG o PDF, máximo 10MB). Se subirá automáticamente a S3.",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  planoCatastral?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description:
+      "Poder del representante legal (PNG, JPG, JPEG o PDF, máximo 10MB). Se subirá automáticamente a S3.",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  poderRepresentanteLegal?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description:
+      "INE del representante legal (PNG, JPG, JPEG o PDF, máximo 10MB). Se subirá automáticamente a S3.",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  ineRepresentanteLegal?: any;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => SocioArrendadorItemDto)
+  @ApiProperty({
+    type: [SocioArrendadorItemDto],
+    required: false,
+    description:
+      "Socios del arrendador. En FormData: socios[i].nombre, socios[i].rfc, " +
+      "socios[i].constanciaFiscalArchivo, socios[i].comprobanteDomicilioArchivo, " +
+      "socios[i].identificacionOficialArchivo",
+  })
+  socios?: SocioArrendadorItemDto[];
 
   // ⚡ Estatus
   @IsOptional()

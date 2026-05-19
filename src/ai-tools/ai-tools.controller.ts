@@ -59,4 +59,100 @@ export class AiToolsController {
   ) {
     return this.aiToolsService.getUsuariosByCliente(clienteId);
   }
+
+  // ─── INMUEBLES ───
+
+  @Get('inmuebles')
+  async getInmuebles(
+    @Query('idArrendador') idArrendador?: number,
+    @Query('estatus') estatus?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.aiToolsService.getInmuebles(idArrendador, estatus, limit);
+  }
+
+  @Get('inmuebles/:id')
+  async getInmuebleById(@Param('id', ParseIntPipe) id: number) {
+    return this.aiToolsService.getInmuebleById(id);
+  }
+
+  // ─── ARRENDATARIOS ───
+
+  @Get('arrendatarios')
+  async getArrendatarios(
+    @Query('idArrendador') idArrendador?: number,
+    @Query('estatus') estatus?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.aiToolsService.getArrendatarios(idArrendador, estatus, limit);
+  }
+
+  @Get('arrendatarios/:id')
+  async getArrendatarioById(@Param('id', ParseIntPipe) id: number) {
+    return this.aiToolsService.getArrendatarioById(id);
+  }
+
+  // ─── CONTRATOS ───
+
+  @Get('contratos')
+  async getContratos(
+    @Query('idArrendatario') idArrendatario?: number,
+    @Query('idInmueble') idInmueble?: number,
+    @Query('estatus') estatus?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.aiToolsService.getContratos(
+      idArrendatario,
+      idInmueble,
+      estatus,
+      limit,
+    );
+  }
+
+  @Get('contratos/:id')
+  async getContratoById(@Param('id', ParseIntPipe) id: number) {
+    return this.aiToolsService.getContratoById(id);
+  }
+
+  // ─── PAGOS ───
+
+  @Get('pagos')
+  async getPagos(
+    @Query('idInmueble') idInmueble?: number,
+    @Query('estatus') estatus?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.aiToolsService.getPagos(idInmueble, estatus, limit);
+  }
+
+  @Get('pagos/resumen/:idInmueble')
+  async getPagosResumen(
+    @Param('idInmueble', ParseIntPipe) idInmueble: number,
+  ) {
+    return this.aiToolsService.getPagosResumen(idInmueble);
+  }
+
+  // ─── INPC ───
+
+  @Get('inpc')
+  async getInpc(
+    @Query('anio') anio?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.aiToolsService.getInpc(anio, limit);
+  }
+
+  // ─── FACTORES ───
+
+  @Get('factores')
+  async getFactores() {
+    return this.aiToolsService.getFactores();
+  }
+
+  // ─── FORMULAS ───
+
+  @Get('formulas')
+  async getFormulas() {
+    return this.aiToolsService.getFormulas();
+  }
 }

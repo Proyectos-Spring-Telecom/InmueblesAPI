@@ -19,11 +19,20 @@ interface SpringAgentChatBody {
   processing_time_ms?: number;
 }
 
+/** Cuerpo JSON esperado de SpringAgent GET /health. */
+interface SpringAgentHealthBody {
+  ollama?: string;
+  paddleocr?: string;
+  service?: string;
+  version?: string;
+}
+
 @Injectable()
 export class ChatService {
   private readonly logger = new Logger(ChatService.name);
   private readonly springAgentUrl: string;
   private readonly timeoutMs: number;
+  private readonly serviceKey: string;
 
   constructor(
     private readonly httpService: HttpService,
@@ -39,6 +48,97 @@ export class ChatService {
       120000,
     );
     this.timeoutMs = Number(rawTimeout);
+    this.serviceKey = this.configService.get<string>(
+      'SPRINGAGENT_SERVICE_KEY',
+      '',
+    );
+  }
+
+  async checkHealth() {
+    const url = `${this.springAgentUrl.replace(/\/$/, '')}/health`;
+
+    this.logger.log(`Health check a SpringAgent: ${url}`);
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<SpringAgentHealthBody>(url, {
+          timeout: 10000,
+          headers: {
+            'X-Service-Key': this.serviceKey,
+          },
+        }),
+      );
+
+      const data = response.data ?? {};
+
+      this.logger.log(
+        `SpringAgent health: ollama=${data.ollama}, paddleocr=${data.paddleocr || 'N/A'}`,
+      );
+
+      return {
+        status: 'success',
+        message: 'SpringAgent disponible',
+        data: {
+          springAgent: 'connected',
+          springAgentUrl: this.springAgentUrl,
+          ollama: data.ollama || 'unknown',
+          paddleocr: data.paddleocr || 'unknown',
+          serviceName: data.service || 'SpringAgent',
+          version: data.version || 'unknown',
+        },
+      };
+    } catch (error: unknown) {
+      const errMsg =
+        error instanceof Error ? error.message : 'Error desconocido';
+
+      this.logger.error(`SpringAgent health check falló: ${errMsg}`);
+
+      if (error instanceof AxiosError) {
+        if (error.code === 'ECONNREFUSED') {
+          throw new HttpException(
+            {
+              status: 'error',
+              message:
+                'SpringAgent no disponible. El servicio no está corriendo.',
+              data: {
+                springAgent: 'disconnected',
+                springAgentUrl: this.springAgentUrl,
+                error: 'ECONNREFUSED',
+              },
+            },
+            HttpStatus.SERVICE_UNAVAILABLE,
+          );
+        }
+
+        if (error.response?.status === 401) {
+          throw new HttpException(
+            {
+              status: 'error',
+              message:
+                'SpringAgent rechazó la conexión. X-Service-Key inválida.',
+              data: {
+                springAgent: 'unauthorized',
+                springAgentUrl: this.springAgentUrl,
+                error: 'UNAUTHORIZED',
+              },
+            },
+            HttpStatus.SERVICE_UNAVAILABLE,
+          );
+        }
+      }
+
+      throw new HttpException(
+        {
+          status: 'error',
+          message: `Error verificando SpringAgent: ${errMsg}`,
+          data: {
+            springAgent: 'error',
+            springAgentUrl: this.springAgentUrl,
+          },
+        },
+        HttpStatus.SERVICE_UNAVAILABLE,
+      );
+    }
   }
 
   async sendMessage(
@@ -58,6 +158,7 @@ export class ChatService {
     };
   }> {
     const url = `${this.springAgentUrl.replace(/\/$/, '')}/chat`;
+    console.log('url', url);
     const preview =
       message.length > 100 ? `${message.substring(0, 100)}...` : message;
 
@@ -77,14 +178,17 @@ export class ChatService {
           },
           {
             timeout: this.timeoutMs,
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Service-Key': this.serviceKey,
+            },
           },
         ),
       );
 
       const data: SpringAgentChatBody = response.data ?? {};
 
-      await this.bitacoraLogger.logToBitacora(
+      /* await this.bitacoraLogger.logToBitacora(
         'Chat',
         `Consulta IA: "${preview}"`,
         'READ',
@@ -95,9 +199,9 @@ export class ChatService {
           rol,
         },
         userId,
-        0,
+        17,
         EstatusEnumBitcora.SUCCESS,
-      );
+      ); */
 
       this.logger.log(
         `Chat response: userId=${userId} tools=${JSON.stringify(data.tools_used ?? [])} time=${data.processing_time_ms ?? 'n/a'}ms`,
@@ -120,7 +224,7 @@ export class ChatService {
       const errMsg =
         error instanceof Error ? error.message : 'Error desconocido';
 
-      await this.bitacoraLogger.logToBitacora(
+      /* await this.bitacoraLogger.logToBitacora(
         'Chat',
         `Error consulta IA: "${preview}"`,
         'READ',
@@ -129,7 +233,7 @@ export class ChatService {
         0,
         EstatusEnumBitcora.ERROR,
         errMsg,
-      );
+      ); */
 
       if (error instanceof AxiosError) {
         if (error.code === 'ECONNREFUSED') {

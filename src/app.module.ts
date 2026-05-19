@@ -54,6 +54,7 @@ import { join } from 'path';
       AI_SERVICE_KEY: Joi.string().required(),
       SPRINGAGENT_URL: Joi.string().default('http://localhost:8001'),
       SPRINGAGENT_TIMEOUT: Joi.number().default(120000),
+      SPRINGAGENT_SERVICE_KEY: Joi.string().required(),
     }),
   }),
 

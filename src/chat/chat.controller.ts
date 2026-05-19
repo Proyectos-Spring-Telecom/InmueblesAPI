@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { ChatService } from './chat.service';
 import { ChatRequestDto } from './dto/chat.dto';
@@ -52,5 +52,17 @@ export class ChatController {
       clienteId,
       rol,
     );
+  }
+
+  @Get('health')
+  @ApiOperation({
+    summary: 'Verificar conexión con SpringAgent',
+    description:
+      'Llama al endpoint /health de SpringAgent para verificar que el servicio de IA está disponible y funcionando.',
+  })
+  @ApiResponse({ status: 200, description: 'SpringAgent disponible' })
+  @ApiResponse({ status: 503, description: 'SpringAgent no disponible' })
+  async checkSpringAgentHealth() {
+    return this.chatService.checkHealth();
   }
 }

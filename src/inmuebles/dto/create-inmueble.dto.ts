@@ -30,6 +30,9 @@ import { CreateArchivoInmuebleDto } from "./create-archivo-inmueble.dto";
  *
  *   zonas[i].zonaPrincipal        zonas[i].superficieZonaM2
  *   zonas[i].superficieDisponibleM2  zonas[i].numeroZona
+ *   zonas[i].locales[j].nombre    zonas[i].locales[j].areaM2
+ *   zonas[i].locales[j].estatus   zonas[i].locales[j].mensualidad
+ *   zonas[i].locales[j].giro
  *
  *   archivos[i].nombre   archivos[i].archivo (FILE)
  *   imagenes[i].nombre   imagenes[i].archivo (FILE)
@@ -115,7 +118,8 @@ export class CreateInmuebleDto {
   servicios?: CreateServicioInmuebleDto[];
 
   @ApiPropertyOptional({
-    description: "Zonas. Enviar en FormData como zonas[i].*",
+    description:
+      "Zonas. Enviar en FormData como zonas[i].* y locales anidados zonas[i].locales[j].*",
     type: [CreateZonaInmuebleDto],
   })
   @IsOptional()

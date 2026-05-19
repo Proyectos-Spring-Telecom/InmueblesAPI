@@ -9,9 +9,11 @@ import {
 import { applySchema } from "src/utils/schema";
 import { Arrendatarios } from "./Arrendatarios";
 import { Inmuebles } from "./Inmuebles";
+import { LocalesZonaInmueble } from "./LocalesZonaInmueble";
 
 @Index("FK_Contrato_Arrendatario_idx", ["idArrendatario"], {})
 @Index("FK_Contrato_Inmueble_idx", ["idInmueble"], {})
+@Index("FK_Contrato_Locales_idx", ["idLocal"], {})
 @Entity("ContratoArrendatarios")
 @applySchema
 export class ContratoArrendatarios {
@@ -148,6 +150,9 @@ export class ContratoArrendatarios {
   @Column("tinyint", { name: "Estatus", nullable: true, default: () => "'1'" })
   estatus: number | null;
 
+  @Column("bigint", { name: "IdLocal", nullable: true })
+  idLocal: number | null;
+
   @ManyToOne(() => Arrendatarios, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",
@@ -161,4 +166,11 @@ export class ContratoArrendatarios {
   })
   @JoinColumn([{ name: "IdInmueble", referencedColumnName: "id" }])
   inmueble: Inmuebles;
+
+  @ManyToOne(() => LocalesZonaInmueble, {
+    onDelete: "NO ACTION",
+    onUpdate: "NO ACTION",
+  })
+  @JoinColumn([{ name: "IdLocal", referencedColumnName: "id" }])
+  local: LocalesZonaInmueble;
 }

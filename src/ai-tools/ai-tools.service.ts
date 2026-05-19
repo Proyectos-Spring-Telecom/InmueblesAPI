@@ -3,6 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { FindOptionsWhere, Repository } from 'typeorm';
 import { Clientes } from 'src/entities/Clientes';
 import { Usuarios } from 'src/entities/Usuarios';
+import { Inmuebles } from 'src/entities/Inmuebles';
+import { Arrendatarios } from 'src/entities/Arrendatarios';
+import { ContratoArrendatarios } from 'src/entities/ContratoArrendatarios';
+import { Pago } from 'src/entities/Pago';
+import { Inpc } from 'src/entities/Inpc';
+import { Factores } from 'src/entities/Factores';
+import { Formulas } from 'src/entities/Formulas';
 
 type UsuarioResumen = {
   id: number;
@@ -36,6 +43,20 @@ export class AiToolsService {
     private readonly clienteRepo: Repository<Clientes>,
     @InjectRepository(Usuarios)
     private readonly usuarioRepo: Repository<Usuarios>,
+    @InjectRepository(Inmuebles)
+    private readonly inmuebleRepo: Repository<Inmuebles>,
+    @InjectRepository(Arrendatarios)
+    private readonly arrendatarioRepo: Repository<Arrendatarios>,
+    @InjectRepository(ContratoArrendatarios)
+    private readonly contratoRepo: Repository<ContratoArrendatarios>,
+    @InjectRepository(Pago)
+    private readonly pagoRepo: Repository<Pago>,
+    @InjectRepository(Inpc)
+    private readonly inpcRepo: Repository<Inpc>,
+    @InjectRepository(Factores)
+    private readonly factorRepo: Repository<Factores>,
+    @InjectRepository(Formulas)
+    private readonly formulaRepo: Repository<Formulas>,
   ) {}
 
   private normalizeLimit(limit?: number): number {
@@ -297,6 +318,376 @@ export class AiToolsService {
       status: 'success',
       message: `${data.length} usuarios del cliente ${clienteId}`,
       data,
+    };
+  }
+
+  // ─── INMUEBLES ───
+
+  async getInmuebles(idArrendador?: number, estatus?: number, limit?: number) {
+    const where: FindOptionsWhere<Inmuebles> = {};
+    const arr = this.toOptionalInt(idArrendador);
+    const est = this.toOptionalInt(estatus);
+    if (arr !== undefined) where.idArrendador = arr;
+    if (est !== undefined) where.estatus = est;
+
+    const inmuebles = await this.inmuebleRepo.find({
+      where,
+      take: this.normalizeLimit(limit),
+      order: { fhRegistro: 'DESC' },
+      relations: ['arrendador', 'zonas'],
+    });
+
+    return {
+      status: 'success',
+      message: `${inmuebles.length} inmuebles encontrados`,
+      data: inmuebles.map((i) => ({
+        id: i.id,
+        inmueble: i.inmueble,
+        direccionFiscal: i.direccionFiscal,
+        estatusInmueble: i.estatusInmueble,
+        vigenciaAnios: i.vigenciaAnios,
+        fechaInicio: i.fechaInicio,
+        fechaFin: i.fechaFin,
+        nombreRepresentante: i.nombreRepresentante,
+        estatus: i.estatus,
+        arrendadorNombre: i.arrendador?.nombre ?? null,
+        arrendadorId: i.idArrendador,
+        totalZonas: i.zonas?.length ?? 0,
+      })),
+    };
+  }
+
+  async getInmuebleById(id: number) {
+    const inmueble = await this.inmuebleRepo.findOne({
+      where: { id },
+      relations: ['arrendador', 'zonas', 'servicios', 'servicios.tipoServicio'],
+    });
+    if (!inmueble) {
+      throw new NotFoundException(`Inmueble con ID ${id} no encontrado`);
+    }
+
+    return {
+      status: 'success',
+      message: 'Inmueble encontrado',
+      data: {
+        id: inmueble.id,
+        inmueble: inmueble.inmueble,
+        direccionFiscal: inmueble.direccionFiscal,
+        estatusInmueble: inmueble.estatusInmueble,
+        vigenciaAnios: inmueble.vigenciaAnios,
+        fechaInicio: inmueble.fechaInicio,
+        fechaFin: inmueble.fechaFin,
+        nombreRepresentante: inmueble.nombreRepresentante,
+        telefonoRepresentante: inmueble.telefonoRepresentante,
+        correoRepresentante: inmueble.correoRepresentante,
+        lat: inmueble.lat,
+        lng: inmueble.lng,
+        estatus: inmueble.estatus,
+        arrendadorId: inmueble.idArrendador,
+        arrendadorNombre: inmueble.arrendador?.nombre ?? null,
+        zonas:
+          inmueble.zonas?.map((z) => ({
+            id: z.id,
+            zonaPrincipal: z.zonaPrincipal,
+            superficieZonaM2: z.superficieZonaM2,
+            superficieDisponibleM2: z.superficieDisponibleM2,
+            numeroZona: z.numeroZona,
+          })) ?? [],
+        servicios:
+          inmueble.servicios?.map((s) => ({
+            id: s.id,
+            tipoServicio: s.tipoServicio?.nombre ?? null,
+            numeroContrato: s.numeroContrato,
+            fechaPago: s.fechaPago,
+            ultimoDiaPago: s.ultimoDiaPago,
+          })) ?? [],
+      },
+    };
+  }
+
+  // ─── ARRENDATARIOS ───
+
+  async getArrendatarios(
+    idArrendador?: number,
+    estatus?: number,
+    limit?: number,
+  ) {
+    const where: FindOptionsWhere<Arrendatarios> = {};
+    const arr = this.toOptionalInt(idArrendador);
+    const est = this.toOptionalInt(estatus);
+    if (arr !== undefined) where.idArrendador = arr;
+    if (est !== undefined) where.estatus = est;
+
+    const arrendatarios = await this.arrendatarioRepo.find({
+      where,
+      take: this.normalizeLimit(limit),
+      order: { fhRegistro: 'DESC' },
+      relations: ['arrendador'],
+    });
+
+    return {
+      status: 'success',
+      message: `${arrendatarios.length} arrendatarios encontrados`,
+      data: arrendatarios.map((a) => ({
+        id: a.id,
+        arrendatario: a.arrendatario,
+        tipoPersona: a.tipoPersona,
+        renta: a.renta,
+        fechaInicio: a.fechaInicio,
+        fechaFin: a.fechaFin,
+        tiempoRenta: a.tiempoRenta,
+        representanteLegal: a.representanteLegal,
+        estatus: a.estatus,
+        arrendadorId: a.idArrendador,
+        arrendadorNombre: a.arrendador?.nombre ?? null,
+      })),
+    };
+  }
+
+  async getArrendatarioById(id: number) {
+    const a = await this.arrendatarioRepo.findOne({
+      where: { id },
+      relations: [
+        'arrendador',
+        'contratos',
+        'contratos.inmueble',
+        'socios',
+        'servicios',
+        'servicios.tipoServicio',
+      ],
+    });
+    if (!a) {
+      throw new NotFoundException(`Arrendatario con ID ${id} no encontrado`);
+    }
+
+    return {
+      status: 'success',
+      message: 'Arrendatario encontrado',
+      data: {
+        id: a.id,
+        arrendatario: a.arrendatario,
+        tipoPersona: a.tipoPersona,
+        renta: a.renta,
+        fechaInicio: a.fechaInicio,
+        fechaFin: a.fechaFin,
+        tiempoRenta: a.tiempoRenta,
+        representanteLegal: a.representanteLegal,
+        telefonoRepresentante: a.telefonoRepresentante,
+        correoRepresentante: a.correoRepresentante,
+        estatus: a.estatus,
+        arrendadorId: a.idArrendador,
+        arrendadorNombre: a.arrendador?.nombre ?? null,
+        totalContratos: a.contratos?.length ?? 0,
+        contratos:
+          a.contratos?.map((c) => ({
+            id: c.id,
+            inmuebleNombre: c.inmueble?.inmueble ?? null,
+            fechaInicioContrato: c.fechaInicioContrato,
+            fechaTerminoContrato: c.fechaTerminoContrato,
+            rentaTotal: c.rentaTotal,
+            estatus: c.estatus,
+          })) ?? [],
+        totalSocios: a.socios?.length ?? 0,
+        socios:
+          a.socios?.map((s) => ({
+            id: s.id,
+            nombre: s.nombre,
+            rfc: s.rfc,
+            estatus: s.estatus,
+          })) ?? [],
+      },
+    };
+  }
+
+  // ─── CONTRATOS ───
+
+  async getContratos(
+    idArrendatario?: number,
+    idInmueble?: number,
+    estatus?: number,
+    limit?: number,
+  ) {
+    const where: FindOptionsWhere<ContratoArrendatarios> = {};
+    const idArr = this.toOptionalInt(idArrendatario);
+    const idInm = this.toOptionalInt(idInmueble);
+    const est = this.toOptionalInt(estatus);
+    if (idArr !== undefined) where.idArrendatario = idArr;
+    if (idInm !== undefined) where.idInmueble = idInm;
+    if (est !== undefined) where.estatus = est;
+
+    const contratos = await this.contratoRepo.find({
+      where,
+      take: this.normalizeLimit(limit),
+      order: { fhRegistro: 'DESC' },
+      relations: ['arrendatario', 'inmueble'],
+    });
+
+    return {
+      status: 'success',
+      message: `${contratos.length} contratos encontrados`,
+      data: contratos.map((c) => ({
+        id: c.id,
+        arrendatarioNombre: c.arrendatario?.arrendatario ?? null,
+        inmuebleNombre: c.inmueble?.inmueble ?? null,
+        fechaInicioContrato: c.fechaInicioContrato,
+        fechaTerminoContrato: c.fechaTerminoContrato,
+        moneda: c.moneda,
+        metrosRentados: c.metrosRentados,
+        costoM2: c.costoM2,
+        rentaTotal: c.rentaTotal,
+        mantenimientoTotal: c.mantenimientoTotal,
+        estatus: c.estatus,
+      })),
+    };
+  }
+
+  async getContratoById(id: number) {
+    const c = await this.contratoRepo.findOne({
+      where: { id },
+      relations: ['arrendatario', 'inmueble'],
+    });
+    if (!c) {
+      throw new NotFoundException(`Contrato con ID ${id} no encontrado`);
+    }
+
+    return {
+      status: 'success',
+      message: 'Contrato encontrado',
+      data: {
+        id: c.id,
+        arrendatarioId: c.idArrendatario,
+        arrendatarioNombre: c.arrendatario?.arrendatario ?? null,
+        inmuebleId: c.idInmueble,
+        inmuebleNombre: c.inmueble?.inmueble ?? null,
+        fechaInicioContrato: c.fechaInicioContrato,
+        fechaTerminoContrato: c.fechaTerminoContrato,
+        moneda: c.moneda,
+        metrosRentados: c.metrosRentados,
+        costoM2: c.costoM2,
+        porcentajeMantenimiento: c.porcentajeMantenimiento,
+        mesesDeposito: c.mesesDeposito,
+        montoDeposito: c.montoDeposito,
+        mesesAdelanto: c.mesesAdelanto,
+        montoAdelanto: c.montoAdelanto,
+        aniosForzososArrendador: c.aniosForzososArrendador,
+        aniosForzososArrendatario: c.aniosForzososArrendatario,
+        subTotalRenta: c.subTotalRenta,
+        ivaRenta: c.ivaRenta,
+        rentaTotal: c.rentaTotal,
+        subTotalMantenimiento: c.subTotalMantenimiento,
+        ivaMantenimiento: c.ivaMantenimiento,
+        mantenimientoTotal: c.mantenimientoTotal,
+        observaciones: c.observaciones,
+        estatus: c.estatus,
+      },
+    };
+  }
+
+  // ─── PAGOS ───
+
+  async getPagos(idInmueble?: number, estatus?: number, limit?: number) {
+    const where: FindOptionsWhere<Pago> = {};
+    const idInm = this.toOptionalInt(idInmueble);
+    const est = this.toOptionalInt(estatus);
+    if (idInm !== undefined) where.idInmueble = idInm;
+    if (est !== undefined) where.estatus = est;
+
+    const pagos = await this.pagoRepo.find({
+      where,
+      take: this.normalizeLimit(limit),
+      order: { fhRegistro: 'DESC' },
+      relations: ['inmueble', 'metodoPago'],
+    });
+
+    return {
+      status: 'success',
+      message: `${pagos.length} pagos encontrados`,
+      data: pagos.map((p) => ({
+        id: p.id,
+        concepto: p.concepto,
+        fechaPago: p.fechaPago,
+        monto: p.monto,
+        metodoPago: p.metodoPago?.nombre ?? null,
+        inmuebleNombre: p.inmueble?.inmueble ?? null,
+        estatus: p.estatus,
+        estatusTexto:
+          p.estatus === 2
+            ? 'Pendiente'
+            : p.estatus === 1
+              ? 'Pagado'
+              : 'Cancelado',
+      })),
+    };
+  }
+
+  async getPagosResumen(idInmueble: number) {
+    const pagos = await this.pagoRepo.find({
+      where: { idInmueble },
+      relations: ['inmueble'],
+    });
+
+    const totalPagado = pagos
+      .filter((p) => p.estatus === 1)
+      .reduce((s, p) => s + parseFloat(p.monto || '0'), 0);
+    const totalPendiente = pagos
+      .filter((p) => p.estatus === 2)
+      .reduce((s, p) => s + parseFloat(p.monto || '0'), 0);
+
+    return {
+      status: 'success',
+      message: `Resumen de pagos del inmueble ${idInmueble}`,
+      data: {
+        inmuebleId: idInmueble,
+        inmuebleNombre: pagos[0]?.inmueble?.inmueble ?? null,
+        totalRegistros: pagos.length,
+        pagados: pagos.filter((p) => p.estatus === 1).length,
+        pendientes: pagos.filter((p) => p.estatus === 2).length,
+        cancelados: pagos.filter((p) => p.estatus === 0).length,
+        montoTotalPagado: totalPagado,
+        montoTotalPendiente: totalPendiente,
+      },
+    };
+  }
+
+  // ─── INPC ───
+
+  async getInpc(anio?: number, limit?: number) {
+    const where: FindOptionsWhere<Inpc> = { estatus: 1 };
+    const anioFilter = this.toOptionalInt(anio);
+    if (anioFilter !== undefined) where.anio = anioFilter;
+
+    const registros = await this.inpcRepo.find({
+      where,
+      take: this.normalizeLimit(limit),
+      order: { anio: 'DESC', mes: 'DESC' },
+    });
+
+    return {
+      status: 'success',
+      message: `${registros.length} registros INPC`,
+      data: registros,
+    };
+  }
+
+  // ─── FACTORES ───
+
+  async getFactores() {
+    const factores = await this.factorRepo.find({ where: { estatus: 1 } });
+    return {
+      status: 'success',
+      message: `${factores.length} factores`,
+      data: factores,
+    };
+  }
+
+  // ─── FORMULAS ───
+
+  async getFormulas() {
+    const formulas = await this.formulaRepo.find({ where: { estatus: 1 } });
+    return {
+      status: 'success',
+      message: `${formulas.length} fórmulas`,
+      data: formulas,
     };
   }
 }

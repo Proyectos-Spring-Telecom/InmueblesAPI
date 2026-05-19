@@ -71,11 +71,11 @@ export class ArrendatariosController {
   @ApiBody({ type: ActualizarArrendatarioFormDto })
   @ApiOperation({
     summary:
-      "Actualizar arrendatario completo (mismo FormData que registro; arrays hacen append).",
+      "Actualizar arrendatario completo (mismo FormData que registro).",
     description:
       "Opcional `arrendatario` (JSON) para campos del arrendatario. " +
       "`contratoArrendatario` con `id` actualiza; sin `id` crea contrato nuevo. " +
-      "Arrays servicios/archivos/imagenes/socios agregan registros nuevos.",
+      "servicios[i].id actualiza; sin id crea. archivos[i].id e imagenes[i].id actualizan; sin id crean. socios[i].id actualiza; sin id crea.",
   })
   async actualizar(
     @Param("id", ParseIntPipe) id: number,

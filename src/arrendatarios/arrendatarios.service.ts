@@ -14,6 +14,8 @@ import { SociosArrendatarios } from "src/entities/SociosArrendatarios";
 import { S3Service } from "src/s3/s3.service";
 import { ApiResponseCommon } from "src/common/ApiResponse";
 import { LocalesEstatus } from "src/common/locales-estatus.enum";
+import { resolveEntityId } from "src/common/resolve-entity-id";
+import { UpdateSocioArrendatarioDto } from "./dto/update-socio-arrendatario.dto";
 import {
   RegistrarArrendatarioFormDto,
   ContratoArrendatarioJsonDto,
@@ -25,6 +27,8 @@ import {
   UpdateArrendatarioJsonDto,
   UpdateContratoArrendatarioJsonDto,
 } from "./dto/actualizar-arrendatario-form.dto";
+import { UpdateArchivoArrendatarioDto } from "./dto/update-archivo-arrendatario.dto";
+import { UpdateServicioArrendatarioItemDto } from "./dto/update-servicio-arrendatario.dto";
 
 const FOLDER_SERVICIOS = "Servicios Arrendatarios";
 const FOLDER_DOC = "Documentación Arrendatario";
@@ -158,6 +162,7 @@ export class ArrendatariosService {
         manager,
         dto.contratoArrendatario,
         idArrendatario,
+        false,
       );
 
       const serviciosOut = await this.appendServicios(
@@ -227,27 +232,27 @@ export class ArrendatariosService {
         id,
       );
 
-      const serviciosOut = await this.appendServicios(
+      const serviciosOut = await this.upsertServicios(
         manager,
         dto.servicios ?? [],
         id,
         idUser,
       );
-      const archivosOut = await this.guardarArchivosLista(
+      const archivosOut = await this.upsertArchivosLista(
         manager,
         dto.archivos ?? [],
         id,
         idUser,
         FOLDER_DOC,
       );
-      const imagenesOut = await this.guardarArchivosLista(
+      const imagenesOut = await this.upsertArchivosLista(
         manager,
         dto.imagenes ?? [],
         id,
         idUser,
         FOLDER_IMG,
       );
-      const sociosOut = await this.appendSocios(
+      const sociosOut = await this.upsertSocios(
         manager,
         dto.socios ?? [],
         id,
@@ -395,6 +400,7 @@ export class ArrendatariosService {
       | UpdateContratoArrendatarioJsonDto
       | undefined,
     idArrendatario: number,
+    upsert = true,
   ): Promise<number | null> {
     if (!c) return null;
 
@@ -411,21 +417,22 @@ export class ArrendatariosService {
 
     const updateDto = c as UpdateContratoArrendatarioJsonDto;
     let contratoId: number;
+    const entityId = upsert ? resolveEntityId(updateDto.id) : undefined;
 
-    if (updateDto.id) {
+    if (entityId !== undefined) {
       const existing = await manager.findOne(ContratoArrendatarios, {
-        where: { id: updateDto.id, idArrendatario },
+        where: { id: entityId, idArrendatario },
       });
       if (!existing) {
         throw new BadRequestException(
-          `Contrato con id ${updateDto.id} no pertenece al arrendatario ${idArrendatario}.`,
+          `Contrato con id ${entityId} no pertenece al arrendatario ${idArrendatario}.`,
         );
       }
       const patch = this.buildContratoPatch(c);
       if (Object.keys(patch).length > 0) {
-        await manager.update(ContratoArrendatarios, updateDto.id, patch);
+        await manager.update(ContratoArrendatarios, entityId, patch);
       }
-      contratoId = updateDto.id;
+      contratoId = entityId;
     } else {
       const contrato = manager.create(ContratoArrendatarios, {
         idArrendatario,
@@ -444,24 +451,102 @@ export class ArrendatariosService {
     return contratoId;
   }
 
+  private buildServicioArrendatarioPatch(
+    s: UpdateServicioArrendatarioItemDto,
+  ): Partial<ServiciosArrendatarios> {
+    const patch: Partial<ServiciosArrendatarios> = {};
+    if (s.idTipoServicio !== undefined) {
+      patch.idTipoServicio = s.idTipoServicio;
+    }
+    if (s.numeroContrato !== undefined) {
+      patch.numeroContrato = s.numeroContrato ?? null;
+    }
+    if (s.fechaPago !== undefined) {
+      patch.fechaPago = s.fechaPago ? new Date(s.fechaPago) : null;
+    }
+    if (s.ultimoDiaPago !== undefined) {
+      patch.ultimoDiaPago = s.ultimoDiaPago ? new Date(s.ultimoDiaPago) : null;
+    }
+    return patch;
+  }
+
   private async appendServicios(
     manager: import("typeorm").EntityManager,
     items: RegistrarArrendatarioFormDto["servicios"],
     idArrendatario: number,
     idUser: number,
   ): Promise<{ id: number; idTipoServicio: number }[]> {
+    return this.upsertServicios(
+      manager,
+      (items ?? []) as UpdateServicioArrendatarioItemDto[],
+      idArrendatario,
+      idUser,
+      false,
+    );
+  }
+
+  private async upsertServicios(
+    manager: import("typeorm").EntityManager,
+    items: UpdateServicioArrendatarioItemDto[],
+    idArrendatario: number,
+    idUser: number,
+    upsert = true,
+  ): Promise<{ id: number; idTipoServicio: number }[]> {
     const out: { id: number; idTipoServicio: number }[] = [];
-    for (const s of items ?? []) {
+    for (const s of items) {
       const file = s.archivo as Express.Multer.File | undefined;
+      const entityId = upsert ? resolveEntityId(s.id) : undefined;
+
+      if (entityId !== undefined) {
+        const existing = await manager.findOne(ServiciosArrendatarios, {
+          where: { id: entityId, idArrendatario },
+        });
+        if (!existing) {
+          throw new BadRequestException(
+            `Servicio con id ${entityId} no pertenece al arrendatario ${idArrendatario}.`,
+          );
+        }
+        const patch = this.buildServicioArrendatarioPatch(s);
+        if (file) {
+          patch.urlComprobante = (
+            await this.s3Service.uploadFile(
+              file,
+              FOLDER_SERVICIOS,
+              idUser,
+              ID_MODULE,
+            )
+          ).url;
+        }
+        if (Object.keys(patch).length > 0) {
+          await manager.update(ServiciosArrendatarios, entityId, patch);
+        }
+        const updated = await manager.findOne(ServiciosArrendatarios, {
+          where: { id: entityId },
+        });
+        out.push({
+          id: entityId,
+          idTipoServicio: Number(
+            updated?.idTipoServicio ?? existing.idTipoServicio,
+          ),
+        });
+        continue;
+      }
+
+      if (s.idTipoServicio === undefined) {
+        throw new BadRequestException(
+          "Para crear un servicio nuevo se requiere idTipoServicio.",
+        );
+      }
       let url: string | null = null;
       if (file) {
-        const up = await this.s3Service.uploadFile(
-          file,
-          FOLDER_SERVICIOS,
-          idUser,
-          ID_MODULE,
-        );
-        url = up.url;
+        url = (
+          await this.s3Service.uploadFile(
+            file,
+            FOLDER_SERVICIOS,
+            idUser,
+            ID_MODULE,
+          )
+        ).url;
       }
       const row = manager.create(ServiciosArrendatarios, {
         idArrendatario,
@@ -486,11 +571,144 @@ export class ArrendatariosService {
     idArrendatario: number,
     idUser: number,
   ): Promise<{ id: number; nombre: string }[]> {
+    return this.upsertSocios(
+      manager,
+      items as UpdateSocioArrendatarioDto[],
+      idArrendatario,
+      idUser,
+      false,
+    );
+  }
+
+  private buildSocioArrendatarioPatch(
+    socio: UpdateSocioArrendatarioDto,
+  ): Partial<SociosArrendatarios> {
+    const patch: Partial<SociosArrendatarios> = {};
+    if (socio.nombre !== undefined) {
+      patch.nombre = socio.nombre ?? null;
+    }
+    if (socio.rfc !== undefined) {
+      patch.rfc = socio.rfc ?? null;
+    }
+    return patch;
+  }
+
+  private async uploadSocioArrendatarioDocumentos(
+    socio: UpdateSocioArrendatarioDto,
+    idUser: number,
+  ): Promise<Partial<SociosArrendatarios>> {
+    const patch: Partial<SociosArrendatarios> = {};
+
+    const fConst = socio.constanciaFiscalArchivo as
+      | Express.Multer.File
+      | undefined;
+    if (fConst) {
+      patch.constanciaSituacionFiscal = (
+        await this.s3Service.uploadFile(
+          fConst,
+          FOLDER_SOCIO_CONST,
+          idUser,
+          ID_MODULE,
+        )
+      ).url;
+    }
+
+    const fComp = socio.comprobanteDomicilioArchivo as
+      | Express.Multer.File
+      | undefined;
+    if (fComp) {
+      patch.comprobanteDomicilio = (
+        await this.s3Service.uploadFile(
+          fComp,
+          FOLDER_SOCIO_COMP,
+          idUser,
+          ID_MODULE,
+        )
+      ).url;
+    }
+
+    const fId = socio.identificacionOficialArchivo as
+      | Express.Multer.File
+      | undefined;
+    if (fId) {
+      patch.identificacionOficial = (
+        await this.s3Service.uploadFile(fId, FOLDER_SOCIO_ID, idUser, ID_MODULE)
+      ).url;
+    }
+
+    return patch;
+  }
+
+  private async upsertSocios(
+    manager: import("typeorm").EntityManager,
+    items: UpdateSocioArrendatarioDto[],
+    idArrendatario: number,
+    idUser: number,
+    upsert = true,
+  ): Promise<{ id: number; nombre: string }[]> {
     const out: { id: number; nombre: string }[] = [];
     for (const socio of items) {
-      out.push(await this.guardarSocio(manager, socio, idArrendatario, idUser));
+      out.push(
+        await this.upsertSocio(manager, socio, idArrendatario, idUser, upsert),
+      );
     }
     return out;
+  }
+
+  private async upsertSocio(
+    manager: import("typeorm").EntityManager,
+    socio: UpdateSocioArrendatarioDto,
+    idArrendatario: number,
+    idUser: number,
+    upsert = true,
+  ): Promise<{ id: number; nombre: string }> {
+    const entityId = upsert ? resolveEntityId(socio.id) : undefined;
+    const filePatch = await this.uploadSocioArrendatarioDocumentos(
+      socio,
+      idUser,
+    );
+
+    if (entityId !== undefined) {
+      const existing = await manager.findOne(SociosArrendatarios, {
+        where: { id: entityId, idArrendatario },
+      });
+      if (!existing) {
+        throw new BadRequestException(
+          `Socio con id ${entityId} no pertenece al arrendatario ${idArrendatario}.`,
+        );
+      }
+      const patch = {
+        ...this.buildSocioArrendatarioPatch(socio),
+        ...filePatch,
+      };
+      if (Object.keys(patch).length > 0) {
+        await manager.update(SociosArrendatarios, entityId, patch);
+      }
+      const updated = await manager.findOne(SociosArrendatarios, {
+        where: { id: entityId },
+      });
+      return {
+        id: entityId,
+        nombre: updated?.nombre ?? existing.nombre ?? "",
+      };
+    }
+
+    if (!socio.nombre?.trim()) {
+      throw new BadRequestException(
+        "Para crear un socio nuevo se requiere nombre.",
+      );
+    }
+
+    const row = manager.create(SociosArrendatarios, {
+      idArrendatario,
+      nombre: socio.nombre,
+      rfc: socio.rfc ?? null,
+      constanciaSituacionFiscal: filePatch.constanciaSituacionFiscal ?? null,
+      comprobanteDomicilio: filePatch.comprobanteDomicilio ?? null,
+      identificacionOficial: filePatch.identificacionOficial ?? null,
+    });
+    const saved = await manager.save(SociosArrendatarios, row);
+    return { id: Number(saved.id), nombre: socio.nombre };
   }
 
   private async guardarArchivosLista(
@@ -500,9 +718,73 @@ export class ArrendatariosService {
     idUser: number,
     folder: string,
   ): Promise<{ id: number; nombre: string | null; url: string }[]> {
+    return this.upsertArchivosLista(
+      manager,
+      items as UpdateArchivoArrendatarioDto[],
+      idArrendatario,
+      idUser,
+      folder,
+      false,
+    );
+  }
+
+  private buildArchivoArrendatarioPatch(
+    item: UpdateArchivoArrendatarioDto,
+  ): Partial<ArchivosArrendatarios> {
+    const patch: Partial<ArchivosArrendatarios> = {};
+    if (item.nombre !== undefined) {
+      patch.nombre = item.nombre ?? null;
+    }
+    return patch;
+  }
+
+  private async upsertArchivosLista(
+    manager: import("typeorm").EntityManager,
+    items: UpdateArchivoArrendatarioDto[],
+    idArrendatario: number,
+    idUser: number,
+    folder: string,
+    upsert = true,
+  ): Promise<{ id: number; nombre: string | null; url: string }[]> {
     const out: { id: number; nombre: string | null; url: string }[] = [];
     for (const item of items) {
       const file = item.archivo as Express.Multer.File | undefined;
+      const entityId = upsert ? resolveEntityId(item.id) : undefined;
+
+      if (entityId !== undefined) {
+        const existing = await manager.findOne(ArchivosArrendatarios, {
+          where: { id: entityId, idArrendatario },
+        });
+        if (!existing) {
+          throw new BadRequestException(
+            `Archivo con id ${entityId} no pertenece al arrendatario ${idArrendatario}.`,
+          );
+        }
+        const patch = this.buildArchivoArrendatarioPatch(item);
+        if (file) {
+          patch.url = (
+            await this.s3Service.uploadFile(
+              file,
+              folder,
+              idUser,
+              ID_MODULE,
+            )
+          ).url;
+        }
+        if (Object.keys(patch).length > 0) {
+          await manager.update(ArchivosArrendatarios, entityId, patch);
+        }
+        const updated = await manager.findOne(ArchivosArrendatarios, {
+          where: { id: entityId },
+        });
+        out.push({
+          id: entityId,
+          nombre: updated?.nombre ?? existing.nombre,
+          url: updated?.url ?? existing.url ?? "",
+        });
+        continue;
+      }
+
       if (!file) continue;
       const { url } = await this.s3Service.uploadFile(
         file,
@@ -525,54 +807,4 @@ export class ArrendatariosService {
     return out;
   }
 
-  private async guardarSocio(
-    manager: import("typeorm").EntityManager,
-    socio: SocioItemDto,
-    idArrendatario: number,
-    idUser: number,
-  ): Promise<{ id: number; nombre: string }> {
-    let urlConst: string | null = null;
-    let urlComp: string | null = null;
-    let urlId: string | null = null;
-
-    const fConst = socio.constanciaFiscalArchivo as Express.Multer.File | undefined;
-    if (fConst) {
-      urlConst = (
-        await this.s3Service.uploadFile(
-          fConst,
-          FOLDER_SOCIO_CONST,
-          idUser,
-          ID_MODULE,
-        )
-      ).url;
-    }
-    const fComp = socio.comprobanteDomicilioArchivo as Express.Multer.File | undefined;
-    if (fComp) {
-      urlComp = (
-        await this.s3Service.uploadFile(
-          fComp,
-          FOLDER_SOCIO_COMP,
-          idUser,
-          ID_MODULE,
-        )
-      ).url;
-    }
-    const fId = socio.identificacionOficialArchivo as Express.Multer.File | undefined;
-    if (fId) {
-      urlId = (
-        await this.s3Service.uploadFile(fId, FOLDER_SOCIO_ID, idUser, ID_MODULE)
-      ).url;
-    }
-
-    const row = manager.create(SociosArrendatarios, {
-      idArrendatario,
-      nombre: socio.nombre,
-      rfc: socio.rfc ?? null,
-      constanciaSituacionFiscal: urlConst,
-      comprobanteDomicilio: urlComp,
-      identificacionOficial: urlId,
-    });
-    const saved = await manager.save(SociosArrendatarios, row);
-    return { id: Number(saved.id), nombre: socio.nombre };
-  }
 }

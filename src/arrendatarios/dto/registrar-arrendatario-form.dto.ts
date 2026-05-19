@@ -92,6 +92,15 @@ export class ContratoArrendatarioJsonDto {
   @IsInt()
   idInmueble?: number;
 
+  @ApiPropertyOptional({
+    example: 1,
+    description: "FK LocalesZonaInmueble.Id",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idLocal?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
@@ -295,7 +304,7 @@ export class RegistrarArrendatarioFormDto {
   @ApiPropertyOptional({
     type: () => ContratoArrendatarioJsonDto,
     description:
-      "Opcional. JSON string con ContratoArrendatarios (sin id/idArrendatario/fhRegistro/estatus).",
+      "Opcional. JSON string con ContratoArrendatarios (sin id/idArrendatario/fhRegistro/estatus; incluye idLocal).",
   })
   @IsOptional()
   @ValidateNested()

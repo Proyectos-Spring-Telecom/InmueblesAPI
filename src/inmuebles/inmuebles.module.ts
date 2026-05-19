@@ -4,6 +4,7 @@ import { ArchivosInmuebles } from "src/entities/ArchivosInmuebles";
 import { Inmuebles } from "src/entities/Inmuebles";
 import { ServiciosInmuebles } from "src/entities/ServiciosInmuebles";
 import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
+import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { S3Module } from "src/s3/s3.module";
 import { InmueblesController } from "./inmuebles.controller";
 import { InmueblesService } from "./inmuebles.service";
@@ -14,6 +15,7 @@ import { InmueblesService } from "./inmuebles.service";
       Inmuebles,
       ServiciosInmuebles,
       ZonasInmuebles,
+      LocalesZonaInmueble,
       ArchivosInmuebles,
     ]),
     S3Module,

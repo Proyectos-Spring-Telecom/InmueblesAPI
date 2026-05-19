@@ -1,18 +1,30 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
+import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { ArchivosArrendatarios } from "src/entities/ArchivosArrendatarios";
 import { SociosArrendatarios } from "src/entities/SociosArrendatarios";
 import { S3Service } from "src/s3/s3.service";
 import { ApiResponseCommon } from "src/common/ApiResponse";
+import { LocalesEstatus } from "src/common/locales-estatus.enum";
 import {
   RegistrarArrendatarioFormDto,
+  ContratoArrendatarioJsonDto,
   SocioItemDto,
   ArchivoConNombreDto,
 } from "./dto/registrar-arrendatario-form.dto";
+import {
+  ActualizarArrendatarioFormDto,
+  UpdateArrendatarioJsonDto,
+  UpdateContratoArrendatarioJsonDto,
+} from "./dto/actualizar-arrendatario-form.dto";
 
 const FOLDER_SERVICIOS = "Servicios Arrendatarios";
 const FOLDER_DOC = "Documentación Arrendatario";
@@ -30,6 +42,7 @@ const FULL_RELATIONS = [
   "socios",
   "contratos",
   "contratos.inmueble",
+  "contratos.local",
 ] as const;
 
 function decStr(v: number | undefined | null): string | null {
@@ -134,86 +147,25 @@ export class ArrendatariosService {
     const a = dto.arrendatario;
 
     return this.dataSource.transaction(async (manager) => {
-      const arrendatario = manager.create(Arrendatarios, {
-        arrendatario: a.arrendatario ?? null,
-        idArrendador: a.idArrendador,
-        tipoPersona: a.tipoPersona ?? null,
-        renta:
-          a.renta !== undefined && a.renta !== null ? String(a.renta) : null,
-        fechaInicio: a.fechaInicio ? new Date(a.fechaInicio) : null,
-        fechaFin: a.fechaFin ? new Date(a.fechaFin) : null,
-        tiempoRenta: a.tiempoRenta ?? null,
-        representanteLegal: a.representanteLegal ?? null,
-        telefonoRepresentante: a.telefonoRepresentante ?? null,
-        correoRepresentante: a.correoRepresentante ?? null,
-        lat: a.lat ?? null,
-        lng: a.lng ?? null,
-      });
+      const arrendatario = manager.create(
+        Arrendatarios,
+        this.buildArrendatarioEntity(a),
+      );
       const savedA = await manager.save(Arrendatarios, arrendatario);
       const idArrendatario = Number(savedA.id);
 
-      let contratoId: number | null = null;
-      if (dto.contratoArrendatario) {
-        const c = dto.contratoArrendatario;
-        const contrato = manager.create(ContratoArrendatarios, {
-          idArrendatario:idArrendatario ?? null,
-          idInmueble: c.idInmueble ?? null,
-          fechaInicioContrato: c.fechaInicioContrato
-            ? new Date(c.fechaInicioContrato)
-            : null,
-          fechaTerminoContrato: c.fechaTerminoContrato
-            ? new Date(c.fechaTerminoContrato)
-            : null,
-          moneda: c.moneda ?? null,
-          metrosRentados: decStr(c.metrosRentados),
-          costoM2: decStr(c.costoM2),
-          porcentajeMantenimiento: decStr(c.porcentajeMantenimiento),
-          mesesDeposito: decStrMaybeInt(c.mesesDeposito),
-          montoDeposito: decStr(c.montoDeposito),
-          mesesAdelanto: decStrMaybeInt(c.mesesAdelanto),
-          montoAdelanto: decStr(c.montoAdelanto),
-          aniosForzososArrendador: c.aniosForzososArrendador ?? null,
-          aniosForzososArrendatario: c.aniosForzososArrendatario ?? null,
-          subTotalRenta: decStr(c.subTotalRenta),
-          ivaRenta: decStr(c.ivaRenta),
-          rentaTotal: decStr(c.rentaTotal),
-          subTotalMantenimiento: decStr(c.subTotalMantenimiento),
-          ivaMantenimiento: decStr(c.ivaMantenimiento),
-          mantenimientoTotal: decStr(c.mantenimientoTotal),
-          observaciones: c.observaciones ?? null,
-        });
-        const savedC = await manager.save(ContratoArrendatarios, contrato);
-        contratoId = Number(savedC.id);
-      }
+      const contratoId = await this.upsertContrato(
+        manager,
+        dto.contratoArrendatario,
+        idArrendatario,
+      );
 
-      const serviciosOut: { id: number; idTipoServicio: number }[] = [];
-      for (const s of dto.servicios ?? []) {
-        const file = s.archivo as Express.Multer.File | undefined;
-        let url: string | null = null;
-        if (file) {
-          const up = await this.s3Service.uploadFile(
-            file,
-            FOLDER_SERVICIOS,
-            idUser,
-            ID_MODULE,
-          );
-          url = up.url;
-        }
-        const row = manager.create(ServiciosArrendatarios, {
-          idArrendatario,
-          idTipoServicio: s.idTipoServicio,
-          numeroContrato: s.numeroContrato ?? null,
-          fechaPago: s.fechaPago ? new Date(s.fechaPago) : null,
-          ultimoDiaPago: s.ultimoDiaPago ? new Date(s.ultimoDiaPago) : null,
-          urlComprobante: url,
-        });
-        const saved = await manager.save(ServiciosArrendatarios, row);
-        serviciosOut.push({
-          id: Number(saved.id),
-          idTipoServicio: s.idTipoServicio,
-        });
-      }
-
+      const serviciosOut = await this.appendServicios(
+        manager,
+        dto.servicios ?? [],
+        idArrendatario,
+        idUser,
+      );
       const archivosOut = await this.guardarArchivosLista(
         manager,
         dto.archivos ?? [],
@@ -228,17 +180,12 @@ export class ArrendatariosService {
         idUser,
         FOLDER_IMG,
       );
-
-      const sociosOut: { id: number; nombre: string }[] = [];
-      for (const socio of dto.socios ?? []) {
-        const savedSocio = await this.guardarSocio(
-          manager,
-          socio,
-          idArrendatario,
-          idUser,
-        );
-        sociosOut.push(savedSocio);
-      }
+      const sociosOut = await this.appendSocios(
+        manager,
+        dto.socios ?? [],
+        idArrendatario,
+        idUser,
+      );
 
       return {
         status: "success",
@@ -253,6 +200,297 @@ export class ArrendatariosService {
         },
       };
     });
+  }
+
+  async actualizarCompleto(
+    id: number,
+    dto: ActualizarArrendatarioFormDto,
+    idUser: number,
+  ) {
+    return this.dataSource.transaction(async (manager) => {
+      const existing = await manager.findOne(Arrendatarios, {
+        where: { id },
+      });
+      if (!existing) {
+        throw new NotFoundException(
+          `Arrendatario con id ${id} no encontrado.`,
+        );
+      }
+
+      if (dto.arrendatario) {
+        await this.patchArrendatario(manager, id, dto.arrendatario);
+      }
+
+      const contratoId = await this.upsertContrato(
+        manager,
+        dto.contratoArrendatario,
+        id,
+      );
+
+      const serviciosOut = await this.appendServicios(
+        manager,
+        dto.servicios ?? [],
+        id,
+        idUser,
+      );
+      const archivosOut = await this.guardarArchivosLista(
+        manager,
+        dto.archivos ?? [],
+        id,
+        idUser,
+        FOLDER_DOC,
+      );
+      const imagenesOut = await this.guardarArchivosLista(
+        manager,
+        dto.imagenes ?? [],
+        id,
+        idUser,
+        FOLDER_IMG,
+      );
+      const sociosOut = await this.appendSocios(
+        manager,
+        dto.socios ?? [],
+        id,
+        idUser,
+      );
+
+      return {
+        status: "success",
+        message: "Arrendatario actualizado correctamente.",
+        data: {
+          idArrendatario: id,
+          idContrato: contratoId,
+          servicios: serviciosOut,
+          archivos: archivosOut,
+          imagenes: imagenesOut,
+          socios: sociosOut,
+        },
+      };
+    });
+  }
+
+  private buildArrendatarioEntity(
+    a: UpdateArrendatarioJsonDto & { idArrendador?: number },
+  ): Partial<Arrendatarios> {
+    return {
+      arrendatario: a.arrendatario ?? null,
+      idArrendador: a.idArrendador!,
+      tipoPersona: a.tipoPersona ?? null,
+      renta:
+        a.renta !== undefined && a.renta !== null ? String(a.renta) : null,
+      fechaInicio: a.fechaInicio ? new Date(a.fechaInicio) : null,
+      fechaFin: a.fechaFin ? new Date(a.fechaFin) : null,
+      tiempoRenta: a.tiempoRenta ?? null,
+      representanteLegal: a.representanteLegal ?? null,
+      telefonoRepresentante: a.telefonoRepresentante ?? null,
+      correoRepresentante: a.correoRepresentante ?? null,
+      lat: a.lat ?? null,
+      lng: a.lng ?? null,
+    };
+  }
+
+  private async patchArrendatario(
+    manager: import("typeorm").EntityManager,
+    id: number,
+    a: UpdateArrendatarioJsonDto,
+  ): Promise<void> {
+    const patch: Partial<Arrendatarios> = {};
+    if (a.arrendatario !== undefined) patch.arrendatario = a.arrendatario ?? null;
+    if (a.idArrendador !== undefined) patch.idArrendador = a.idArrendador;
+    if (a.tipoPersona !== undefined) patch.tipoPersona = a.tipoPersona ?? null;
+    if (a.renta !== undefined) {
+      patch.renta =
+        a.renta !== null ? String(a.renta) : null;
+    }
+    if (a.fechaInicio !== undefined) {
+      patch.fechaInicio = a.fechaInicio ? new Date(a.fechaInicio) : null;
+    }
+    if (a.fechaFin !== undefined) {
+      patch.fechaFin = a.fechaFin ? new Date(a.fechaFin) : null;
+    }
+    if (a.tiempoRenta !== undefined) patch.tiempoRenta = a.tiempoRenta ?? null;
+    if (a.representanteLegal !== undefined) {
+      patch.representanteLegal = a.representanteLegal ?? null;
+    }
+    if (a.telefonoRepresentante !== undefined) {
+      patch.telefonoRepresentante = a.telefonoRepresentante ?? null;
+    }
+    if (a.correoRepresentante !== undefined) {
+      patch.correoRepresentante = a.correoRepresentante ?? null;
+    }
+    if (a.lat !== undefined) patch.lat = a.lat ?? null;
+    if (a.lng !== undefined) patch.lng = a.lng ?? null;
+
+    if (Object.keys(patch).length > 0) {
+      await manager.update(Arrendatarios, id, patch);
+    }
+  }
+
+  private buildContratoPatch(
+    c: ContratoArrendatarioJsonDto | UpdateContratoArrendatarioJsonDto,
+  ): Partial<ContratoArrendatarios> {
+    const patch: Partial<ContratoArrendatarios> = {};
+    if (c.idInmueble !== undefined) patch.idInmueble = c.idInmueble ?? null;
+    if (c.idLocal !== undefined) patch.idLocal = c.idLocal ?? null;
+    if (c.fechaInicioContrato !== undefined) {
+      patch.fechaInicioContrato = c.fechaInicioContrato
+        ? new Date(c.fechaInicioContrato)
+        : null;
+    }
+    if (c.fechaTerminoContrato !== undefined) {
+      patch.fechaTerminoContrato = c.fechaTerminoContrato
+        ? new Date(c.fechaTerminoContrato)
+        : null;
+    }
+    if (c.moneda !== undefined) patch.moneda = c.moneda ?? null;
+    if (c.metrosRentados !== undefined) {
+      patch.metrosRentados = decStr(c.metrosRentados);
+    }
+    if (c.costoM2 !== undefined) patch.costoM2 = decStr(c.costoM2);
+    if (c.porcentajeMantenimiento !== undefined) {
+      patch.porcentajeMantenimiento = decStr(c.porcentajeMantenimiento);
+    }
+    if (c.mesesDeposito !== undefined) {
+      patch.mesesDeposito = decStrMaybeInt(c.mesesDeposito);
+    }
+    if (c.montoDeposito !== undefined) {
+      patch.montoDeposito = decStr(c.montoDeposito);
+    }
+    if (c.mesesAdelanto !== undefined) {
+      patch.mesesAdelanto = decStrMaybeInt(c.mesesAdelanto);
+    }
+    if (c.montoAdelanto !== undefined) {
+      patch.montoAdelanto = decStr(c.montoAdelanto);
+    }
+    if (c.aniosForzososArrendador !== undefined) {
+      patch.aniosForzososArrendador = c.aniosForzososArrendador ?? null;
+    }
+    if (c.aniosForzososArrendatario !== undefined) {
+      patch.aniosForzososArrendatario = c.aniosForzososArrendatario ?? null;
+    }
+    if (c.subTotalRenta !== undefined) {
+      patch.subTotalRenta = decStr(c.subTotalRenta);
+    }
+    if (c.ivaRenta !== undefined) patch.ivaRenta = decStr(c.ivaRenta);
+    if (c.rentaTotal !== undefined) patch.rentaTotal = decStr(c.rentaTotal);
+    if (c.subTotalMantenimiento !== undefined) {
+      patch.subTotalMantenimiento = decStr(c.subTotalMantenimiento);
+    }
+    if (c.ivaMantenimiento !== undefined) {
+      patch.ivaMantenimiento = decStr(c.ivaMantenimiento);
+    }
+    if (c.mantenimientoTotal !== undefined) {
+      patch.mantenimientoTotal = decStr(c.mantenimientoTotal);
+    }
+    if (c.observaciones !== undefined) {
+      patch.observaciones = c.observaciones ?? null;
+    }
+    return patch;
+  }
+
+  private async upsertContrato(
+    manager: import("typeorm").EntityManager,
+    c:
+      | ContratoArrendatarioJsonDto
+      | UpdateContratoArrendatarioJsonDto
+      | undefined,
+    idArrendatario: number,
+  ): Promise<number | null> {
+    if (!c) return null;
+
+    if (c.idLocal != null) {
+      const local = await manager.findOne(LocalesZonaInmueble, {
+        where: { id: c.idLocal },
+      });
+      if (!local) {
+        throw new BadRequestException(
+          `Local con id ${c.idLocal} no encontrado.`,
+        );
+      }
+    }
+
+    const updateDto = c as UpdateContratoArrendatarioJsonDto;
+    let contratoId: number;
+
+    if (updateDto.id) {
+      const existing = await manager.findOne(ContratoArrendatarios, {
+        where: { id: updateDto.id, idArrendatario },
+      });
+      if (!existing) {
+        throw new BadRequestException(
+          `Contrato con id ${updateDto.id} no pertenece al arrendatario ${idArrendatario}.`,
+        );
+      }
+      const patch = this.buildContratoPatch(c);
+      if (Object.keys(patch).length > 0) {
+        await manager.update(ContratoArrendatarios, updateDto.id, patch);
+      }
+      contratoId = updateDto.id;
+    } else {
+      const contrato = manager.create(ContratoArrendatarios, {
+        idArrendatario,
+        ...this.buildContratoPatch(c),
+      });
+      const saved = await manager.save(ContratoArrendatarios, contrato);
+      contratoId = Number(saved.id);
+    }
+
+    if (c.idLocal != null) {
+      await manager.update(LocalesZonaInmueble, c.idLocal, {
+        estatus: LocalesEstatus.Ocupado,
+      });
+    }
+
+    return contratoId;
+  }
+
+  private async appendServicios(
+    manager: import("typeorm").EntityManager,
+    items: RegistrarArrendatarioFormDto["servicios"],
+    idArrendatario: number,
+    idUser: number,
+  ): Promise<{ id: number; idTipoServicio: number }[]> {
+    const out: { id: number; idTipoServicio: number }[] = [];
+    for (const s of items ?? []) {
+      const file = s.archivo as Express.Multer.File | undefined;
+      let url: string | null = null;
+      if (file) {
+        const up = await this.s3Service.uploadFile(
+          file,
+          FOLDER_SERVICIOS,
+          idUser,
+          ID_MODULE,
+        );
+        url = up.url;
+      }
+      const row = manager.create(ServiciosArrendatarios, {
+        idArrendatario,
+        idTipoServicio: s.idTipoServicio,
+        numeroContrato: s.numeroContrato ?? null,
+        fechaPago: s.fechaPago ? new Date(s.fechaPago) : null,
+        ultimoDiaPago: s.ultimoDiaPago ? new Date(s.ultimoDiaPago) : null,
+        urlComprobante: url,
+      });
+      const saved = await manager.save(ServiciosArrendatarios, row);
+      out.push({
+        id: Number(saved.id),
+        idTipoServicio: s.idTipoServicio,
+      });
+    }
+    return out;
+  }
+
+  private async appendSocios(
+    manager: import("typeorm").EntityManager,
+    items: SocioItemDto[],
+    idArrendatario: number,
+    idUser: number,
+  ): Promise<{ id: number; nombre: string }[]> {
+    const out: { id: number; nombre: string }[] = [];
+    for (const socio of items) {
+      out.push(await this.guardarSocio(manager, socio, idArrendatario, idUser));
+    }
+    return out;
   }
 
   private async guardarArchivosLista(

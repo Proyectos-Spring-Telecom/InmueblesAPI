@@ -4,10 +4,12 @@ import {
   Index,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { applySchema } from "src/utils/schema";
 import { Inmuebles } from "./Inmuebles";
+import { LocalesZonaInmueble } from "./LocalesZonaInmueble";
 
 @Index("FK_Zona_Inmueble_idx", ["idInmueble"], {})
 @Entity("ZonasInmuebles")
@@ -58,4 +60,7 @@ export class ZonasInmuebles {
   })
   @JoinColumn([{ name: "IdInmueble", referencedColumnName: "id" }])
   inmueble: Inmuebles;
+
+  @OneToMany(() => LocalesZonaInmueble, (local) => local.zona)
+  locales: LocalesZonaInmueble[];
 }

@@ -74,6 +74,9 @@ export class Inmuebles {
   @Column("double", { name: "Lng", nullable: true })
   lng: number | null;
 
+  @Column("json", { name: "MapaInmueble", nullable: true })
+  mapaInmueble: object | null;
+
   @ManyToOne(() => Clientes, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",

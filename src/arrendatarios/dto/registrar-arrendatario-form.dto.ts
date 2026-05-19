@@ -250,6 +250,7 @@ export class ArchivoConNombreDto {
   archivo?: any;
 }
 
+/** En PUT del arrendatario usar `socios[i].id` para actualizar un socio existente. */
 export class SocioItemDto {
   @ApiProperty({ example: "Socio A" })
   @IsString()

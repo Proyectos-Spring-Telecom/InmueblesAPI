@@ -46,9 +46,10 @@ export class InmueblesController {
   @ApiBody({ type: UpdateInmuebleDto })
   @ApiOperation({
     summary:
-      "Actualizar inmueble completo (mismo FormData que registro; arrays hacen append).",
+      "Actualizar inmueble completo (mismo FormData que registro).",
     description:
-      "Campos planos opcionales del inmueble. Arrays servicios/zonas/archivos/imagenes agregan registros nuevos.",
+      "Campos planos opcionales del inmueble. servicios[i].id y zonas[i].id actualizan; sin id crean. " +
+      "zonas[i].locales[j].id actualiza locales. archivos[i].id e imagenes[i].id actualizan; sin id crean.",
   })
   async actualizar(@Param("id", ParseIntPipe) id: number, @Req() req: any) {
     const nested = parseNestedFormData(req.body, req.files);

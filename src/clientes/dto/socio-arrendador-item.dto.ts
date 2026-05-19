@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from "class-validator";
 
+/** En PUT del cliente usar `socios[i].id` para actualizar un socio existente. */
 export class SocioArrendadorItemDto {
   @ApiProperty({ example: "Socio A" })
   @IsString()

@@ -8,6 +8,8 @@ import { IsOptional, IsString, MaxLength } from "class-validator";
  *   imagenes[0].nombre
  *   imagenes[0].archivo   (FILE)
  *
+ * En PUT también: archivos[0].id / imagenes[0].id para actualizar existentes.
+ *
  * Tras subir `archivo` a S3 se persistirá en `ArchivosInmuebles.Url`.
  */
 export class CreateArchivoInmuebleDto {

@@ -7,12 +7,12 @@ import {
   ValidateNested,
 } from "class-validator";
 import {
-  ArchivoConNombreDto,
   ArrendatarioJsonDto,
   ContratoArrendatarioJsonDto,
-  CreateServicioArrendatarioItemDto,
-  SocioItemDto,
 } from "./registrar-arrendatario-form.dto";
+import { UpdateArchivoArrendatarioDto } from "./update-archivo-arrendatario.dto";
+import { UpdateServicioArrendatarioItemDto } from "./update-servicio-arrendatario.dto";
+import { UpdateSocioArrendatarioDto } from "./update-socio-arrendatario.dto";
 
 export class UpdateArrendatarioJsonDto extends PartialType(ArrendatarioJsonDto) {}
 
@@ -42,31 +42,43 @@ export class ActualizarArrendatarioFormDto {
   @Type(() => UpdateContratoArrendatarioJsonDto)
   contratoArrendatario?: UpdateContratoArrendatarioJsonDto;
 
-  @ApiPropertyOptional({ type: [CreateServicioArrendatarioItemDto] })
+  @ApiPropertyOptional({ type: [UpdateServicioArrendatarioItemDto] })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => CreateServicioArrendatarioItemDto)
-  servicios?: CreateServicioArrendatarioItemDto[];
+  @Type(() => UpdateServicioArrendatarioItemDto)
+  servicios?: UpdateServicioArrendatarioItemDto[];
 
-  @ApiPropertyOptional({ type: [ArchivoConNombreDto] })
+  @ApiPropertyOptional({
+    type: [UpdateArchivoArrendatarioDto],
+    description:
+      "Documentación: con id actualiza nombre y/o archivo; sin id crea registro nuevo.",
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => ArchivoConNombreDto)
-  archivos?: ArchivoConNombreDto[];
+  @Type(() => UpdateArchivoArrendatarioDto)
+  archivos?: UpdateArchivoArrendatarioDto[];
 
-  @ApiPropertyOptional({ type: [ArchivoConNombreDto] })
+  @ApiPropertyOptional({
+    type: [UpdateArchivoArrendatarioDto],
+    description:
+      "Imágenes: con id actualiza nombre y/o archivo; sin id crea registro nuevo.",
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => ArchivoConNombreDto)
-  imagenes?: ArchivoConNombreDto[];
+  @Type(() => UpdateArchivoArrendatarioDto)
+  imagenes?: UpdateArchivoArrendatarioDto[];
 
-  @ApiPropertyOptional({ type: [SocioItemDto] })
+  @ApiPropertyOptional({
+    type: [UpdateSocioArrendatarioDto],
+    description:
+      "Socios: con id actualiza datos y/o documentos; sin id crea socio nuevo.",
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => SocioItemDto)
-  socios?: SocioItemDto[];
+  @Type(() => UpdateSocioArrendatarioDto)
+  socios?: UpdateSocioArrendatarioDto[];
 }

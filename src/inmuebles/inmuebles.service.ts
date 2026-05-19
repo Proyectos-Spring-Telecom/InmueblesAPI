@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -9,16 +10,20 @@ import { Inmuebles } from "src/entities/Inmuebles";
 import { ServiciosInmuebles } from "src/entities/ServiciosInmuebles";
 import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
-import { CreateLocalZonaInmuebleDto } from "./dto/create-local-zona-inmueble.dto";
 import { ArchivosInmuebles } from "src/entities/ArchivosInmuebles";
 import { S3Service } from "src/s3/s3.service";
 import { ApiResponseCommon } from "src/common/ApiResponse";
 import { LocalesEstatus } from "src/common/locales-estatus.enum";
+import { resolveEntityId } from "src/common/resolve-entity-id";
 import { CreateInmuebleDto } from "./dto/create-inmueble.dto";
 import { UpdateInmuebleDto } from "./dto/update-inmueble.dto";
 import { CreateZonaInmuebleDto } from "./dto/create-zona-inmueble.dto";
 import { CreateServicioInmuebleDto } from "./dto/create-servicio-inmueble.dto";
+import { UpdateServicioInmuebleDto } from "./dto/update-servicio-inmueble.dto";
+import { UpdateZonaInmuebleDto } from "./dto/update-zona-inmueble.dto";
+import { UpdateLocalZonaInmuebleDto } from "./dto/update-local-zona-inmueble.dto";
 import { CreateArchivoInmuebleDto } from "./dto/create-archivo-inmueble.dto";
+import { UpdateArchivoInmuebleDto } from "./dto/update-archivo-inmueble.dto";
 
 const FOLDER_SERVICIOS = "Servicios Inmuebles";
 const FOLDER_DOCUMENTACION = "Documentación Inmueble";
@@ -129,21 +134,21 @@ export class InmueblesService {
         await manager.update(Inmuebles, idInmueble, patch);
       }
 
-      const servicios = await this.appendServicios(
+      const servicios = await this.upsertServicios(
         manager,
         dto.servicios ?? [],
         idInmueble,
         idUser,
       );
-      const zonas = await this.appendZonas(manager, dto.zonas ?? [], idInmueble);
-      const archivos = await this.appendArchivos(
+      const zonas = await this.upsertZonas(manager, dto.zonas ?? [], idInmueble);
+      const archivos = await this.upsertArchivos(
         manager,
         dto.archivos ?? [],
         idInmueble,
         idUser,
         FOLDER_DOCUMENTACION,
       );
-      const imagenes = await this.appendArchivos(
+      const imagenes = await this.upsertArchivos(
         manager,
         dto.imagenes ?? [],
         idInmueble,
@@ -378,9 +383,86 @@ export class InmueblesService {
     idInmueble: number,
     idUser: number,
   ): Promise<SavedServicio[]> {
+    return this.upsertServicios(
+      manager,
+      items as UpdateServicioInmuebleDto[],
+      idInmueble,
+      idUser,
+      false,
+    );
+  }
+
+  private buildServicioInmueblePatch(
+    s: UpdateServicioInmuebleDto,
+  ): Partial<ServiciosInmuebles> {
+    const patch: Partial<ServiciosInmuebles> = {};
+    if (s.idTipoServicio !== undefined) {
+      patch.idTipoServicio = s.idTipoServicio;
+    }
+    if (s.numeroContrato !== undefined) {
+      patch.numeroContrato = s.numeroContrato ?? null;
+    }
+    if (s.fechaPago !== undefined) {
+      patch.fechaPago = s.fechaPago ? new Date(s.fechaPago) : null;
+    }
+    if (s.ultimoDiaPago !== undefined) {
+      patch.ultimoDiaPago = s.ultimoDiaPago ? new Date(s.ultimoDiaPago) : null;
+    }
+    return patch;
+  }
+
+  private async upsertServicios(
+    manager: import("typeorm").EntityManager,
+    items: UpdateServicioInmuebleDto[],
+    idInmueble: number,
+    idUser: number,
+    upsert = true,
+  ): Promise<SavedServicio[]> {
     const out: SavedServicio[] = [];
     for (const s of items) {
       const file = s.archivo as Express.Multer.File | undefined;
+      const entityId = upsert ? resolveEntityId(s.id) : undefined;
+
+      if (entityId !== undefined) {
+        const existing = await manager.findOne(ServiciosInmuebles, {
+          where: { id: entityId, idInmueble },
+        });
+        if (!existing) {
+          throw new BadRequestException(
+            `Servicio con id ${entityId} no pertenece al inmueble ${idInmueble}.`,
+          );
+        }
+        const patch = this.buildServicioInmueblePatch(s);
+        if (file) {
+          const r = await this.s3Service.uploadFile(
+            file,
+            FOLDER_SERVICIOS,
+            idUser,
+            ID_MODULE,
+          );
+          patch.urlComprobante = r.url;
+        }
+        if (Object.keys(patch).length > 0) {
+          await manager.update(ServiciosInmuebles, entityId, patch);
+        }
+        const updated = await manager.findOne(ServiciosInmuebles, {
+          where: { id: entityId },
+        });
+        out.push({
+          id: entityId,
+          idTipoServicio: Number(
+            updated?.idTipoServicio ?? existing.idTipoServicio,
+          ),
+          urlComprobante: updated?.urlComprobante ?? existing.urlComprobante,
+        });
+        continue;
+      }
+
+      if (s.idTipoServicio === undefined) {
+        throw new BadRequestException(
+          "Para crear un servicio nuevo se requiere idTipoServicio.",
+        );
+      }
       let urlComprobante: string | null = null;
       if (file) {
         const r = await this.s3Service.uploadFile(
@@ -409,13 +491,144 @@ export class InmueblesService {
     return out;
   }
 
+  private buildZonaInmueblePatch(z: UpdateZonaInmuebleDto): Partial<ZonasInmuebles> {
+    const patch: Partial<ZonasInmuebles> = {};
+    if (z.zonaPrincipal !== undefined) {
+      patch.zonaPrincipal = z.zonaPrincipal ?? null;
+    }
+    if (z.superficieZonaM2 !== undefined) {
+      patch.superficieZonaM2 =
+        z.superficieZonaM2 != null ? String(z.superficieZonaM2) : null;
+    }
+    if (z.superficieDisponibleM2 !== undefined) {
+      patch.superficieDisponibleM2 =
+        z.superficieDisponibleM2 != null
+          ? String(z.superficieDisponibleM2)
+          : null;
+    }
+    if (z.numeroZona !== undefined) {
+      patch.numeroZona = z.numeroZona ?? null;
+    }
+    return patch;
+  }
+
+  private buildLocalZonaPatch(
+    local: UpdateLocalZonaInmuebleDto,
+  ): Partial<LocalesZonaInmueble> {
+    const patch: Partial<LocalesZonaInmueble> = {};
+    if (local.nombre !== undefined) patch.nombre = local.nombre ?? null;
+    if (local.areaM2 !== undefined) {
+      patch.areaM2 = local.areaM2 != null ? String(local.areaM2) : null;
+    }
+    if (local.estatus !== undefined) patch.estatus = local.estatus ?? null;
+    if (local.mensualidad !== undefined) {
+      patch.mensualidad =
+        local.mensualidad != null ? String(local.mensualidad) : null;
+    }
+    if (local.giro !== undefined) patch.giro = local.giro ?? null;
+    return patch;
+  }
+
+  private async upsertLocalesZona(
+    manager: import("typeorm").EntityManager,
+    items: UpdateLocalZonaInmuebleDto[],
+    idZona: number,
+    upsert = true,
+  ): Promise<SavedLocal[]> {
+    const out: SavedLocal[] = [];
+    for (const local of items) {
+      const entityId = upsert ? resolveEntityId(local.id) : undefined;
+
+      if (entityId !== undefined) {
+        const existing = await manager.findOne(LocalesZonaInmueble, {
+          where: { id: entityId, idZona },
+        });
+        if (!existing) {
+          throw new BadRequestException(
+            `Local con id ${entityId} no pertenece a la zona ${idZona}.`,
+          );
+        }
+        const patch = this.buildLocalZonaPatch(local);
+        if (Object.keys(patch).length > 0) {
+          await manager.update(LocalesZonaInmueble, entityId, patch);
+        }
+        const updated = await manager.findOne(LocalesZonaInmueble, {
+          where: { id: entityId },
+        });
+        out.push({
+          id: entityId,
+          nombre: updated?.nombre ?? existing.nombre,
+        });
+        continue;
+      }
+
+      const row = manager.create(LocalesZonaInmueble, {
+        idZona,
+        nombre: local.nombre ?? null,
+        areaM2: local.areaM2 != null ? String(local.areaM2) : null,
+        estatus: local.estatus ?? LocalesEstatus.Disponible,
+        mensualidad:
+          local.mensualidad != null ? String(local.mensualidad) : null,
+        giro: local.giro ?? null,
+      });
+      const saved = await manager.save(LocalesZonaInmueble, row);
+      out.push({ id: Number(saved.id), nombre: saved.nombre });
+    }
+    return out;
+  }
+
   private async appendZonas(
     manager: import("typeorm").EntityManager,
     items: CreateZonaInmuebleDto[],
     idInmueble: number,
   ): Promise<SavedZona[]> {
+    return this.upsertZonas(
+      manager,
+      items as UpdateZonaInmuebleDto[],
+      idInmueble,
+      false,
+    );
+  }
+
+  private async upsertZonas(
+    manager: import("typeorm").EntityManager,
+    items: UpdateZonaInmuebleDto[],
+    idInmueble: number,
+    upsert = true,
+  ): Promise<SavedZona[]> {
     const out: SavedZona[] = [];
     for (const z of items) {
+      const entityId = upsert ? resolveEntityId(z.id) : undefined;
+
+      if (entityId !== undefined) {
+        const existing = await manager.findOne(ZonasInmuebles, {
+          where: { id: entityId, idInmueble },
+        });
+        if (!existing) {
+          throw new BadRequestException(
+            `Zona con id ${entityId} no pertenece al inmueble ${idInmueble}.`,
+          );
+        }
+        const patch = this.buildZonaInmueblePatch(z);
+        if (Object.keys(patch).length > 0) {
+          await manager.update(ZonasInmuebles, entityId, patch);
+        }
+        const locales = await this.upsertLocalesZona(
+          manager,
+          z.locales ?? [],
+          entityId,
+        );
+        const updated = await manager.findOne(ZonasInmuebles, {
+          where: { id: entityId },
+        });
+        out.push({
+          id: entityId,
+          zonaPrincipal: updated?.zonaPrincipal ?? existing.zonaPrincipal,
+          locales,
+        });
+        continue;
+      }
+
       const row = manager.create(ZonasInmuebles, {
         idInmueble,
         zonaPrincipal: z.zonaPrincipal ?? null,
@@ -429,10 +642,11 @@ export class InmueblesService {
       });
       const saved = await manager.save(ZonasInmuebles, row);
       const idZona = Number(saved.id);
-      const locales = await this.saveLocalesZona(
+      const locales = await this.upsertLocalesZona(
         manager,
         z.locales ?? [],
         idZona,
+        upsert,
       );
       out.push({
         id: idZona,
@@ -450,9 +664,72 @@ export class InmueblesService {
     idUser: number,
     folder: string,
   ): Promise<SavedArchivo[]> {
+    return this.upsertArchivos(
+      manager,
+      items as UpdateArchivoInmuebleDto[],
+      idInmueble,
+      idUser,
+      folder,
+      false,
+    );
+  }
+
+  private buildArchivoInmueblePatch(
+    item: UpdateArchivoInmuebleDto,
+  ): Partial<ArchivosInmuebles> {
+    const patch: Partial<ArchivosInmuebles> = {};
+    if (item.nombre !== undefined) {
+      patch.nombre = item.nombre ?? null;
+    }
+    return patch;
+  }
+
+  private async upsertArchivos(
+    manager: import("typeorm").EntityManager,
+    items: UpdateArchivoInmuebleDto[],
+    idInmueble: number,
+    idUser: number,
+    folder: string,
+    upsert = true,
+  ): Promise<SavedArchivo[]> {
     const out: SavedArchivo[] = [];
     for (const item of items) {
       const file = item.archivo as Express.Multer.File | undefined;
+      const entityId = upsert ? resolveEntityId(item.id) : undefined;
+
+      if (entityId !== undefined) {
+        const existing = await manager.findOne(ArchivosInmuebles, {
+          where: { id: entityId, idInmueble },
+        });
+        if (!existing) {
+          throw new BadRequestException(
+            `Archivo con id ${entityId} no pertenece al inmueble ${idInmueble}.`,
+          );
+        }
+        const patch = this.buildArchivoInmueblePatch(item);
+        if (file) {
+          const r = await this.s3Service.uploadFile(
+            file,
+            folder,
+            idUser,
+            ID_MODULE,
+          );
+          patch.url = r.url;
+        }
+        if (Object.keys(patch).length > 0) {
+          await manager.update(ArchivosInmuebles, entityId, patch);
+        }
+        const updated = await manager.findOne(ArchivosInmuebles, {
+          where: { id: entityId },
+        });
+        out.push({
+          id: entityId,
+          nombre: updated?.nombre ?? existing.nombre,
+          url: updated?.url ?? existing.url ?? "",
+        });
+        continue;
+      }
+
       if (!file) continue;
       const r = await this.s3Service.uploadFile(file, folder, idUser, ID_MODULE);
       const row = manager.create(ArchivosInmuebles, {
@@ -466,25 +743,4 @@ export class InmueblesService {
     return out;
   }
 
-  private async saveLocalesZona(
-    manager: import("typeorm").EntityManager,
-    items: CreateLocalZonaInmuebleDto[],
-    idZona: number,
-  ): Promise<SavedLocal[]> {
-    const out: SavedLocal[] = [];
-    for (const local of items) {
-      const row = manager.create(LocalesZonaInmueble, {
-        idZona,
-        nombre: local.nombre ?? null,
-        areaM2: local.areaM2 != null ? String(local.areaM2) : null,
-        estatus: local.estatus ?? LocalesEstatus.Disponible,
-        mensualidad:
-          local.mensualidad != null ? String(local.mensualidad) : null,
-        giro: local.giro ?? null,
-      });
-      const saved = await manager.save(LocalesZonaInmueble, row);
-      out.push({ id: Number(saved.id), nombre: saved.nombre });
-    }
-    return out;
-  }
 }

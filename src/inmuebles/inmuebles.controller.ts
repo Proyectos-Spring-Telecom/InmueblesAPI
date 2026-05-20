@@ -136,6 +136,17 @@ export class InmueblesController {
     return this.inmueblesService.findByIdArrendador(idArrendador);
   }
 
+  @Get("servicios/:idInmueble")
+  @ApiOperation({
+    summary:
+      "Listar servicios (ServiciosInmuebles) de un inmueble por idInmueble.",
+  })
+  findServiciosByIdInmueble(
+    @Param("idInmueble", ParseIntPipe) idInmueble: number,
+  ) {
+    return this.inmueblesService.findServiciosByIdInmueble(idInmueble);
+  }
+
   @Get("zonas/:idInmueble")
   @ApiOperation({
     summary: "Listar zonas de un inmueble por idInmueble (con locales).",

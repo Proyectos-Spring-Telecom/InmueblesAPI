@@ -49,7 +49,8 @@ export class InmueblesController {
       "Actualizar inmueble completo (mismo FormData que registro).",
     description:
       "Campos planos opcionales del inmueble. servicios[i].id y zonas[i].id actualizan; sin id crean. " +
-      "zonas[i].locales[j].id actualiza locales. archivos[i].id e imagenes[i].id actualizan; sin id crean.",
+      "zonas[i].locales[j].id actualiza locales; locales[j].fachada (FILE) sube fachada a S3. " +
+      "archivos[i].id e imagenes[i].id actualizan; sin id crean.",
   })
   async actualizar(@Param("id", ParseIntPipe) id: number, @Req() req: any) {
     const nested = parseNestedFormData(req.body, req.files);
@@ -84,7 +85,8 @@ export class InmueblesController {
     summary: "Registrar inmueble (Inmuebles + Servicios + Zonas + Archivos).",
     description:
       "Campos planos: inmueble, idArrendador, lat, lng, direccionFiscal, etc. " +
-      "Arrays: servicios[0].*, archivos[0].nombre/archivo, imagenes[0].*, zonas[0].*, zonas[0].locales[0].*, etc.",
+      "Arrays: servicios[0].*, archivos[0].nombre/archivo, imagenes[0].*, zonas[0].*, " +
+      "zonas[0].locales[0].* (incl. locales[0].fachada FILE), etc.",
   })
   async registrar(
     @Req() req: any,

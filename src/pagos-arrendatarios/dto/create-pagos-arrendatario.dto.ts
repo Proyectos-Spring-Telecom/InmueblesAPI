@@ -4,7 +4,6 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -12,17 +11,17 @@ import {
 } from "class-validator";
 import { PagoEstatus } from "src/common/pago-estatus.enum";
 
-export class CreatePagoDto {
+export class CreatePagosArrendatarioDto {
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()
-  idInmueble: number;
+  idArrendatario: number;
 
   @ApiPropertyOptional({ example: 2 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
-  idServicioInmueble?: number;
+  idServicioArrendatario?: number;
 
   @ApiPropertyOptional({ example: "Renta mensual" })
   @IsOptional()

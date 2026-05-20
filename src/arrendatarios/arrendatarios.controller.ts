@@ -56,6 +56,19 @@ export class ArrendatariosController {
     return this.arrendatariosService.findByIdInmueble(idInmueble);
   }
 
+  @Get("servicios/:idArrendatario")
+  @ApiOperation({
+    summary:
+      "Listar servicios (ServiciosArrendatarios) de un arrendatario por idArrendatario.",
+  })
+  findServiciosByIdArrendatario(
+    @Param("idArrendatario", ParseIntPipe) idArrendatario: number,
+  ) {
+    return this.arrendatariosService.findServiciosByIdArrendatario(
+      idArrendatario,
+    );
+  }
+
   @Get(":id")
   @ApiOperation({
     summary: "Obtener arrendatario por ID (con relaciones).",

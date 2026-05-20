@@ -5,41 +5,41 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ApiResponseCommon } from "src/common/ApiResponse";
+import { PagoEstatus } from "src/common/pago-estatus.enum";
+import { Arrendatarios } from "src/entities/Arrendatarios";
 import { CatMetodosPago } from "src/entities/CatMetodosPago";
-import { Inmuebles } from "src/entities/Inmuebles";
-import { Pago } from "src/entities/Pago";
-import { ServiciosInmuebles } from "src/entities/ServiciosInmuebles";
+import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
+import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { S3Service } from "src/s3/s3.service";
 import { In, Repository } from "typeorm";
-import { PagoEstatus } from "src/common/pago-estatus.enum";
-import { CreatePagoDto } from "./dto/create-pago.dto";
+import { CreatePagosArrendatarioDto } from "./dto/create-pagos-arrendatario.dto";
 
-const FOLDER_COMPROBANTE = "ComprobantesPagoInmuebles";
+const FOLDER_COMPROBANTE = "ComprobantesPagoArrendatarios";
 const ID_MODULE = 1;
 
 const FULL_RELATIONS = [
-  "inmueble",
-  "servicioInmueble",
-  "servicioInmueble.tipoServicio",
+  "arrendatario",
+  "servicioArrendatario",
+  "servicioArrendatario.tipoServicio",
   "metodoPago",
 ];
 
 @Injectable()
-export class PagoService {
+export class PagosArrendatariosService {
   constructor(
-    @InjectRepository(Pago)
-    private readonly pagoRepository: Repository<Pago>,
-    @InjectRepository(Inmuebles)
-    private readonly inmueblesRepository: Repository<Inmuebles>,
-    @InjectRepository(ServiciosInmuebles)
-    private readonly serviciosInmueblesRepository: Repository<ServiciosInmuebles>,
+    @InjectRepository(PagosArrendatarios)
+    private readonly pagosArrendatariosRepository: Repository<PagosArrendatarios>,
+    @InjectRepository(Arrendatarios)
+    private readonly arrendatariosRepository: Repository<Arrendatarios>,
+    @InjectRepository(ServiciosArrendatarios)
+    private readonly serviciosArrendatariosRepository: Repository<ServiciosArrendatarios>,
     @InjectRepository(CatMetodosPago)
     private readonly catMetodosPagoRepository: Repository<CatMetodosPago>,
     private readonly s3Service: S3Service,
   ) {}
 
   async registrar(
-    dto: CreatePagoDto,
+    dto: CreatePagosArrendatarioDto,
     comprobante: Express.Multer.File | undefined,
     idUser: number,
   ) {
@@ -47,22 +47,27 @@ export class PagoService {
       throw new BadRequestException("ComprobantePagoArchivo es requerido");
     }
 
-    const inmueble = await this.inmueblesRepository.findOne({
-      where: { id: dto.idInmueble },
+    const arrendatario = await this.arrendatariosRepository.findOne({
+      where: { id: dto.idArrendatario },
     });
-    if (!inmueble) {
+    if (!arrendatario) {
       throw new NotFoundException(
-        `Inmueble con id ${dto.idInmueble} no encontrado`,
+        `Arrendatario con id ${dto.idArrendatario} no encontrado`,
       );
     }
 
-    if (dto.idServicioInmueble != null) {
-      const servicio = await this.serviciosInmueblesRepository.findOne({
-        where: { id: dto.idServicioInmueble },
+    if (dto.idServicioArrendatario != null) {
+      const servicio = await this.serviciosArrendatariosRepository.findOne({
+        where: { id: dto.idServicioArrendatario },
       });
       if (!servicio) {
         throw new NotFoundException(
-          `Servicio de inmueble con id ${dto.idServicioInmueble} no encontrado`,
+          `Servicio de arrendatario con id ${dto.idServicioArrendatario} no encontrado`,
+        );
+      }
+      if (Number(servicio.idArrendatario) !== dto.idArrendatario) {
+        throw new BadRequestException(
+          `El servicio ${dto.idServicioArrendatario} no pertenece al arrendatario ${dto.idArrendatario}.`,
         );
       }
     }
@@ -85,9 +90,9 @@ export class PagoService {
       ID_MODULE,
     );
 
-    const row = this.pagoRepository.create({
-      idInmueble: dto.idInmueble,
-      idServicioInmueble: dto.idServicioInmueble ?? null,
+    const row = this.pagosArrendatariosRepository.create({
+      idArrendatario: dto.idArrendatario,
+      idServicioArrendatario: dto.idServicioArrendatario ?? null,
       concepto: dto.concepto ?? null,
       fechaPago: new Date(dto.fechaPago),
       monto: String(dto.monto),
@@ -96,35 +101,39 @@ export class PagoService {
       comprobantePago: upload.url,
     });
 
-    const saved = await this.pagoRepository.save(row);
+    const saved = await this.pagosArrendatariosRepository.save(row);
     return this.findOne(Number(saved.id));
   }
 
   async findOne(id: number) {
-    const data = await this.pagoRepository.findOne({
+    const data = await this.pagosArrendatariosRepository.findOne({
       where: { id },
       relations: FULL_RELATIONS,
     });
     if (!data) {
-      throw new NotFoundException(`Pago con id ${id} no encontrado`);
+      throw new NotFoundException(
+        `Pago de arrendatario con id ${id} no encontrado`,
+      );
     }
     return data;
   }
 
   async updateEstatus(id: number, estatus: PagoEstatus) {
-    const pago = await this.pagoRepository.findOne({
+    const pago = await this.pagosArrendatariosRepository.findOne({
       where: { id },
       select: ["id"],
     });
     if (!pago) {
-      throw new NotFoundException(`Pago con id ${id} no encontrado`);
+      throw new NotFoundException(
+        `Pago de arrendatario con id ${id} no encontrado`,
+      );
     }
 
-    await this.pagoRepository.update(id, { estatus });
+    await this.pagosArrendatariosRepository.update(id, { estatus });
 
     return {
       status: "success",
-      message: "Estatus del pago actualizado correctamente.",
+      message: "Estatus del pago de arrendatario actualizado correctamente.",
       data: await this.findOne(id),
     };
   }
@@ -137,12 +146,13 @@ export class PagoService {
     const safeLimit = Math.max(1, limit);
     const skip = (safePage - 1) * safeLimit;
 
-    const [idRows, total] = await this.pagoRepository.findAndCount({
-      select: ["id"],
-      order: { id: "DESC" },
-      skip,
-      take: safeLimit,
-    });
+    const [idRows, total] =
+      await this.pagosArrendatariosRepository.findAndCount({
+        select: ["id"],
+        order: { id: "DESC" },
+        skip,
+        take: safeLimit,
+      });
 
     if (idRows.length === 0) {
       return {
@@ -156,7 +166,7 @@ export class PagoService {
     }
 
     const ids = idRows.map((r) => r.id);
-    const data = await this.pagoRepository.find({
+    const data = await this.pagosArrendatariosRepository.find({
       where: { id: In(ids) },
       relations: FULL_RELATIONS,
       order: { id: "DESC" },

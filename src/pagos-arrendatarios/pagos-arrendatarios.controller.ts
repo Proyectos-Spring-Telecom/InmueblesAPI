@@ -23,16 +23,18 @@ import {
 } from "@nestjs/swagger";
 import * as multer from "multer";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
-import { CreatePagoDto } from "./dto/create-pago.dto";
-import { UpdatePagoEstatusDto } from "./dto/update-pago-estatus.dto";
-import { PagoService } from "./pago.service";
+import { CreatePagosArrendatarioDto } from "./dto/create-pagos-arrendatario.dto";
+import { UpdatePagosArrendatarioEstatusDto } from "./dto/update-pagos-arrendatario-estatus.dto";
+import { PagosArrendatariosService } from "./pagos-arrendatarios.service";
 
-@ApiTags("Pago")
+@ApiTags("Pagos Arrendatarios")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth("access-token")
-@Controller("pago")
-export class PagoController {
-  constructor(private readonly pagoService: PagoService) {}
+@Controller("pagos-arrendatarios")
+export class PagosArrendatariosController {
+  constructor(
+    private readonly pagosArrendatariosService: PagosArrendatariosService,
+  ) {}
 
   @Post()
   @HttpCode(200)
@@ -62,14 +64,14 @@ export class PagoController {
     schema: {
       type: "object",
       required: [
-        "idInmueble",
+        "idArrendatario",
         "fechaPago",
         "monto",
         "ComprobantePagoArchivo",
       ],
       properties: {
-        idInmueble: { type: "integer", example: 1 },
-        idServicioInmueble: { type: "integer", example: 2 },
+        idArrendatario: { type: "integer", example: 1 },
+        idServicioArrendatario: { type: "integer", example: 2 },
         concepto: { type: "string", example: "Renta mensual" },
         fechaPago: {
           type: "string",
@@ -91,40 +93,41 @@ export class PagoController {
     },
   })
   @ApiOperation({
-    summary: "Registrar pago con comprobante (sube a S3 ComprobantesPagoInmuebles)",
+    summary:
+      "Registrar pago de arrendatario con comprobante (S3 ComprobantesPagoArrendatarios)",
   })
   registrar(
-    @Body() dto: CreatePagoDto,
+    @Body() dto: CreatePagosArrendatarioDto,
     @UploadedFile() comprobante: Express.Multer.File,
     @Req() req: any,
   ) {
     const idUser = Number(req?.user?.userId || 0);
-    return this.pagoService.registrar(dto, comprobante, idUser);
+    return this.pagosArrendatariosService.registrar(dto, comprobante, idUser);
   }
 
   @Get("paginated")
-  @ApiOperation({ summary: "Listar pagos paginado" })
+  @ApiOperation({ summary: "Listar pagos de arrendatarios paginado" })
   findAllPaginated(
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
   ) {
-    return this.pagoService.findAllPaginated(page, limit);
+    return this.pagosArrendatariosService.findAllPaginated(page, limit);
   }
 
   @Patch(":id/estatus")
   @HttpCode(200)
-  @ApiOperation({ summary: "Actualizar estatus de un pago por id" })
-  @ApiBody({ type: UpdatePagoEstatusDto })
+  @ApiOperation({ summary: "Actualizar estatus de un pago de arrendatario por id" })
+  @ApiBody({ type: UpdatePagosArrendatarioEstatusDto })
   updateEstatus(
     @Param("id", ParseIntPipe) id: number,
-    @Body() dto: UpdatePagoEstatusDto,
+    @Body() dto: UpdatePagosArrendatarioEstatusDto,
   ) {
-    return this.pagoService.updateEstatus(id, dto.estatus);
+    return this.pagosArrendatariosService.updateEstatus(id, dto.estatus);
   }
 
   @Get(":id")
-  @ApiOperation({ summary: "Obtener pago por ID" })
+  @ApiOperation({ summary: "Obtener pago de arrendatario por ID" })
   findOne(@Param("id", ParseIntPipe) id: number) {
-    return this.pagoService.findOne(id);
+    return this.pagosArrendatariosService.findOne(id);
   }
 }

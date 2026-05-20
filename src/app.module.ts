@@ -35,6 +35,7 @@ import { CatMetodosPagoModule } from './cat-metodos-pago/cat-metodos-pago.module
 import { PagoModule } from './pago/pago.module';
 import { PagosArrendatariosModule } from './pagos-arrendatarios/pagos-arrendatarios.module';
 import { EstacionamientosModule } from './estacionamientos/estacionamientos.module';
+import { EntradasSalidasEstacionamientoModule } from './entradas-salidas-estacionamiento/entradas-salidas-estacionamiento.module';
 import Joi from 'joi';
 import { join } from 'path';
 
@@ -117,6 +118,7 @@ import { join } from 'path';
     PagoModule,
     PagosArrendatariosModule,
     EstacionamientosModule,
+    EntradasSalidasEstacionamientoModule,
     ReportesModule,
     PdfOcrModule,
     AiToolsModule,

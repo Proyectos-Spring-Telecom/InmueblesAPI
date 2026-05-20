@@ -32,7 +32,7 @@ import { CreateArchivoInmuebleDto } from "./create-archivo-inmueble.dto";
  *   zonas[i].superficieDisponibleM2  zonas[i].numeroZona
  *   zonas[i].locales[j].nombre    zonas[i].locales[j].areaM2
  *   zonas[i].locales[j].estatus   zonas[i].locales[j].mensualidad
- *   zonas[i].locales[j].giro
+ *   zonas[i].locales[j].giro      zonas[i].locales[j].fachada (FILE)
  *
  *   archivos[i].nombre   archivos[i].archivo (FILE)
  *   imagenes[i].nombre   imagenes[i].archivo (FILE)

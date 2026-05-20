@@ -70,6 +70,8 @@ export class InmueblesService {
     private readonly zonasRepository: Repository<ZonasInmuebles>,
     @InjectRepository(LocalesZonaInmueble)
     private readonly localesRepository: Repository<LocalesZonaInmueble>,
+    @InjectRepository(ServiciosInmuebles)
+    private readonly serviciosInmueblesRepository: Repository<ServiciosInmuebles>,
   ) {}
 
   async registrar(dto: CreateInmuebleDto, idUser: number) {
@@ -226,6 +228,15 @@ export class InmueblesService {
       where: { idArrendador },
       relations: FULL_RELATIONS,
       order: { id: "DESC" },
+    });
+  }
+
+  async findServiciosByIdInmueble(idInmueble: number) {
+    await this.assertInmuebleExists(idInmueble);
+    return this.serviciosInmueblesRepository.find({
+      where: { idInmueble },
+      relations: ["tipoServicio"],
+      order: { id: "ASC" },
     });
   }
 

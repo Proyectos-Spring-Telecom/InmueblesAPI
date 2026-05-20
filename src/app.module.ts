@@ -33,6 +33,8 @@ import { FactoresModule } from './factores/factores.module';
 import { FormulasModule } from './formulas/formulas.module';
 import { CatMetodosPagoModule } from './cat-metodos-pago/cat-metodos-pago.module';
 import { PagoModule } from './pago/pago.module';
+import { PagosArrendatariosModule } from './pagos-arrendatarios/pagos-arrendatarios.module';
+import { EstacionamientosModule } from './estacionamientos/estacionamientos.module';
 import Joi from 'joi';
 import { join } from 'path';
 
@@ -113,6 +115,8 @@ import { join } from 'path';
     FormulasModule,
     CatMetodosPagoModule,
     PagoModule,
+    PagosArrendatariosModule,
+    EstacionamientosModule,
     ReportesModule,
     PdfOcrModule,
     AiToolsModule,

@@ -28,6 +28,7 @@ import { UpdateArchivoInmuebleDto } from "./dto/update-archivo-inmueble.dto";
 const FOLDER_SERVICIOS = "Servicios Inmuebles";
 const FOLDER_DOCUMENTACION = "Documentación Inmueble";
 const FOLDER_IMAGENES = "Imagenes Inmueble";
+const FOLDER_FACHADAS_LOCALES = "FachadasLocales";
 const ID_MODULE = 1;
 
 const FULL_RELATIONS = [
@@ -44,7 +45,11 @@ type SavedServicio = {
   idTipoServicio: number;
   urlComprobante: string | null;
 };
-type SavedLocal = { id: number; nombre: string | null };
+type SavedLocal = {
+  id: number;
+  nombre: string | null;
+  fachadaUrl: string | null;
+};
 type SavedZona = {
   id: number;
   zonaPrincipal: string | null;
@@ -83,6 +88,7 @@ export class InmueblesService {
         manager,
         dto.zonas ?? [],
         idInmueble,
+        idUser,
       );
       const archivos = await this.appendArchivos(
         manager,
@@ -140,7 +146,12 @@ export class InmueblesService {
         idInmueble,
         idUser,
       );
-      const zonas = await this.upsertZonas(manager, dto.zonas ?? [], idInmueble);
+      const zonas = await this.upsertZonas(
+        manager,
+        dto.zonas ?? [],
+        idInmueble,
+        idUser,
+      );
       const archivos = await this.upsertArchivos(
         manager,
         dto.archivos ?? [],
@@ -529,10 +540,26 @@ export class InmueblesService {
     return patch;
   }
 
+  private async uploadLocalFachada(
+    local: UpdateLocalZonaInmuebleDto,
+    idUser: number,
+  ): Promise<string | undefined> {
+    const file = local.fachada as Express.Multer.File | undefined;
+    if (!file) return undefined;
+    const r = await this.s3Service.uploadFile(
+      file,
+      FOLDER_FACHADAS_LOCALES,
+      idUser,
+      ID_MODULE,
+    );
+    return r.url;
+  }
+
   private async upsertLocalesZona(
     manager: import("typeorm").EntityManager,
     items: UpdateLocalZonaInmuebleDto[],
     idZona: number,
+    idUser: number,
     upsert = true,
   ): Promise<SavedLocal[]> {
     const out: SavedLocal[] = [];
@@ -549,6 +576,10 @@ export class InmueblesService {
           );
         }
         const patch = this.buildLocalZonaPatch(local);
+        const fachadaUrl = await this.uploadLocalFachada(local, idUser);
+        if (fachadaUrl !== undefined) {
+          patch.fachadaUrl = fachadaUrl;
+        }
         if (Object.keys(patch).length > 0) {
           await manager.update(LocalesZonaInmueble, entityId, patch);
         }
@@ -558,10 +589,13 @@ export class InmueblesService {
         out.push({
           id: entityId,
           nombre: updated?.nombre ?? existing.nombre,
+          fachadaUrl: updated?.fachadaUrl ?? existing.fachadaUrl,
         });
         continue;
       }
 
+      const fachadaUrl =
+        (await this.uploadLocalFachada(local, idUser)) ?? null;
       const row = manager.create(LocalesZonaInmueble, {
         idZona,
         nombre: local.nombre ?? null,
@@ -570,9 +604,14 @@ export class InmueblesService {
         mensualidad:
           local.mensualidad != null ? String(local.mensualidad) : null,
         giro: local.giro ?? null,
+        fachadaUrl,
       });
       const saved = await manager.save(LocalesZonaInmueble, row);
-      out.push({ id: Number(saved.id), nombre: saved.nombre });
+      out.push({
+        id: Number(saved.id),
+        nombre: saved.nombre,
+        fachadaUrl: saved.fachadaUrl,
+      });
     }
     return out;
   }
@@ -581,11 +620,13 @@ export class InmueblesService {
     manager: import("typeorm").EntityManager,
     items: CreateZonaInmuebleDto[],
     idInmueble: number,
+    idUser: number,
   ): Promise<SavedZona[]> {
     return this.upsertZonas(
       manager,
       items as UpdateZonaInmuebleDto[],
       idInmueble,
+      idUser,
       false,
     );
   }
@@ -594,6 +635,7 @@ export class InmueblesService {
     manager: import("typeorm").EntityManager,
     items: UpdateZonaInmuebleDto[],
     idInmueble: number,
+    idUser: number,
     upsert = true,
   ): Promise<SavedZona[]> {
     const out: SavedZona[] = [];
@@ -617,6 +659,8 @@ export class InmueblesService {
           manager,
           z.locales ?? [],
           entityId,
+          idUser,
+          upsert,
         );
         const updated = await manager.findOne(ZonasInmuebles, {
           where: { id: entityId },
@@ -646,6 +690,7 @@ export class InmueblesService {
         manager,
         z.locales ?? [],
         idZona,
+        idUser,
         upsert,
       );
       out.push({

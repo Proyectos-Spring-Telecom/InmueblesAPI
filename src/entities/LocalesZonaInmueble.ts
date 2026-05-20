@@ -53,6 +53,9 @@ export class LocalesZonaInmueble {
   })
   fhRegistro: Date | null;
 
+  @Column("varchar", { name: "FachadaUrl", nullable: true, length: 500 })
+  fachadaUrl: string | null;
+
   @ManyToOne(() => ZonasInmuebles, (zona) => zona.locales, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",

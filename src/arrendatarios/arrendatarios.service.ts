@@ -66,6 +66,8 @@ export class ArrendatariosService {
     private readonly s3Service: S3Service,
     @InjectRepository(Arrendatarios)
     private readonly arrendatariosRepository: Repository<Arrendatarios>,
+    @InjectRepository(ServiciosArrendatarios)
+    private readonly serviciosArrendatariosRepository: Repository<ServiciosArrendatarios>,
   ) {}
 
   async findByIdInmueble(idInmueble: number): Promise<Arrendatarios[]> {
@@ -99,6 +101,24 @@ export class ArrendatariosService {
       throw new NotFoundException(`Arrendatario con id ${id} no encontrado.`);
     }
     return row;
+  }
+
+  async findServiciosByIdArrendatario(idArrendatario: number) {
+    const arrendatario = await this.arrendatariosRepository.findOne({
+      where: { id: idArrendatario },
+      select: ["id"],
+    });
+    if (!arrendatario) {
+      throw new NotFoundException(
+        `Arrendatario con id ${idArrendatario} no encontrado.`,
+      );
+    }
+
+    return this.serviciosArrendatariosRepository.find({
+      where: { idArrendatario },
+      relations: ["tipoServicio"],
+      order: { id: "ASC" },
+    });
   }
 
   async findAllPaginated(

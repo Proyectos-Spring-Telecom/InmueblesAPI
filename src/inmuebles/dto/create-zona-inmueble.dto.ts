@@ -39,7 +39,8 @@ export class CreateZonaInmuebleDto {
   @ApiPropertyOptional({
     type: [CreateLocalZonaInmuebleDto],
     description:
-      "Locales de la zona. En FormData: zonas[i].locales[j].nombre, zonas[i].locales[j].areaM2, etc.",
+      "Locales de la zona. En FormData: zonas[i].locales[j].nombre, zonas[i].locales[j].areaM2, " +
+      "zonas[i].locales[j].fachada (FILE), etc.",
   })
   @IsOptional()
   @IsArray()

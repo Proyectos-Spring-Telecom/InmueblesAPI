@@ -43,4 +43,14 @@ export class CreateLocalZonaInmuebleDto {
   @IsString()
   @MaxLength(100)
   giro?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Imagen de fachada del local (FILE). En FormData: zonas[i].locales[j].fachada. " +
+      "Se sube a S3 (carpeta FachadasLocales) y se guarda en LocalesZonaInmueble.FachadaUrl.",
+    type: "string",
+    format: "binary",
+  })
+  @IsOptional()
+  fachada?: any;
 }

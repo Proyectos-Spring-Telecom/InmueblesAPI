@@ -56,13 +56,33 @@ function parseTotal(value: unknown): string | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return String(value);
   }
-  const text = String(value).trim().replace(/,/g, "");
+
+  let text = String(value).trim();
   if (!text) return null;
+
+  let negative = false;
+  if (/^\(.*\)$/.test(text)) {
+    negative = true;
+    text = text.slice(1, -1).trim();
+  }
+
+  text = text
+    .replace(/,/g, "")
+    .replace(/\s+/g, "")
+    .replace(/^(mxn|usd)\s*/i, "")
+    .replace(/[$€£¥₹]/g, "");
+
+  if (text.startsWith("-")) {
+    negative = true;
+    text = text.slice(1);
+  }
+
   const n = Number(text);
   if (!Number.isFinite(n)) {
     return null;
   }
-  return String(n);
+
+  return String(negative ? -n : n);
 }
 
 function isEmptyRow(values: unknown[]): boolean {

@@ -155,13 +155,10 @@ export class AiToolsService {
       data: {
         id: cliente.id,
         rfc: cliente.rfc,
-        tipoPersona: cliente.tipoPersona,
         nombre: cliente.nombre,
         apellidoPaterno: cliente.apellidoPaterno,
         apellidoMaterno: cliente.apellidoMaterno,
         telefono: cliente.telefono,
-        correo: cliente.correo,
-        sitioWeb: cliente.sitioWeb,
         estado: cliente.estado,
         municipio: cliente.municipio,
         colonia: cliente.colonia,
@@ -171,15 +168,11 @@ export class AiToolsService {
         nombreEncargado: cliente.nombreEncargado,
         telefonoEncargado: cliente.telefonoEncargado,
         correoEncargado: cliente.correoEncargado,
-        estatus: cliente.estatus,
-        fechaCreacion: cliente.fechaCreacion,
-        idPadre: cliente.idPadre,
         totalUsuarios: usuariosLimpios.length,
         usuariosActivos: usuariosLimpios.filter((u) => u.estatus === 1).length,
         totalEquipos: cliente.equipos?.length ?? 0,
         totalInstalaciones: cliente.instalaciones?.length ?? 0,
         totalDepartamentos: cliente.departamentos?.length ?? 0,
-        usuarios: usuariosLimpios,
       },
     };
   }
@@ -275,16 +268,9 @@ export class AiToolsService {
       message: 'Usuario encontrado',
       data: {
         id: usuario.id,
-        userName: usuario.userName,
         nombre: usuario.nombre,
         apellidoPaterno: usuario.apellidoPaterno,
         apellidoMaterno: usuario.apellidoMaterno,
-        telefono: usuario.telefono,
-        emailConfirmado: usuario.emailConfirmado,
-        estatus: usuario.estatus,
-        ultimoLogin: usuario.ultimoLogin,
-        fechaCreacion: usuario.fechaCreacion,
-        fechaActualizacion: usuario.fechaActualizacion,
         idRol: usuario.idRol,
         rolNombre: usuario.idRol2?.nombre ?? null,
         idCliente: usuario.idCliente,
@@ -323,16 +309,13 @@ export class AiToolsService {
 
   // ─── INMUEBLES ───
 
-  async getInmuebles(idArrendador?: number, estatus?: number, limit?: number) {
-    const where: FindOptionsWhere<Inmuebles> = {};
+  async getInmuebles(idArrendador?: number) {
+    const where: FindOptionsWhere<Inmuebles> = { estatus: 1 };
     const arr = this.toOptionalInt(idArrendador);
-    const est = this.toOptionalInt(estatus);
     if (arr !== undefined) where.idArrendador = arr;
-    if (est !== undefined) where.estatus = est;
 
     const inmuebles = await this.inmuebleRepo.find({
       where,
-      take: this.normalizeLimit(limit),
       order: { fhRegistro: 'DESC' },
       relations: ['arrendador', 'zonas'],
     });
@@ -344,12 +327,7 @@ export class AiToolsService {
         id: i.id,
         inmueble: i.inmueble,
         direccionFiscal: i.direccionFiscal,
-        estatusInmueble: i.estatusInmueble,
-        vigenciaAnios: i.vigenciaAnios,
-        fechaInicio: i.fechaInicio,
-        fechaFin: i.fechaFin,
         nombreRepresentante: i.nombreRepresentante,
-        estatus: i.estatus,
         arrendadorNombre: i.arrendador?.nombre ?? null,
         arrendadorId: i.idArrendador,
         totalZonas: i.zonas?.length ?? 0,
@@ -373,7 +351,6 @@ export class AiToolsService {
         id: inmueble.id,
         inmueble: inmueble.inmueble,
         direccionFiscal: inmueble.direccionFiscal,
-        estatusInmueble: inmueble.estatusInmueble,
         vigenciaAnios: inmueble.vigenciaAnios,
         fechaInicio: inmueble.fechaInicio,
         fechaFin: inmueble.fechaFin,
@@ -382,7 +359,6 @@ export class AiToolsService {
         correoRepresentante: inmueble.correoRepresentante,
         lat: inmueble.lat,
         lng: inmueble.lng,
-        estatus: inmueble.estatus,
         arrendadorId: inmueble.idArrendador,
         arrendadorNombre: inmueble.arrendador?.nombre ?? null,
         zonas:
@@ -407,20 +383,13 @@ export class AiToolsService {
 
   // ─── ARRENDATARIOS ───
 
-  async getArrendatarios(
-    idArrendador?: number,
-    estatus?: number,
-    limit?: number,
-  ) {
-    const where: FindOptionsWhere<Arrendatarios> = {};
+  async getArrendatarios(idArrendador?: number) {
+    const where: FindOptionsWhere<Arrendatarios> = { estatus: 1 };
     const arr = this.toOptionalInt(idArrendador);
-    const est = this.toOptionalInt(estatus);
     if (arr !== undefined) where.idArrendador = arr;
-    if (est !== undefined) where.estatus = est;
 
     const arrendatarios = await this.arrendatarioRepo.find({
       where,
-      take: this.normalizeLimit(limit),
       order: { fhRegistro: 'DESC' },
       relations: ['arrendador'],
     });
@@ -501,23 +470,15 @@ export class AiToolsService {
 
   // ─── CONTRATOS ───
 
-  async getContratos(
-    idArrendatario?: number,
-    idInmueble?: number,
-    estatus?: number,
-    limit?: number,
-  ) {
-    const where: FindOptionsWhere<ContratoArrendatarios> = {};
+  async getContratos(idArrendatario?: number, idInmueble?: number) {
+    const where: FindOptionsWhere<ContratoArrendatarios> = { estatus: 1 };
     const idArr = this.toOptionalInt(idArrendatario);
     const idInm = this.toOptionalInt(idInmueble);
-    const est = this.toOptionalInt(estatus);
     if (idArr !== undefined) where.idArrendatario = idArr;
     if (idInm !== undefined) where.idInmueble = idInm;
-    if (est !== undefined) where.estatus = est;
 
     const contratos = await this.contratoRepo.find({
       where,
-      take: this.normalizeLimit(limit),
       order: { fhRegistro: 'DESC' },
       relations: ['arrendatario', 'inmueble'],
     });

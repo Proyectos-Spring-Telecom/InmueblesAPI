@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { AiToolsService } from './ai-tools.service';
 import { ServiceKeyGuard } from 'src/guard/service-key.guard';
-import { ApiHeader, ApiTags } from '@nestjs/swagger';
+import { ApiHeader, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('AI Tools (internal)')
 @ApiHeader({
@@ -63,12 +63,20 @@ export class AiToolsController {
   // ─── INMUEBLES ───
 
   @Get('inmuebles')
-  async getInmuebles(
-    @Query('idArrendador') idArrendador?: number,
-    @Query('estatus') estatus?: number,
-    @Query('limit') limit?: number,
-  ) {
-    return this.aiToolsService.getInmuebles(idArrendador, estatus, limit);
+  @ApiOperation({
+    summary: 'Listar inmuebles activos',
+    description:
+      'Devuelve todos los inmuebles con estatus=1. Filtro opcional por idArrendador. Sin parámetros estatus ni limit.',
+  })
+  @ApiQuery({
+    name: 'idArrendador',
+    required: false,
+    type: Number,
+    description:
+      'ID del cliente arrendador (columna IdArrendador). Si se omite, devuelve todos los inmuebles activos.',
+  })
+  async getInmuebles(@Query('idArrendador') idArrendador?: number) {
+    return this.aiToolsService.getInmuebles(idArrendador);
   }
 
   @Get('inmuebles/:id')
@@ -79,12 +87,20 @@ export class AiToolsController {
   // ─── ARRENDATARIOS ───
 
   @Get('arrendatarios')
-  async getArrendatarios(
-    @Query('idArrendador') idArrendador?: number,
-    @Query('estatus') estatus?: number,
-    @Query('limit') limit?: number,
-  ) {
-    return this.aiToolsService.getArrendatarios(idArrendador, estatus, limit);
+  @ApiOperation({
+    summary: 'Listar arrendatarios activos',
+    description:
+      'Devuelve todos los arrendatarios con estatus=1. Filtro opcional por idArrendador. Sin parámetros estatus ni limit.',
+  })
+  @ApiQuery({
+    name: 'idArrendador',
+    required: false,
+    type: Number,
+    description:
+      'ID del cliente arrendador (columna IdArrendador). Si se omite, devuelve todos los arrendatarios activos.',
+  })
+  async getArrendatarios(@Query('idArrendador') idArrendador?: number) {
+    return this.aiToolsService.getArrendatarios(idArrendador);
   }
 
   @Get('arrendatarios/:id')
@@ -95,18 +111,28 @@ export class AiToolsController {
   // ─── CONTRATOS ───
 
   @Get('contratos')
+  @ApiOperation({
+    summary: 'Listar contratos activos',
+    description:
+      'Devuelve todos los contratos con estatus=1. Filtros opcionales por idArrendatario e idInmueble. Sin parámetros estatus ni limit.',
+  })
+  @ApiQuery({
+    name: 'idArrendatario',
+    required: false,
+    type: Number,
+    description: 'ID del arrendatario asociado al contrato.',
+  })
+  @ApiQuery({
+    name: 'idInmueble',
+    required: false,
+    type: Number,
+    description: 'ID del inmueble asociado al contrato.',
+  })
   async getContratos(
     @Query('idArrendatario') idArrendatario?: number,
     @Query('idInmueble') idInmueble?: number,
-    @Query('estatus') estatus?: number,
-    @Query('limit') limit?: number,
   ) {
-    return this.aiToolsService.getContratos(
-      idArrendatario,
-      idInmueble,
-      estatus,
-      limit,
-    );
+    return this.aiToolsService.getContratos(idArrendatario, idInmueble);
   }
 
   @Get('contratos/:id')

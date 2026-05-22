@@ -3,6 +3,10 @@
 /node_modules
 /build
 
+# docs
+/docs
+.docs/*
+
 # eng.traineddata
 *.eng.traineddata
 .eng.traineddata

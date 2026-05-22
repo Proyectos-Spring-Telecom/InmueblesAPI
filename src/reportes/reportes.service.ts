@@ -293,7 +293,7 @@ export class ReportesService {
       .fontSize(9)
       .fillColor('#999999')
       .text(
-        '© 2025 AnaliticaVideoAPI. Todos los derechos reservados.',
+        '© 2025 Inmuebles. Todos los derechos reservados.',
         50,
         750,
         { align: 'center' },

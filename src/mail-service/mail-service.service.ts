@@ -100,7 +100,7 @@ export class MailServiceService {
   
     async sendResetPasswordEmail(to: string,name: string, token: string) {
       try {
-        const url = `https://springtelecom.mx/analiticavideo/cambio-password?token=${token}`;
+        const url = `https://springtelecom.mx/inmuebles/cambio-password?token=${token}`;
         // 👆 Este debe apuntar a tu frontend Angular (puedes ajustarlo a localhost:3000 si haces la prueba desde backend)
     
         await this.transporter.sendMail({

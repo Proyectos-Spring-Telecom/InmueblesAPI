@@ -23,7 +23,6 @@ import { ReportesModule } from './reportes/reportes.module';
 import { PdfOcrModule } from './pdf-ocr/pdf-ocr.module';
 import { MailServiceModule } from './mail-service/mail-service.module'
 import { CatServiciosModule } from './cat-servicios/cat-servicios.module';
-import { ChatModule } from './chat/chat.module';
 import { InmueblesModule } from './inmuebles/inmuebles.module';
 import { ArrendatariosModule } from './arrendatarios/arrendatarios.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
@@ -53,10 +52,6 @@ import { join } from 'path';
       JWT_EXPIRES_IN: Joi.string().required(),
       JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
       DB_TZ: Joi.string().default('-06:00'),
-      AI_SERVICE_KEY: Joi.string().required(),
-      SPRINGAGENT_URL: Joi.string().default('http://localhost:8001'),
-      SPRINGAGENT_TIMEOUT: Joi.number().default(120000),
-      SPRINGAGENT_SERVICE_KEY: Joi.string().required(),
     }),
   }),
 
@@ -120,7 +115,6 @@ import { join } from 'path';
     EntradasSalidasEstacionamientoModule,
     ReportesModule,
     PdfOcrModule,
-    ChatModule,
   ],
     
   controllers: [AppController],

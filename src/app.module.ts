@@ -23,7 +23,6 @@ import { ReportesModule } from './reportes/reportes.module';
 import { PdfOcrModule } from './pdf-ocr/pdf-ocr.module';
 import { MailServiceModule } from './mail-service/mail-service.module'
 import { CatServiciosModule } from './cat-servicios/cat-servicios.module';
-import { AiToolsModule } from './ai-tools/ai-tools.module';
 import { ChatModule } from './chat/chat.module';
 import { InmueblesModule } from './inmuebles/inmuebles.module';
 import { ArrendatariosModule } from './arrendatarios/arrendatarios.module';
@@ -121,7 +120,6 @@ import { join } from 'path';
     EntradasSalidasEstacionamientoModule,
     ReportesModule,
     PdfOcrModule,
-    AiToolsModule,
     ChatModule,
   ],
     

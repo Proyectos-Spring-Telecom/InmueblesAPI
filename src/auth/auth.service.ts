@@ -274,6 +274,7 @@ export class AuthService {
             const payload = {
                 id: user.id,
                 email: user.userName,
+                type: 'access' as const,
             };
 
             //Generamos el token

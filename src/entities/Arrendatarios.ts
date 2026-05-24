@@ -30,6 +30,9 @@ export class Arrendatarios {
   @Column("tinyint", { name: "TipoPersona", nullable: true })
   tipoPersona: number | null;
 
+  @Column("varchar", { name: "RFC", nullable: true, length: 13 })
+  rfc: string | null;
+
   // DECIMAL(10,2): TypeORM lo expone como string para preservar precisión.
   @Column("decimal", {
     name: "Renta",

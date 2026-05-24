@@ -31,6 +31,12 @@ export class ArrendatarioJsonDto {
   @IsInt()
   tipoPersona?: number;
 
+  @ApiPropertyOptional({ example: "XAXX010101000" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(13)
+  rfc?: string;
+
   @ApiPropertyOptional({ example: 12000.5 })
   @IsOptional()
   @Type(() => Number)
@@ -287,6 +293,7 @@ export class RegistrarArrendatarioFormDto {
       idArrendador: 1,
       arrendatario: "Empresa ACME",
       tipoPersona: 1,
+      rfc: "XAXX010101000",
       renta: 12000.5,
       fechaInicio: "2026-01-01",
       fechaFin: "2027-01-01",

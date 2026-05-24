@@ -301,6 +301,7 @@ export class ArrendatariosService {
       arrendatario: a.arrendatario ?? null,
       idArrendador: a.idArrendador!,
       tipoPersona: a.tipoPersona ?? null,
+      rfc: a.rfc ?? null,
       renta:
         a.renta !== undefined && a.renta !== null ? String(a.renta) : null,
       fechaInicio: a.fechaInicio ? new Date(a.fechaInicio) : null,
@@ -323,6 +324,7 @@ export class ArrendatariosService {
     if (a.arrendatario !== undefined) patch.arrendatario = a.arrendatario ?? null;
     if (a.idArrendador !== undefined) patch.idArrendador = a.idArrendador;
     if (a.tipoPersona !== undefined) patch.tipoPersona = a.tipoPersona ?? null;
+    if (a.rfc !== undefined) patch.rfc = a.rfc ?? null;
     if (a.renta !== undefined) {
       patch.renta =
         a.renta !== null ? String(a.renta) : null;

@@ -87,7 +87,7 @@ export class ArrendatariosController {
       "Actualizar arrendatario completo (mismo FormData que registro).",
     description:
       "Opcional `arrendatario` (JSON) para campos del arrendatario. " +
-      "`contratoArrendatario` con `id` actualiza; sin `id` crea contrato nuevo. " +
+      "`contratos[i]` con `id` actualiza; sin `id` crea contrato nuevo. " +
       "servicios[i].id actualiza; sin id crea. archivos[i].id e imagenes[i].id actualizan; sin id crean. socios[i].id actualiza; sin id crea.",
   })
   async actualizar(
@@ -97,7 +97,7 @@ export class ArrendatariosController {
     const nested = parseNestedFormData(req.body, req.files);
     parseTopLevelJsonStrings(nested, [
       "arrendatario",
-      "contratoArrendatario",
+      "contratos",
     ]);
 
     const dto = plainToInstance(ActualizarArrendatarioFormDto, nested, {
@@ -132,7 +132,7 @@ export class ArrendatariosController {
     summary:
       "Registrar arrendatario completo (FormData: JSON arrendatario/contrato + arrays con archivos).",
     description:
-      "Campos texto: `arrendatario` (JSON con lat, lng, etc.) y opcional `contratoArrendatario` como JSON. " +
+      "Campos texto: `arrendatario` (JSON con lat, lng, etc.) y opcional `contratos` como JSON array. " +
       "Arrays: `servicios[i].*`, `servicios[i].archivo`, `archivos[i].nombre`, `archivos[i].archivo`, " +
       "`imagenes[i].*`, `socios[i].nombre`, `socios[i].rfc`, `socios[i].constanciaFiscalArchivo`, etc.",
   })
@@ -143,7 +143,7 @@ export class ArrendatariosController {
     const nested = parseNestedFormData(req.body, files);
     parseTopLevelJsonStrings(nested, [
       "arrendatario",
-      "contratoArrendatario",
+      "contratos",
     ]);
 
     const dto = plainToInstance(RegistrarArrendatarioFormDto, nested, {

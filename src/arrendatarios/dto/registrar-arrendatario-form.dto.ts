@@ -90,7 +90,7 @@ export class ArrendatarioJsonDto {
   lng?: number;
 }
 
-/** JSON en el campo FormData `contratoArrendatario` (sin id, idArrendatario, fhRegistro ni estatus). */
+/** JSON en el arreglo FormData `contratos` (sin id, idArrendatario, fhRegistro ni estatus). */
 export class ContratoArrendatarioJsonDto {
   @ApiPropertyOptional({ example: 10 })
   @IsOptional()
@@ -99,13 +99,15 @@ export class ContratoArrendatarioJsonDto {
   idInmueble?: number;
 
   @ApiPropertyOptional({
-    example: 1,
-    description: "FK LocalesZonaInmueble.Id",
+    type: [Number],
+    example: [1, 2],
+    description: "Ids de LocalesZonaInmueble asociados al contrato (ContratoLocales).",
   })
   @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
   @Type(() => Number)
-  @IsInt()
-  idLocal?: number;
+  idLocales?: number[];
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -310,14 +312,16 @@ export class RegistrarArrendatarioFormDto {
   arrendatario: ArrendatarioJsonDto;
 
   @ApiPropertyOptional({
-    type: () => ContratoArrendatarioJsonDto,
+    type: [ContratoArrendatarioJsonDto],
     description:
-      "Opcional. JSON string con ContratoArrendatarios (sin id/idArrendatario/fhRegistro/estatus; incluye idLocal).",
+      "Opcional. JSON string con arreglo de ContratoArrendatarios (sin id/idArrendatario/fhRegistro/estatus; incluye idLocales). " +
+      "También admite contratos[i].* en FormData.",
   })
   @IsOptional()
-  @ValidateNested()
+  @IsArray()
+  @ValidateNested({ each: true })
   @Type(() => ContratoArrendatarioJsonDto)
-  contratoArrendatario?: ContratoArrendatarioJsonDto;
+  contratos?: ContratoArrendatarioJsonDto[];
 
   @ApiPropertyOptional({ type: [CreateServicioArrendatarioItemDto] })
   @IsOptional()

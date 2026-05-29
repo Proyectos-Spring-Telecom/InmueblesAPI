@@ -7,6 +7,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
+import { ContratoLocales } from "src/entities/ContratoLocales";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { ArchivosArrendatarios } from "src/entities/ArchivosArrendatarios";
@@ -46,7 +47,8 @@ const FULL_RELATIONS = [
   "socios",
   "contratos",
   "contratos.inmueble",
-  "contratos.local",
+  "contratos.contratoLocales",
+  "contratos.contratoLocales.local",
 ] as const;
 
 function decStr(v: number | undefined | null): string | null {
@@ -178,9 +180,9 @@ export class ArrendatariosService {
       const savedA = await manager.save(Arrendatarios, arrendatario);
       const idArrendatario = Number(savedA.id);
 
-      const contratoId = await this.upsertContrato(
+      const contratosOut = await this.upsertContratos(
         manager,
-        dto.contratoArrendatario,
+        dto.contratos ?? [],
         idArrendatario,
         false,
       );
@@ -217,7 +219,7 @@ export class ArrendatariosService {
         message: "Arrendatario y datos relacionados registrados correctamente.",
         data: {
           idArrendatario,
-          idContrato: contratoId,
+          contratos: contratosOut,
           servicios: serviciosOut,
           archivos: archivosOut,
           imagenes: imagenesOut,
@@ -246,9 +248,9 @@ export class ArrendatariosService {
         await this.patchArrendatario(manager, id, dto.arrendatario);
       }
 
-      const contratoId = await this.upsertContrato(
+      const contratosOut = await this.upsertContratos(
         manager,
-        dto.contratoArrendatario,
+        dto.contratos ?? [],
         id,
       );
 
@@ -284,7 +286,7 @@ export class ArrendatariosService {
         message: "Arrendatario actualizado correctamente.",
         data: {
           idArrendatario: id,
-          idContrato: contratoId,
+          contratos: contratosOut,
           servicios: serviciosOut,
           archivos: archivosOut,
           imagenes: imagenesOut,
@@ -358,7 +360,6 @@ export class ArrendatariosService {
   ): Partial<ContratoArrendatarios> {
     const patch: Partial<ContratoArrendatarios> = {};
     if (c.idInmueble !== undefined) patch.idInmueble = c.idInmueble ?? null;
-    if (c.idLocal !== undefined) patch.idLocal = c.idLocal ?? null;
     if (c.fechaInicioContrato !== undefined) {
       patch.fechaInicioContrato = c.fechaInicioContrato
         ? new Date(c.fechaInicioContrato)
@@ -415,6 +416,70 @@ export class ArrendatariosService {
     return patch;
   }
 
+  private async syncContratoLocales(
+    manager: import("typeorm").EntityManager,
+    contratoId: number,
+    idLocales: number[] | undefined,
+  ): Promise<void> {
+    if (idLocales === undefined) return;
+
+    const uniqueIds = [...new Set(idLocales)];
+
+    if (uniqueIds.length > 0) {
+      const found = await manager.find(LocalesZonaInmueble, {
+        where: { id: In(uniqueIds) },
+      });
+      if (found.length !== uniqueIds.length) {
+        const foundIds = new Set(found.map((l) => Number(l.id)));
+        const missing = uniqueIds.filter((id) => !foundIds.has(id));
+        throw new BadRequestException(
+          `Locales no encontrados: ${missing.join(", ")}.`,
+        );
+      }
+    }
+
+    const existing = await manager.find(ContratoLocales, {
+      where: { idContrato: contratoId },
+    });
+    const existingLocalIds = new Set(
+      existing
+        .map((row) => row.idLocal)
+        .filter((id): id is number => id != null),
+    );
+    const newSet = new Set(uniqueIds);
+
+    const toRemove = existing.filter(
+      (row) => row.idLocal != null && !newSet.has(row.idLocal),
+    );
+    const toAdd = uniqueIds.filter((id) => !existingLocalIds.has(id));
+
+    if (toRemove.length > 0) {
+      await manager.delete(ContratoLocales, {
+        id: In(toRemove.map((row) => row.id)),
+      });
+      for (const row of toRemove) {
+        if (row.idLocal != null) {
+          await manager.update(LocalesZonaInmueble, row.idLocal, {
+            estatus: LocalesEstatus.Disponible,
+          });
+        }
+      }
+    }
+
+    for (const idLocal of toAdd) {
+      await manager.save(
+        ContratoLocales,
+        manager.create(ContratoLocales, { idContrato: contratoId, idLocal }),
+      );
+    }
+
+    for (const idLocal of uniqueIds) {
+      await manager.update(LocalesZonaInmueble, idLocal, {
+        estatus: LocalesEstatus.Ocupado,
+      });
+    }
+  }
+
   private async upsertContrato(
     manager: import("typeorm").EntityManager,
     c:
@@ -425,17 +490,6 @@ export class ArrendatariosService {
     upsert = true,
   ): Promise<number | null> {
     if (!c) return null;
-
-    if (c.idLocal != null) {
-      const local = await manager.findOne(LocalesZonaInmueble, {
-        where: { id: c.idLocal },
-      });
-      if (!local) {
-        throw new BadRequestException(
-          `Local con id ${c.idLocal} no encontrado.`,
-        );
-      }
-    }
 
     const updateDto = c as UpdateContratoArrendatarioJsonDto;
     let contratoId: number;
@@ -464,13 +518,26 @@ export class ArrendatariosService {
       contratoId = Number(saved.id);
     }
 
-    if (c.idLocal != null) {
-      await manager.update(LocalesZonaInmueble, c.idLocal, {
-        estatus: LocalesEstatus.Ocupado,
-      });
-    }
+    await this.syncContratoLocales(manager, contratoId, c.idLocales);
 
     return contratoId;
+  }
+
+  private async upsertContratos(
+    manager: import("typeorm").EntityManager,
+    items: (
+      | ContratoArrendatarioJsonDto
+      | UpdateContratoArrendatarioJsonDto
+    )[],
+    idArrendatario: number,
+    upsert = true,
+  ): Promise<{ id: number }[]> {
+    const out: { id: number }[] = [];
+    for (const c of items) {
+      const id = await this.upsertContrato(manager, c, idArrendatario, upsert);
+      if (id != null) out.push({ id });
+    }
+    return out;
   }
 
   private buildServicioArrendatarioPatch(

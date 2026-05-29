@@ -9,6 +9,7 @@ import { DataSource, In, Repository } from "typeorm";
 import { Inmuebles } from "src/entities/Inmuebles";
 import { ServiciosInmuebles } from "src/entities/ServiciosInmuebles";
 import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
+import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { ArchivosInmuebles } from "src/entities/ArchivosInmuebles";
 import { S3Service } from "src/s3/s3.service";
@@ -70,6 +71,8 @@ export class InmueblesService {
     private readonly zonasRepository: Repository<ZonasInmuebles>,
     @InjectRepository(LocalesZonaInmueble)
     private readonly localesRepository: Repository<LocalesZonaInmueble>,
+    @InjectRepository(ContratoArrendatarios)
+    private readonly contratoRepository: Repository<ContratoArrendatarios>,
     @InjectRepository(ServiciosInmuebles)
     private readonly serviciosInmueblesRepository: Repository<ServiciosInmuebles>,
   ) {}
@@ -262,6 +265,37 @@ export class InmueblesService {
     return this.queryLocalesByInmueble(idInmueble, LocalesEstatus.Disponible);
   }
 
+  async findLocalesLibresYAsignadosContrato(
+    idInmueble: number,
+    idContrato: number,
+  ) {
+    await this.assertInmuebleExists(idInmueble);
+    await this.assertContratoPerteneceInmueble(idContrato, idInmueble);
+
+    const [libres, asignados] = await Promise.all([
+      this.queryLocalesByInmueble(idInmueble, LocalesEstatus.Disponible),
+      this.queryLocalesAsignadosContrato(idInmueble, idContrato),
+    ]);
+
+    const locales = [
+      ...asignados.map((local) => ({
+        ...local,
+        asignadoAlContrato: true,
+      })),
+      ...libres.map((local) => ({
+        ...local,
+        asignadoAlContrato: false,
+      })),
+    ].sort((a, b) => {
+      const zonaA = a.zona?.numeroZona ?? 0;
+      const zonaB = b.zona?.numeroZona ?? 0;
+      if (zonaA !== zonaB) return Number(zonaA) - Number(zonaB);
+      return a.id - b.id;
+    });
+
+    return locales;
+  }
+
   async updateLocalEstatus(idLocal: number, estatus: LocalesEstatus) {
     const local = await this.localesRepository.findOne({
       where: { id: idLocal },
@@ -287,6 +321,37 @@ export class InmueblesService {
     if (!inmueble) {
       throw new NotFoundException(`Inmueble con id ${idInmueble} no encontrado.`);
     }
+  }
+
+  private async assertContratoPerteneceInmueble(
+    idContrato: number,
+    idInmueble: number,
+  ): Promise<void> {
+    const contrato = await this.contratoRepository.findOne({
+      where: { id: idContrato },
+      select: ["id", "idInmueble"],
+    });
+    if (!contrato) {
+      throw new NotFoundException(`Contrato con id ${idContrato} no encontrado.`);
+    }
+    if (Number(contrato.idInmueble) !== idInmueble) {
+      throw new BadRequestException(
+        `El contrato ${idContrato} no pertenece al inmueble ${idInmueble}.`,
+      );
+    }
+  }
+
+  private queryLocalesAsignadosContrato(idInmueble: number, idContrato: number) {
+    return this.localesRepository
+      .createQueryBuilder("local")
+      .innerJoinAndSelect("local.zona", "zona")
+      .innerJoin("zona.inmueble", "inmueble")
+      .innerJoin("local.contratoLocales", "contratoLocal")
+      .where("inmueble.id = :idInmueble", { idInmueble })
+      .andWhere("contratoLocal.idContrato = :idContrato", { idContrato })
+      .orderBy("zona.numeroZona", "ASC")
+      .addOrderBy("local.id", "ASC")
+      .getMany();
   }
 
   private queryLocalesByInmueble(idInmueble: number, estatus?: LocalesEstatus) {

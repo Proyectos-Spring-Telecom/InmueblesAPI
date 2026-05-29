@@ -168,6 +168,24 @@ export class InmueblesController {
     return this.inmueblesService.findLocalesLibresByIdInmueble(idInmueble);
   }
 
+  @Get("locales-contrato/:idInmueble/:idContrato")
+  @ApiOperation({
+    summary:
+      "Listar locales libres y locales asignados a un contrato (para edición de contrato).",
+    description:
+      "Arreglo único para select: locales libres (Disponible) y asignados al contrato. " +
+      "Cada item incluye `asignadoAlContrato` (true = ya ligado al contrato).",
+  })
+  findLocalesLibresYAsignadosContrato(
+    @Param("idInmueble", ParseIntPipe) idInmueble: number,
+    @Param("idContrato", ParseIntPipe) idContrato: number,
+  ) {
+    return this.inmueblesService.findLocalesLibresYAsignadosContrato(
+      idInmueble,
+      idContrato,
+    );
+  }
+
   @Get("locales/:idInmueble")
   @ApiOperation({
     summary:

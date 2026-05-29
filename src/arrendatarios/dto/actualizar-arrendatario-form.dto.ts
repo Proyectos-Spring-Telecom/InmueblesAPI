@@ -36,11 +36,16 @@ export class ActualizarArrendatarioFormDto {
   @Type(() => UpdateArrendatarioJsonDto)
   arrendatario?: UpdateArrendatarioJsonDto;
 
-  @ApiPropertyOptional({ type: () => UpdateContratoArrendatarioJsonDto })
+  @ApiPropertyOptional({
+    type: [UpdateContratoArrendatarioJsonDto],
+    description:
+      "Contratos: con id actualiza; sin id crea. También admite contratos[i].* en FormData.",
+  })
   @IsOptional()
-  @ValidateNested()
+  @IsArray()
+  @ValidateNested({ each: true })
   @Type(() => UpdateContratoArrendatarioJsonDto)
-  contratoArrendatario?: UpdateContratoArrendatarioJsonDto;
+  contratos?: UpdateContratoArrendatarioJsonDto[];
 
   @ApiPropertyOptional({ type: [UpdateServicioArrendatarioItemDto] })
   @IsOptional()

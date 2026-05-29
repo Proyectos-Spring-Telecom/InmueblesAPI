@@ -2,7 +2,7 @@ import { BadRequestException } from "@nestjs/common";
 
 /**
  * Convierte campos de texto que vienen como JSON string en el FormData
- * (p. ej. `arrendatario`, `contratoArrendatario`) en objetos anidados.
+ * (p. ej. `arrendatario`, `contratos`) en objetos anidados.
  */
 export function parseTopLevelJsonStrings(
   obj: Record<string, any>,

@@ -9,7 +9,7 @@ import {
 } from "typeorm";
 import { applySchema } from "src/utils/schema";
 import { ZonasInmuebles } from "./ZonasInmuebles";
-import { ContratoArrendatarios } from "./ContratoArrendatarios";
+import { ContratoLocales } from "./ContratoLocales";
 
 @Index("FK_Zona_Locales_idx", ["idZona"], {})
 @Entity("LocalesZonaInmueble")
@@ -63,6 +63,6 @@ export class LocalesZonaInmueble {
   @JoinColumn([{ name: "IdZona", referencedColumnName: "id" }])
   zona: ZonasInmuebles;
 
-  @OneToMany(() => ContratoArrendatarios, (contrato) => contrato.local)
-  contratos: ContratoArrendatarios[];
+  @OneToMany(() => ContratoLocales, (cl) => cl.local)
+  contratoLocales: ContratoLocales[];
 }

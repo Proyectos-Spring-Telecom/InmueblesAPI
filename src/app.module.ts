@@ -56,6 +56,16 @@ import { join } from 'path';
       JWT_EXPIRES_IN: Joi.string().required(),
       JWT_REFRESH_EXPIRES_IN: Joi.string().required(),
       DB_TZ: Joi.string().default('-06:00'),
+      SPRINGREADER_URL: Joi.string().default(
+        'https://spcode.ddns.net/api-springreader',
+      ),
+      SPRINGREADER_CONSTANCIA_PATH: Joi.string().default(
+        '/constancia-fiscal/extract',
+      ),
+      SPRINGREADER_INE_PATH: Joi.string().default('/ine/extract'),
+      SPRINGREADER_SERVICE_KEY: Joi.string().required(),
+      SPRINGREADER_TIMEOUT: Joi.number().default(120000),
+      BANXICO_TOKEN: Joi.string().required(),
     }),
   }),
 

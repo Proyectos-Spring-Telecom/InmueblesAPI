@@ -1,28 +1,12 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { DocumentOcr } from 'src/entities/DocumentOcr';
 import { BitacoraModule } from 'src/bitacora/bitacora.module';
 import { PdfOcrController } from './pdf-ocr.controller';
-import { PdfOcrService } from './pdf-ocr.service';
-import { PdfDetectorService } from './services/pdf-detector.service';
-import { PdfNativeExtractorService } from './services/pdf-native-extractor.service';
-import { PdfOcrExtractorService } from './services/pdf-ocr-extractor.service';
-import { ConstanciaFiscalParserService } from './services/constancia-fiscal-parser.service';
-import { IneParserService } from './services/ine-parser.service';
-import { PaddleOcrClientService } from './services/paddleocr-client.service';
+import { SpringReaderClientService } from './services/springreader-client.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([DocumentOcr]), BitacoraModule, HttpModule],
+  imports: [BitacoraModule, HttpModule],
   controllers: [PdfOcrController],
-  providers: [
-    PdfOcrService,
-    PdfDetectorService,
-    PdfNativeExtractorService,
-    PdfOcrExtractorService,
-    ConstanciaFiscalParserService,
-    IneParserService,
-    PaddleOcrClientService,
-  ],
+  providers: [SpringReaderClientService],
 })
 export class PdfOcrModule {}

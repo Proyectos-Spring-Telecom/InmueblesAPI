@@ -13,6 +13,16 @@ export class Formulas {
   @Column("text", { name: "Formula", nullable: true })
   formula: string | null;
 
+  @Column("varchar", { name: "Descripcion", nullable: true, length: 500 })
+  descripcion: string | null;
+
+  @Column("enum", {
+    name: "TipoResultado",
+    enum: ["MONTO", "PORCENTAJE"],
+    default: "MONTO",
+  })
+  tipoResultado: string;
+
   @Column("tinyint", { name: "Estatus", nullable: true, default: () => "'1'" })
   estatus: number | null;
 
@@ -22,4 +32,11 @@ export class Formulas {
     default: () => "CURRENT_TIMESTAMP",
   })
   fhRegistro: Date | null;
+
+  @Column("datetime", {
+    name: "FHActualizacion",
+    nullable: true,
+    default: () => "CURRENT_TIMESTAMP",
+  })
+  fhActualizacion: Date | null;
 }

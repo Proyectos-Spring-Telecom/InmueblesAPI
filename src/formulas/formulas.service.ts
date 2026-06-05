@@ -21,7 +21,7 @@ export class FormulasService {
     @InjectRepository(Formulas)
     private readonly formulasRepository: Repository<Formulas>,
     private readonly bitacoraLogger: BitacoraService,
-  ) {}
+  ) { }
 
   async create(dto: CreateFormulaDto, req: any) {
     await this.assertUniqueNombre(dto.nombre);
@@ -29,6 +29,8 @@ export class FormulasService {
     const row = this.formulasRepository.create({
       nombre: dto.nombre,
       formula: dto.formula ?? null,
+      descripcion: dto.descripcion ?? null,
+      tipoResultado: dto.tipoResultado ?? "MONTO",
     });
     const saved = await this.formulasRepository.save(row);
 
@@ -87,6 +89,10 @@ export class FormulasService {
     await this.formulasRepository.update(id, {
       ...(dto.nombre !== undefined && { nombre: dto.nombre }),
       ...(dto.formula !== undefined && { formula: dto.formula }),
+      ...(dto.descripcion !== undefined && { descripcion: dto.descripcion }),
+      ...(dto.tipoResultado !== undefined && {
+        tipoResultado: dto.tipoResultado,
+      }),
     });
 
     const updated = await this.findOne(id);

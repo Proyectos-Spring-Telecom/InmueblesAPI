@@ -1,61 +1,63 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, IsNumber, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from "class-validator";
 
 export class CreateBitacoraDto {
-  @ApiProperty({
-    description: 'Nombre del módulo',
-    example: 'Usuarios',
-    required: false,
+  @ApiPropertyOptional({
+    description: "Nombre del módulo que originó el evento",
+    example: "Usuarios",
   })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   modulo?: string;
 
-  @ApiProperty({
-    description: 'Descripción de la acción realizada',
-    example: 'El usuario actualizó su contraseña',
-    required: false,
+  @ApiPropertyOptional({
+    description: "Descripción legible de la acción realizada",
+    example: "El usuario actualizó su contraseña",
   })
   @IsOptional()
   @IsString()
   @MaxLength(250)
   descripcion?: string;
 
-  @ApiProperty({
-    description: 'Acción realizada en el sistema',
-    example: 'UPDATE',
-    required: false,
+  @ApiPropertyOptional({
+    description: "Acción realizada (CREATE, UPDATE, DELETE, EVALUATE, etc.)",
+    example: "UPDATE",
   })
   @IsOptional()
   @IsString()
   @MaxLength(45)
   accion?: string;
 
-  @ApiProperty({
-    description: 'Query SQL ejecutada o detalle técnico',
-    example: 'UPDATE Usuarios SET PasswordHash = "****" WHERE Id=1',
-    required: false,
+  @ApiPropertyOptional({
+    description: "Detalle técnico o payload asociado al evento",
+    example: '{"idUsuario":1,"campo":"password"}',
   })
   @IsOptional()
   @IsString()
   @MaxLength(1000)
   query?: string;
 
-  @ApiProperty({
-    description: 'Se describe el estatus del servicio',
-    example: 'succes | error',
-    required: false,
+  @ApiPropertyOptional({
+    description: "Estatus del evento",
+    example: "success",
+    enum: ["success", "error"],
   })
   @IsOptional()
   @IsString()
   @MaxLength(20)
   estatus?: string;
 
-  @ApiProperty({
-    description: 'Descripcion del error',
-    example: 'error insert ik usuario no valid...',
-    required: false,
+  @ApiPropertyOptional({
+    description: "Mensaje de error si el evento falló",
+    example: "Error al insertar: usuario no válido",
   })
   @IsOptional()
   @IsString()
@@ -63,18 +65,20 @@ export class CreateBitacoraDto {
   error?: string;
 
   @ApiProperty({
-    description: 'ID del usuario que generó la acción',
+    description: "ID del usuario que generó la acción",
     example: 1,
   })
   @IsNotEmpty()
+  @Type(() => Number)
   @IsNumber()
   idUsuario: number;
 
   @ApiProperty({
-    description: 'ID del módulo asociado a la acción',
+    description: "ID del módulo del catálogo Modulos",
     example: 3,
   })
   @IsNotEmpty()
+  @Type(() => Number)
   @IsNumber()
   idModulo: number;
 }

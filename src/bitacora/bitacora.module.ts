@@ -5,8 +5,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Bitacora } from 'src/entities/Bitacora';
 
 @Module({
-  imports:[TypeOrmModule.forFeature([Bitacora])],
+  imports: [TypeOrmModule.forFeature([Bitacora])],
+  controllers: [BitacoraController],
   providers: [BitacoraService],
-  exports: [BitacoraService], 
+  exports: [BitacoraService],
 })
 export class BitacoraModule {}

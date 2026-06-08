@@ -19,6 +19,9 @@ export class Factores {
   @Column("tinyint", { name: "Estatus", nullable: true, default: () => "'1'" })
   estatus: number | null;
 
+  @Column("tinyint", { name: "EsContrato", nullable: true })
+  esContrato: number | null;
+
   @Column("datetime", {
     name: "FHRegistro",
     nullable: true,

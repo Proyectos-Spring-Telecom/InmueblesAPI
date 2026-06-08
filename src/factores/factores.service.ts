@@ -30,6 +30,7 @@ export class FactoresService {
       variable: dto.variable,
       valor: dto.valor ?? null,
       descripcion: dto.descripcion ?? null,
+      esContrato: dto.esContrato ?? null,
     });
     const saved = await this.factoresRepository.save(row);
 
@@ -89,6 +90,7 @@ export class FactoresService {
       ...(dto.variable !== undefined && { variable: dto.variable }),
       ...(dto.valor !== undefined && { valor: dto.valor }),
       ...(dto.descripcion !== undefined && { descripcion: dto.descripcion }),
+      ...(dto.esContrato !== undefined && { esContrato: dto.esContrato }),
     });
 
     const updated = await this.findOne(id);

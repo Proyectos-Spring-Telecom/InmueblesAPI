@@ -1,9 +1,48 @@
-import { HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
-import { CreateBitacoraDto } from './dto/create-bitac ora.dto';
-import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Bitacora } from 'src/entities/Bitacora';
-import { ApiResponseCommon } from 'src/common/ApiResponse';
+import {
+  BadRequestException,
+  HttpException,
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from "@nestjs/common";
+import { CreateBitacoraDto } from "./dto/create-bitac ora.dto";
+import { BuscarBitacoraDto } from "./dto/buscar-bitacora.dto";
+import { Repository } from "typeorm";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Bitacora } from "src/entities/Bitacora";
+import { ApiResponseCommon } from "src/common/ApiResponse";
+
+const BITACORA_SELECT = `
+SELECT
+  b.Id AS id,
+  b.Modulo AS modulo,
+  b.Descripcion AS descripcion,
+  b.Accion AS accion,
+  b.Query AS query,
+  b.FechaCreacion AS fechaCreacion,
+  b.Estatus AS estatus,
+  b.Error AS error,
+  u.Id AS idUsuario,
+  u.Nombre AS nombreUsuario,
+  u.ApellidoPaterno AS apellidoPaternoUsuario,
+  u.ApellidoMaterno AS apellidoMaternoUsuario,
+  u.UserName AS UserNameUsuario,
+  u.Estatus AS estatusUsuario,
+  m.Id AS idModulo,
+  m.Nombre AS nombreModulo,
+  m.Descripcion AS descripcionModulo
+FROM Bitacora b
+INNER JOIN Usuarios u ON b.IdUsuario = u.Id
+INNER JOIN Modulos m ON b.IdModulo = m.Id`;
+
+function mapBitacoraRows(rows: Record<string, unknown>[]) {
+  return rows.map((item) => ({
+    ...item,
+    id: Number(item.id),
+    idUsuario: Number(item.idUsuario),
+    idModulo: Number(item.idModulo),
+  }));
+}
 
 @Injectable()
 export class BitacoraService {
@@ -72,72 +111,47 @@ ORDER BY b.FechaCreacion DESC;
     }
   }
 
-  async findAll(page: number, limit: number) {
+  async findAllPaginated(dto: BuscarBitacoraDto) {
     try {
+      const { page, limit, fechaInicio, fechaFin } = dto;
+
+      if (fechaInicio && fechaFin && fechaInicio > fechaFin) {
+        throw new BadRequestException(
+          "fechaInicio no puede ser posterior a fechaFin",
+        );
+      }
+
+      const { whereSql, filterParams } = this.buildFechaRangoClause(
+        fechaInicio,
+        fechaFin,
+      );
       const offset = (page - 1) * limit;
-      let totalResult;
+
       const bitacora = await this.bitacoraRepository.query(
-        `
-SELECT
-  -- Bitácora
-  b.Id AS id,
-  b.Modulo AS modulo,
-  b.Descripcion AS descripcion,
-  b.Accion AS accion,
-  b.Query AS query,
-  b.FechaCreacion AS fechaCreacion,
-  b.Estatus AS estatus,
-  b.Error AS error,
+        `${BITACORA_SELECT}
+${whereSql}
+ORDER BY b.FechaCreacion DESC
+LIMIT ? OFFSET ?`,
+        [...filterParams, limit, offset],
+      );
 
-  -- Usuario
-  u.Id AS idUsuario,
-  u.Nombre AS nombreUsuario,
-  u.ApellidoPaterno AS apellidoPaternoUsuario,
-  u.ApellidoMaterno AS apellidoMaternoUsuario,
-  u.UserName AS UserNameUsuario,
-  u.Estatus AS estatusUsuario,
-
-  -- Módulo
-  m.Id AS idModulo,
-  m.Nombre AS nombreModulo,
-  m.Descripcion AS descripcionModulo
-
+      const totalResult = await this.bitacoraRepository.query(
+        `SELECT COUNT(*) AS total
 FROM Bitacora b
 INNER JOIN Usuarios u ON b.IdUsuario = u.Id
 INNER JOIN Modulos m ON b.IdModulo = m.Id
-
-
-
-ORDER BY b.FechaCreacion DESC
-LIMIT ? OFFSET ?;
-            `,
-            [limit, offset],
+${whereSql}`,
+        filterParams,
       );
-
-      // Query para total (sin paginación)
-          totalResult = await this.bitacoraRepository.query(
-            `
-  SELECT COUNT(*) AS total
- FROM Bitacora b
-INNER JOIN Usuarios u ON b.IdUsuario = u.Id
-INNER JOIN Modulos m ON b.IdModulo = m.Id
-  `,
-          );
 
       const total = Number(totalResult[0]?.total ?? 0);
 
-      const data = bitacora.map((item) => ({
-        ...item,
-        id: Number(item.id),
-        idUsuario: Number(item.idUsuario),
-        idModulo: Number(item.idModulo),
-      }));
       const result: ApiResponseCommon = {
-        data: data,
+        data: mapBitacoraRows(bitacora),
         paginated: {
-          total: total,
+          total,
           page,
-          lastPage: Math.ceil(total / limit),
+          lastPage: total === 0 ? 0 : Math.ceil(total / limit),
         },
       };
       return result;
@@ -145,8 +159,29 @@ INNER JOIN Modulos m ON b.IdModulo = m.Id
       if (error instanceof HttpException) {
         throw error;
       }
-      throw new InternalServerErrorException('Ocurrió un error al obtener las bitácoras paginada.');
+      throw new InternalServerErrorException(
+        "Ocurrió un error al obtener las bitácoras paginada.",
+      );
     }
+  }
+
+  private buildFechaRangoClause(fechaInicio?: string, fechaFin?: string) {
+    const conditions: string[] = [];
+    const filterParams: string[] = [];
+
+    if (fechaInicio) {
+      conditions.push("b.FechaCreacion >= ?");
+      filterParams.push(`${fechaInicio} 00:00:00`);
+    }
+    if (fechaFin) {
+      conditions.push("b.FechaCreacion <= ?");
+      filterParams.push(`${fechaFin} 23:59:59`);
+    }
+
+    const whereSql =
+      conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+
+    return { whereSql, filterParams };
   }
 
   async findOne(id: number) {

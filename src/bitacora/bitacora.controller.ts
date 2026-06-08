@@ -21,26 +21,16 @@ import {
   BitacoraOneResponseDto,
   BitacoraPaginatedResponseDto,
 } from "./dto/bitacora-registro.dto";
+import { BuscarBitacoraDto } from "./dto/buscar-bitacora.dto";
 import { CreateBitacoraDto } from "./dto/create-bitac ora.dto";
 
 @ApiTags("Bitácora")
 @Controller("bitacora")
 export class BitacoraController {
-  constructor(private readonly bitacoraService: BitacoraService) {}
+  constructor(private readonly bitacoraService: BitacoraService) { }
 
   @Post()
   @HttpCode(200)
-  @ApiOperation({
-    summary: "Registrar evento en bitácora (stub)",
-    description:
-      "Endpoint de creación manual. En la práctica los módulos registran eventos " +
-      "vía `BitacoraService.logToBitacora()` de forma interna.",
-  })
-  @ApiBody({ type: CreateBitacoraDto })
-  @ApiOkResponse({
-    description: "Respuesta placeholder del endpoint de creación",
-    schema: { type: "string", example: "This action adds a new bitacora" },
-  })
   create(@Body() createBitacoraDto: CreateBitacoraDto) {
     return this.bitacoraService.createBitacora(createBitacoraDto);
   }
@@ -57,29 +47,21 @@ export class BitacoraController {
     return await this.bitacoraService.findAllListBitacora();
   }
 
-  @Get(":page/:limit")
+  @Post("paginated")
+  @HttpCode(200)
   @ApiOperation({
-    summary: "Listar bitácora paginada",
+    summary: "Listar bitácora paginada por rango de fechas",
     description:
       "Consulta paginada con joins a Usuarios y Modulos. " +
+      "Opcionalmente filtra por `fechaInicio` y/o `fechaFin` sobre `FechaCreacion`. " +
       "Orden: `FechaCreacion` descendente.",
   })
-  @ApiParam({
-    name: "page",
-    example: 1,
-    description: "Número de página (desde 1)",
-  })
-  @ApiParam({
-    name: "limit",
-    example: 10,
-    description: "Registros por página",
-  })
+  @ApiBody({ type: BuscarBitacoraDto })
   @ApiOkResponse({ type: BitacoraPaginatedResponseDto })
-  findAll(
-    @Param("page", ParseIntPipe) page: number,
-    @Param("limit", ParseIntPipe) limit: number,
+  findAllPaginated(
+    @Body() dto: BuscarBitacoraDto,
   ): Promise<ApiResponseCommon> {
-    return this.bitacoraService.findAll(page, limit);
+    return this.bitacoraService.findAllPaginated(dto);
   }
 
   @Get(":id")

@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS `FormulaEvaluaciones` (
   `IdArrendatario`  BIGINT NULL,
   `VariablesUsadas` JSON NOT NULL COMMENT 'Snapshot de variables y valores al evaluar',
   `ExpresionFinal`  VARCHAR(500) NULL COMMENT 'Expresión con valores sustituidos',
-  `Resultado`       DECIMAL(14,4) NOT NULL,
+  `Resultado`       DECIMAL(18,8) NOT NULL,
   `MesAplicacion`   DATETIME NULL,
   `FHRegistro`      DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`Id`),

@@ -31,8 +31,8 @@ export class FormulaEvaluaciones {
 
   @Column("decimal", {
     name: "Resultado",
-    precision: 14,
-    scale: 4,
+    precision: 18,
+    scale: 8,
   })
   resultado: string | null;
 

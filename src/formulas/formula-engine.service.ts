@@ -114,7 +114,7 @@ export class FormulaEngineService {
       expresionOriginal: formula.formula,
       expresionSustituida: expresionFinal,
       variables: valoresResueltos,
-      resultado: Math.round(resultado * 100) / 100,
+      resultado,
       tipoResultado: formula.tipoResultado,
     };
   }

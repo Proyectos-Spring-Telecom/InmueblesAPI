@@ -11,7 +11,7 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
 import { CreateRentaActualDto } from "./dto/create-renta-actual.dto";
 import { UpdateRentaActualDto } from "./dto/update-renta-actual.dto";
@@ -31,6 +31,25 @@ export class RentaActualController {
     description:
       "Asigna automáticamente el mes-año actual. Solo un registro activo por idArrendatario + idContrato.",
   })
+  @ApiBody({
+    type: CreateRentaActualDto,
+    examples: {
+      completo: {
+        summary: "Renta y mantenimiento",
+        value: {
+          idArrendatario: 1,
+          idContrato: 5,
+          total: 15000,
+          montoFinal: 15500,
+          totalMantenimiento: 3500,
+          montoFinalMantenimiento: 3675,
+          idFormula: 2,
+          factorVariable: 1.05,
+          ocupoFormula: 1,
+        },
+      },
+    },
+  })
   create(@Body() dto: CreateRentaActualDto) {
     return this.rentaActualService.create(dto);
   }
@@ -40,6 +59,22 @@ export class RentaActualController {
   @ApiOperation({
     summary: "Actualizar renta actual por id",
     description: "No permite cambiar arrendatario, contrato ni mes.",
+  })
+  @ApiBody({
+    type: UpdateRentaActualDto,
+    examples: {
+      montos: {
+        summary: "Actualizar montos de renta y mantenimiento",
+        value: {
+          total: 16000,
+          montoFinal: 16500,
+          totalMantenimiento: 3800,
+          montoFinalMantenimiento: 3990,
+          factorVariable: 1.03,
+          ocupoFormula: 1,
+        },
+      },
+    },
   })
   update(
     @Param("id", ParseIntPipe) id: number,

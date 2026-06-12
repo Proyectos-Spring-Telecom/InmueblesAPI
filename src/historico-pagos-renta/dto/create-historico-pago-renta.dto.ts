@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
+  IsDateString,
   IsInt,
   IsNumber,
   IsOptional,
@@ -8,21 +9,22 @@ import {
   Min,
 } from "class-validator";
 
-export class CreateRentaActualDto {
+export class CreateHistoricoPagoRentaDto {
   @ApiProperty({ example: 1 })
   @Type(() => Number)
   @IsInt()
   idArrendatario: number;
 
-  @ApiProperty({
-    example: 5,
-    description: "Solo puede existir un registro activo por arrendatario y contrato.",
-  })
+  @ApiProperty({ example: 5 })
   @Type(() => Number)
   @IsInt()
   idContrato: number;
 
-  @ApiPropertyOptional({ example: 15000.5, description: "Total renta" })
+  @ApiProperty({ example: "2026-05-01T00:00:00.000Z" })
+  @IsDateString()
+  mes: string;
+
+  @ApiPropertyOptional({ example: 15000.5 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -34,22 +36,19 @@ export class CreateRentaActualDto {
   @IsInt()
   idFormula?: number;
 
-  @ApiPropertyOptional({ example: 15500.75, description: "Monto final renta" })
+  @ApiPropertyOptional({ example: 15500.75 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   montoFinal?: number;
 
-  @ApiPropertyOptional({ example: 3500, description: "Total mantenimiento" })
+  @ApiPropertyOptional({ example: 3500 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   totalMantenimiento?: number;
 
-  @ApiPropertyOptional({
-    example: 3675,
-    description: "Monto final mantenimiento",
-  })
+  @ApiPropertyOptional({ example: 3675 })
   @IsOptional()
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
@@ -68,4 +67,12 @@ export class CreateRentaActualDto {
   @Min(0)
   @Max(1)
   ocupoFormula?: number;
+
+  @ApiPropertyOptional({ example: 1, description: "0 = pendiente, 1 = pagada" })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  pagada?: number;
 }

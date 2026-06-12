@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsDateString,
   IsInt,
@@ -8,6 +8,7 @@ import {
   Max,
   Min,
 } from "class-validator";
+import { optionalDecimalTransform } from "src/common/pago-mensual.utils";
 
 export class CreateHistoricoPagoRentaDto {
   @ApiProperty({ example: 1 })
@@ -56,7 +57,7 @@ export class CreateHistoricoPagoRentaDto {
 
   @ApiPropertyOptional({ example: 1.05 })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(optionalDecimalTransform)
   @IsNumber({ maxDecimalPlaces: 2 })
   factorVariable?: number;
 

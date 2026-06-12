@@ -260,6 +260,60 @@ export class InmueblesService {
     return this.queryLocalesByInmueble(idInmueble);
   }
 
+  async findAreaOcupada(idInmueble: number) {
+    const inmueble = await this.inmueblesRepository.findOne({
+      where: { id: idInmueble },
+      select: ["id", "totalM2"],
+    });
+    if (!inmueble) {
+      throw new NotFoundException(`Inmueble con id ${idInmueble} no encontrado.`);
+    }
+
+    const locales = await this.localesRepository
+      .createQueryBuilder("local")
+      .innerJoinAndSelect("local.zona", "zona")
+      .innerJoin("zona.inmueble", "inmueble")
+      .leftJoinAndSelect("local.contratoLocales", "contratoLocal")
+      .leftJoinAndSelect("contratoLocal.contrato", "contrato")
+      .leftJoinAndSelect("contrato.arrendatario", "arrendatario")
+      .where("inmueble.id = :idInmueble", { idInmueble })
+      .andWhere("local.estatus = :estatus", { estatus: LocalesEstatus.Ocupado })
+      .orderBy("zona.numeroZona", "ASC")
+      .addOrderBy("local.id", "ASC")
+      .getMany();
+
+    return {
+      totalM2: inmueble.totalM2,
+      localesRentados: locales.map((local) => {
+        const contratoLocal = this.pickContratoLocalActivo(local.contratoLocales);
+        const contrato = contratoLocal?.contrato;
+
+        return {
+          id: local.id,
+          nombre: local.nombre,
+          areaM2: local.areaM2,
+          idZona: local.idZona,
+          zonaPrincipal: local.zona?.zonaPrincipal ?? null,
+          numeroZona: local.zona?.numeroZona ?? null,
+          idContrato: contrato?.id ?? null,
+          idArrendatario: contrato?.idArrendatario ?? null,
+          nombreArrendador: contrato?.arrendatario?.arrendatario ?? null,
+        };
+      }),
+    };
+  }
+
+  private pickContratoLocalActivo(
+    contratoLocales: LocalesZonaInmueble["contratoLocales"],
+  ) {
+    if (!contratoLocales?.length) {
+      return undefined;
+    }
+
+    const activo = contratoLocales.find((cl) => cl.contrato?.estatus === 1);
+    return activo ?? contratoLocales[0];
+  }
+
   async findLocalesLibresByIdInmueble(idInmueble: number) {
     await this.assertInmuebleExists(idInmueble);
     return this.queryLocalesByInmueble(idInmueble, LocalesEstatus.Disponible);
@@ -428,6 +482,10 @@ export class InmueblesService {
       correoRepresentante: dto.correoRepresentante ?? null,
       lat: dto.lat ?? null,
       lng: dto.lng ?? null,
+      totalM2:
+        dto.totalM2 !== undefined && dto.totalM2 !== null
+          ? String(dto.totalM2)
+          : null,
     };
   }
 
@@ -461,6 +519,10 @@ export class InmueblesService {
     }
     if (dto.lat !== undefined) patch.lat = dto.lat ?? null;
     if (dto.lng !== undefined) patch.lng = dto.lng ?? null;
+    if (dto.totalM2 !== undefined) {
+      patch.totalM2 =
+        dto.totalM2 !== null ? String(dto.totalM2) : null;
+    }
     return patch;
   }
 

@@ -1,9 +1,10 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Type } from "class-transformer";
 import {
   IsInt,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   Max,
   Min,
 } from "class-validator";
@@ -28,4 +29,10 @@ export class CreateInpcDto {
   @Type(() => Number)
   @ApiProperty({ example: 125.4567 })
   inpc: number;
+
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Type(() => Number)
+  @ApiPropertyOptional({ example: 3.79, description: "Porcentaje anual (%)" })
+  porcentajeAnual?: number;
 }

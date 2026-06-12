@@ -2,6 +2,28 @@ import { BadRequestException } from "@nestjs/common";
 
 const MX_TZ = "America/Mexico_City";
 
+/** Normaliza decimales opcionales: null/vacío → undefined, redondeo a 2 decimales. */
+export function optionalDecimalTransform({
+  value,
+}: {
+  value: unknown;
+}): number | undefined {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
+
+  const n =
+    typeof value === "number"
+      ? value
+      : Number.parseFloat(String(value).trim().replace(",", "."));
+
+  if (!Number.isFinite(n)) {
+    return undefined;
+  }
+
+  return Math.round(n * 100) / 100;
+}
+
 export function decStr(v: number | undefined | null): string | null {
   if (v === undefined || v === null) return null;
   return String(v);

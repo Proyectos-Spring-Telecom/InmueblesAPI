@@ -20,7 +20,9 @@ import {
   ApiBearerAuth,
   ApiBody,
   ApiConsumes,
+  ApiOkResponse,
   ApiOperation,
+  ApiTags,
 } from "@nestjs/swagger";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
@@ -30,9 +32,11 @@ import { CreateInmuebleDto } from "./dto/create-inmueble.dto";
 import { UpdateInmuebleDto } from "./dto/update-inmueble.dto";
 import { UpdateMapaInmuebleDto } from "./dto/update-mapa-inmueble.dto";
 import { UpdateLocalEstatusDto } from "./dto/update-local-estatus.dto";
+import { AreaOcupadaResponseDto } from "./dto/area-ocupada-response.dto";
 import { InmueblesService } from "./inmuebles.service";
 import { parseNestedFormData } from "./utils/form-data-nested";
 
+@ApiTags("Inmuebles")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth("access-token")
 @Controller("inmuebles")
@@ -195,6 +199,18 @@ export class InmueblesController {
     @Param("idInmueble", ParseIntPipe) idInmueble: number,
   ) {
     return this.inmueblesService.findLocalesByIdInmueble(idInmueble);
+  }
+
+  @Get("area-ocupada/:idInmueble")
+  @ApiOperation({
+    summary: "Área ocupada del inmueble",
+    description:
+      "Devuelve TotalM2 del inmueble y los locales rentados (Estatus Ocupado) " +
+      "con su zona y el nombre del arrendador (arrendatario) ligado por contrato.",
+  })
+  @ApiOkResponse({ type: AreaOcupadaResponseDto })
+  findAreaOcupada(@Param("idInmueble", ParseIntPipe) idInmueble: number) {
+    return this.inmueblesService.findAreaOcupada(idInmueble);
   }
 
   @Patch("locales/:idLocal/estatus")

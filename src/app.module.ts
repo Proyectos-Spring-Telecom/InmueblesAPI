@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './app.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -42,7 +43,7 @@ import Joi from 'joi';
 import { join } from 'path';
 
 @Module({
-  imports: [ConfigModule.forRoot({
+  imports: [ScheduleModule.forRoot(), ConfigModule.forRoot({
     isGlobal: true,
     // Carga .env junto al proyecto (src/ o dist/), no solo desde process.cwd()
     envFilePath: join(__dirname, '..', '.env'),

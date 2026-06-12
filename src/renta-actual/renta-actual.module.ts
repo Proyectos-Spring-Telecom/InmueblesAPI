@@ -6,6 +6,7 @@ import { Formulas } from "src/entities/Formulas";
 import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
 import { RentaActual } from "src/entities/RentaActual";
 import { RentaActualController } from "./renta-actual.controller";
+import { RentaActualCronService } from "./renta-actual-cron.service";
 import { RentaActualService } from "./renta-actual.service";
 
 @Module({
@@ -19,7 +20,7 @@ import { RentaActualService } from "./renta-actual.service";
     ]),
   ],
   controllers: [RentaActualController],
-  providers: [RentaActualService],
+  providers: [RentaActualService, RentaActualCronService],
   exports: [RentaActualService],
 })
 export class RentaActualModule {}

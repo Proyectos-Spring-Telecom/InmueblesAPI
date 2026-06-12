@@ -5,11 +5,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { DataSource, In, Repository } from "typeorm";
+import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { ApiResponseCommon } from "src/common/ApiResponse";
 import {
   decStr,
   getMesActual,
+  isMesActual,
   mapPagoRentaDesglose,
   PAGO_MENSUAL_RELATIONS,
 } from "src/common/pago-mensual.utils";
@@ -111,34 +112,76 @@ export class RentaActualService {
         throw new NotFoundException(`Renta actual con id ${id} no encontrada.`);
       }
 
-      const historico = manager.create(HistoricoPagosRenta, {
-        idArrendatario: row.idArrendatario,
-        idContrato: row.idContrato,
-        mes: row.mes,
-        total: row.total,
-        idFormula: row.idFormula,
-        montoFinal: row.montoFinal,
-        totalMantenimiento: row.totalMantenimiento,
-        montoFinalMantenimiento: row.montoFinalMantenimiento,
-        factorVariable: row.factorVariable,
-        ocupoFormula: row.ocupoFormula,
-        pagada: 1,
-      });
-      const saved = await manager.save(HistoricoPagosRenta, historico);
+      if (Number(row.pagada) === 1) {
+        throw new BadRequestException("La renta ya está marcada como pagada.");
+      }
+
+      const savedHistorico = await this.ensureHistoricoPagada(manager, row);
+
+      const esMesActual = isMesActual(row.mes);
+
+      if (esMesActual) {
+        await manager.update(RentaActual, id, { pagada: 1 });
+
+        const data = await manager.findOne(RentaActual, {
+          where: { id },
+          relations: [...PAGO_MENSUAL_RELATIONS],
+        });
+
+        return {
+          status: "success",
+          message:
+            "Renta del mes actual marcada como pagada. El registro permanece en RentaActual.",
+          data: data ? mapPagoRentaDesglose(data) : null,
+        };
+      }
+
       await manager.delete(RentaActual, id);
 
       const data = await manager.findOne(HistoricoPagosRenta, {
-        where: { id: saved.id },
+        where: { id: savedHistorico.id },
         relations: [...PAGO_MENSUAL_RELATIONS],
       });
 
       return {
         status: "success",
         message:
-          "Renta marcada como pagada y movida al histórico correctamente.",
+          "Renta de mes anterior marcada como pagada y movida al histórico.",
         data: data ? mapPagoRentaDesglose(data) : null,
       };
     });
+  }
+
+  /**
+   * Rentas pagadas en el mes en que se registraron permanecen en RentaActual hasta
+   * que cambia el mes. Este job las pasa a histórico (si aún no están) y las elimina.
+   */
+  async archivarRentasPagadasMesesAnteriores(): Promise<{ archivadas: number }> {
+    const mesActual = getMesActual();
+    const anio = mesActual.getFullYear();
+    const mes = mesActual.getMonth() + 1;
+
+    const rows = await this.rentaActualRepository
+      .createQueryBuilder("r")
+      .where("r.pagada = :pagada", { pagada: 1 })
+      .andWhere(
+        "(YEAR(r.mes) < :anio OR (YEAR(r.mes) = :anio AND MONTH(r.mes) < :mes))",
+        { anio, mes },
+      )
+      .getMany();
+
+    if (rows.length === 0) {
+      return { archivadas: 0 };
+    }
+
+    await this.dataSource.transaction(async (manager) => {
+      for (const row of rows) {
+        await this.ensureHistoricoPagada(manager, row);
+        await manager.delete(RentaActual, row.id);
+      }
+    });
+
+    return { archivadas: rows.length };
   }
 
   async findOne(id: number) {
@@ -199,13 +242,19 @@ export class RentaActualService {
     idArrendatario: number,
     idContrato: number,
   ) {
-    const existing = await this.rentaActualRepository.findOne({
-      where: { idArrendatario, idContrato },
-      select: ["id"],
-    });
+    const mesActual = getMesActual();
+    const existing = await this.rentaActualRepository
+      .createQueryBuilder("r")
+      .where("r.idArrendatario = :idArrendatario", { idArrendatario })
+      .andWhere("r.idContrato = :idContrato", { idContrato })
+      .andWhere("YEAR(r.mes) = :anio", { anio: mesActual.getFullYear() })
+      .andWhere("MONTH(r.mes) = :mes", { mes: mesActual.getMonth() + 1 })
+      .select(["r.id"])
+      .getOne();
+
     if (existing) {
       throw new ConflictException(
-        `Ya existe una renta actual activa para el arrendatario ${idArrendatario} y contrato ${idContrato}.`,
+        `Ya existe una renta actual para el mes en curso (arrendatario ${idArrendatario}, contrato ${idContrato}).`,
       );
     }
   }
@@ -247,5 +296,41 @@ export class RentaActualService {
     if (!formula) {
       throw new NotFoundException(`Fórmula con id ${idFormula} no encontrada.`);
     }
+  }
+
+  private async ensureHistoricoPagada(
+    manager: EntityManager,
+    row: RentaActual,
+  ): Promise<HistoricoPagosRenta> {
+    const existing = await manager
+      .createQueryBuilder(HistoricoPagosRenta, "h")
+      .where("h.idArrendatario = :idArrendatario", {
+        idArrendatario: row.idArrendatario,
+      })
+      .andWhere("h.idContrato = :idContrato", { idContrato: row.idContrato })
+      .andWhere("YEAR(h.mes) = YEAR(:mes)", { mes: row.mes })
+      .andWhere("MONTH(h.mes) = MONTH(:mes)", { mes: row.mes })
+      .andWhere("h.pagada = :pagada", { pagada: 1 })
+      .getOne();
+
+    if (existing) {
+      return existing;
+    }
+
+    const historico = manager.create(HistoricoPagosRenta, {
+      idArrendatario: row.idArrendatario,
+      idContrato: row.idContrato,
+      mes: row.mes,
+      total: row.total,
+      idFormula: row.idFormula,
+      montoFinal: row.montoFinal,
+      totalMantenimiento: row.totalMantenimiento,
+      montoFinalMantenimiento: row.montoFinalMantenimiento,
+      factorVariable: row.factorVariable,
+      ocupoFormula: row.ocupoFormula,
+      pagada: 1,
+    });
+
+    return manager.save(HistoricoPagosRenta, historico);
   }
 }

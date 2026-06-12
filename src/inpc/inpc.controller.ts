@@ -11,7 +11,7 @@ import {
   Req,
   UseGuards,
 } from "@nestjs/common";
-import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
 import { CreateInpcDto } from "./dto/create-inpc.dto";
 import { UpdateInpcDto } from "./dto/update-inpc.dto";
@@ -54,12 +54,26 @@ export class InpcController {
   }
 
   @Get("paginated")
-  @ApiOperation({ summary: "Listar INPC paginado" })
+  @ApiOperation({
+    summary: "Listar INPC paginado (local y/o unificado con Banxico)",
+    description:
+      "Sin fechas: solo registros locales. Con fechaInicio y fechaFin: concatena registros locales " +
+      "y datos de Banxico en un arreglo (pueden repetirse meses). Cada item incluye `isBanxico`.",
+  })
+  @ApiQuery({ name: "fechaInicio", required: false, example: "2025-01-01" })
+  @ApiQuery({ name: "fechaFin", required: false, example: "2025-12-31" })
   findAllPaginated(
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
+    @Query("fechaInicio") fechaInicio?: string,
+    @Query("fechaFin") fechaFin?: string,
   ) {
-    return this.inpcService.findAllPaginated(page, limit);
+    return this.inpcService.findAllPaginated(
+      page,
+      limit,
+      fechaInicio,
+      fechaFin,
+    );
   }
 
   @Get(":id")

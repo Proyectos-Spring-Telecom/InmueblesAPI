@@ -36,6 +36,19 @@ export function getMesActual(): Date {
   return new Date(mx.getFullYear(), mx.getMonth(), 1);
 }
 
+function getAnioMesMx(fecha: Date): { anio: number; mes: number } {
+  const mx = new Date(fecha.toLocaleString("en-US", { timeZone: MX_TZ }));
+  return { anio: mx.getFullYear(), mes: mx.getMonth() };
+}
+
+/** Indica si la fecha pertenece al mes-año actual (zona México). */
+export function isMesActual(fecha: Date | null | undefined): boolean {
+  if (!fecha) return false;
+  const actual = getAnioMesMx(getMesActual());
+  const ref = getAnioMesMx(fecha);
+  return actual.anio === ref.anio && actual.mes === ref.mes;
+}
+
 export function parseRangoFechas(
   fechaInicio: string | undefined,
   fechaFin: string | undefined,

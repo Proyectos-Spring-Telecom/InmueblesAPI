@@ -4,11 +4,11 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { Repository, Brackets } from "typeorm";
 import { ApiResponseCommon } from "src/common/ApiResponse";
 import {
   decStr,
-  mapPagoRentaDesglose,
+  mapHistoricoPagoRentaResponse,
   PAGO_MENSUAL_RELATIONS,
   parseRangoFechas,
 } from "src/common/pago-mensual.utils";
@@ -136,7 +136,8 @@ export class HistoricoPagosRentaService {
         `Histórico de pago de renta con id ${id} no encontrado.`,
       );
     }
-    return mapPagoRentaDesglose(data);
+    const mesAnterior = await this.findRegistroMesAnterior(data);
+    return mapHistoricoPagoRentaResponse(data, mesAnterior);
   }
 
   async findAllPaginated(
@@ -183,8 +184,12 @@ export class HistoricoPagosRentaService {
       .take(safeLimit)
       .getMany();
 
+    const anterioresPorId = await this.loadRegistrosMesAnterior(data);
+
     return {
-      data: data.map(mapPagoRentaDesglose),
+      data: data.map((row) =>
+        mapHistoricoPagoRentaResponse(row, anterioresPorId.get(row.id) ?? null),
+      ),
       paginated: {
         total,
         page: safePage,
@@ -239,5 +244,98 @@ export class HistoricoPagosRentaService {
     if (!formula) {
       throw new NotFoundException(`Fórmula con id ${idFormula} no encontrada.`);
     }
+  }
+
+  /** Registro inmediatamente anterior (por mes) del mismo arrendatario + contrato. */
+  private async findRegistroMesAnterior(
+    row: HistoricoPagosRenta,
+  ): Promise<HistoricoPagosRenta | null> {
+    if (
+      row.idArrendatario == null ||
+      row.idContrato == null ||
+      row.mes == null
+    ) {
+      return null;
+    }
+
+    return this.historicoRepository
+      .createQueryBuilder("h")
+      .where("h.idArrendatario = :idArrendatario", {
+        idArrendatario: row.idArrendatario,
+      })
+      .andWhere("h.idContrato = :idContrato", { idContrato: row.idContrato })
+      .andWhere("h.mes < :mes", { mes: row.mes })
+      .orderBy("h.mes", "DESC")
+      .addOrderBy("h.id", "DESC")
+      .getOne();
+  }
+
+  private async loadRegistrosMesAnterior(
+    rows: HistoricoPagosRenta[],
+  ): Promise<Map<number, HistoricoPagosRenta | null>> {
+    const result = new Map<number, HistoricoPagosRenta | null>();
+    if (rows.length === 0) {
+      return result;
+    }
+
+    const pairs = new Map<string, { idArrendatario: number; idContrato: number }>();
+    for (const row of rows) {
+      if (row.idArrendatario == null || row.idContrato == null) {
+        result.set(row.id, null);
+        continue;
+      }
+      pairs.set(`${row.idArrendatario}|${row.idContrato}`, {
+        idArrendatario: Number(row.idArrendatario),
+        idContrato: Number(row.idContrato),
+      });
+    }
+
+    if (pairs.size === 0) {
+      for (const row of rows) {
+        if (!result.has(row.id)) result.set(row.id, null);
+      }
+      return result;
+    }
+
+    const qb = this.historicoRepository.createQueryBuilder("h");
+    qb.where(
+      new Brackets((sub) => {
+        let i = 0;
+        for (const pair of pairs.values()) {
+          const clause = `(h.idArrendatario = :a${i} AND h.idContrato = :c${i})`;
+          const params = {
+            [`a${i}`]: pair.idArrendatario,
+            [`c${i}`]: pair.idContrato,
+          };
+          if (i === 0) sub.where(clause, params);
+          else sub.orWhere(clause, params);
+          i++;
+        }
+      }),
+    );
+
+    const historicoPorPar = await qb
+      .orderBy("h.mes", "ASC")
+      .addOrderBy("h.id", "ASC")
+      .getMany();
+
+    const byPair = new Map<string, HistoricoPagosRenta[]>();
+    for (const registro of historicoPorPar) {
+      const key = `${registro.idArrendatario}|${registro.idContrato}`;
+      const list = byPair.get(key) ?? [];
+      list.push(registro);
+      byPair.set(key, list);
+    }
+
+    for (const row of rows) {
+      if (result.has(row.id)) continue;
+
+      const key = `${row.idArrendatario}|${row.idContrato}`;
+      const list = byPair.get(key) ?? [];
+      const idx = list.findIndex((r) => r.id === row.id);
+      result.set(row.id, idx > 0 ? list[idx - 1]! : null);
+    }
+
+    return result;
   }
 }

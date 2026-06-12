@@ -21,6 +21,14 @@ export class Inpc {
   })
   inpc: string | null;
 
+  @Column("decimal", {
+    name: "PorcentajeAnual",
+    nullable: true,
+    precision: 10,
+    scale: 2,
+  })
+  porcentajeAnual: string | null;
+
   @Column("datetime", {
     name: "FHRegistro",
     nullable: true,

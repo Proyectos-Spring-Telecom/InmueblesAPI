@@ -74,6 +74,14 @@ export class Inmuebles {
   @Column("double", { name: "Lng", nullable: true })
   lng: number | null;
 
+  @Column("decimal", {
+    name: "TotalM2",
+    nullable: true,
+    precision: 10,
+    scale: 2,
+  })
+  totalM2: string | null;
+
   @Column("json", { name: "MapaInmueble", nullable: true })
   mapaInmueble: object | null;
 

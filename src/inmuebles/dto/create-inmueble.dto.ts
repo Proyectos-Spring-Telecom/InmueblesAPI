@@ -21,7 +21,7 @@ import { CreateArchivoInmuebleDto } from "./create-archivo-inmueble.dto";
  * Campos planos del inmueble:
  *   inmueble, idArrendador, direccionFiscal, estatusInmueble, vigenciaAnios,
  *   fechaInicio, fechaFin, nombreRepresentante, telefonoRepresentante,
- *   correoRepresentante, lat, lng
+ *   correoRepresentante, lat, lng, totalM2
  *
  * Arreglos (notación bracket por índice):
  *   servicios[i].idTipoServicio   servicios[i].numeroContrato
@@ -105,6 +105,12 @@ export class CreateInmuebleDto {
   @Type(() => Number)
   @IsNumber()
   lng?: number;
+
+  @ApiPropertyOptional({ example: 1500.5, description: "Superficie total m²" })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  totalM2?: number;
 
   @ApiPropertyOptional({
     description:

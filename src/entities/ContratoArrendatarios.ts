@@ -137,6 +137,13 @@ export class ContratoArrendatarios {
   @Column("text", { name: "Observaciones", nullable: true })
   observaciones: string | null;
 
+  @Column("tinyint", {
+    name: "IncluyeMantenimiento",
+    nullable: true,
+    default: () => "'0'",
+  })
+  incluyeMantenimiento: number | null;
+
   @Column("bigint", { name: "IdArrendatario", nullable: true })
   idArrendatario: number | null;
 

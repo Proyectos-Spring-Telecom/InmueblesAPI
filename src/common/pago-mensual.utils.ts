@@ -49,3 +49,36 @@ export const PAGO_MENSUAL_RELATIONS = [
   "contrato.contratoLocales.local",
   "formula",
 ] as const;
+
+export interface PagoRentaMontos {
+  total: string | null;
+  montoFinal: string | null;
+  totalMantenimiento: string | null;
+  montoFinalMantenimiento: string | null;
+}
+
+export function mapPagoRentaDesglose<T extends PagoRentaMontos>(
+  row: T,
+): T & {
+  desglose: {
+    renta: { total: string | null; montoFinal: string | null };
+    mantenimiento: {
+      totalMantenimiento: string | null;
+      montoFinalMantenimiento: string | null;
+    };
+  };
+} {
+  return {
+    ...row,
+    desglose: {
+      renta: {
+        total: row.total,
+        montoFinal: row.montoFinal,
+      },
+      mantenimiento: {
+        totalMantenimiento: row.totalMantenimiento,
+        montoFinalMantenimiento: row.montoFinalMantenimiento,
+      },
+    },
+  };
+}

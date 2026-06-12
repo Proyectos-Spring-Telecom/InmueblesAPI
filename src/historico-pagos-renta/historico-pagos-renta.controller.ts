@@ -1,13 +1,19 @@
 import {
+  Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseIntPipe,
+  Post,
+  Put,
   Query,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
+import { CreateHistoricoPagoRentaDto } from "./dto/create-historico-pago-renta.dto";
+import { UpdateHistoricoPagoRentaDto } from "./dto/update-historico-pago-renta.dto";
 import { HistoricoPagosRentaService } from "./historico-pagos-renta.service";
 
 @ApiTags("Histórico Pagos Renta")
@@ -18,6 +24,23 @@ export class HistoricoPagosRentaController {
   constructor(
     private readonly historicoPagosRentaService: HistoricoPagosRentaService,
   ) {}
+
+  @Post()
+  @HttpCode(200)
+  @ApiOperation({ summary: "Registrar pago de renta en histórico" })
+  create(@Body() dto: CreateHistoricoPagoRentaDto) {
+    return this.historicoPagosRentaService.create(dto);
+  }
+
+  @Put(":id")
+  @HttpCode(200)
+  @ApiOperation({ summary: "Actualizar registro de histórico por id" })
+  update(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: UpdateHistoricoPagoRentaDto,
+  ) {
+    return this.historicoPagosRentaService.update(id, dto);
+  }
 
   @Get("paginated")
   @ApiOperation({

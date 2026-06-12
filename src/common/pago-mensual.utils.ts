@@ -92,6 +92,62 @@ export interface PagoRentaMontos {
   montoFinalMantenimiento: string | null;
 }
 
+export interface IncrementoRentaFlags {
+  total: boolean;
+  montoFinal: boolean;
+}
+
+export interface IncrementoMantenimientoFlags {
+  totalMantenimiento: boolean;
+  montoFinalMantenimiento: boolean;
+}
+
+function montoIncremento(
+  actual: string | null,
+  anterior: string | null,
+): boolean {
+  if (actual == null || anterior == null) return false;
+  const a = Number.parseFloat(actual);
+  const b = Number.parseFloat(anterior);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+  return a > b;
+}
+
+export function calcIncrementoRenta(
+  actual: PagoRentaMontos,
+  anterior: PagoRentaMontos | null | undefined,
+): IncrementoRentaFlags {
+  if (!anterior) {
+    return { total: false, montoFinal: false };
+  }
+  return {
+    total: montoIncremento(actual.total, anterior.total),
+    montoFinal: montoIncremento(actual.montoFinal, anterior.montoFinal),
+  };
+}
+
+export function calcIncrementoMantenimiento(
+  actual: PagoRentaMontos,
+  anterior: PagoRentaMontos | null | undefined,
+): IncrementoMantenimientoFlags {
+  if (!anterior) {
+    return {
+      totalMantenimiento: false,
+      montoFinalMantenimiento: false,
+    };
+  }
+  return {
+    totalMantenimiento: montoIncremento(
+      actual.totalMantenimiento,
+      anterior.totalMantenimiento,
+    ),
+    montoFinalMantenimiento: montoIncremento(
+      actual.montoFinalMantenimiento,
+      anterior.montoFinalMantenimiento,
+    ),
+  };
+}
+
 export function mapPagoRentaDesglose<T extends PagoRentaMontos>(
   row: T,
 ): T & {
@@ -115,5 +171,21 @@ export function mapPagoRentaDesglose<T extends PagoRentaMontos>(
         montoFinalMantenimiento: row.montoFinalMantenimiento,
       },
     },
+  };
+}
+
+export function mapHistoricoPagoRentaResponse<
+  T extends PagoRentaMontos & { id?: number },
+>(
+  row: T,
+  mesAnterior?: PagoRentaMontos | null,
+): ReturnType<typeof mapPagoRentaDesglose<T>> & {
+  incrementoRenta: IncrementoRentaFlags;
+  incrementoMantenimiento: IncrementoMantenimientoFlags;
+} {
+  return {
+    ...mapPagoRentaDesglose(row),
+    incrementoRenta: calcIncrementoRenta(row, mesAnterior),
+    incrementoMantenimiento: calcIncrementoMantenimiento(row, mesAnterior),
   };
 }

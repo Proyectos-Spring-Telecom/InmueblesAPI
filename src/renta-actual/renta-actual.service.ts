@@ -10,6 +10,7 @@ import { ApiResponseCommon } from "src/common/ApiResponse";
 import {
   decStr,
   getMesActual,
+  mapPagoRentaDesglose,
   PAGO_MENSUAL_RELATIONS,
 } from "src/common/pago-mensual.utils";
 import { Arrendatarios } from "src/entities/Arrendatarios";
@@ -47,6 +48,8 @@ export class RentaActualService {
       total: decStr(dto.total),
       idFormula: dto.idFormula ?? null,
       montoFinal: decStr(dto.montoFinal),
+      totalMantenimiento: decStr(dto.totalMantenimiento),
+      montoFinalMantenimiento: decStr(dto.montoFinalMantenimiento),
       factorVariable: decStr(dto.factorVariable),
       ocupoFormula: dto.ocupoFormula ?? null,
       pagada: 0,
@@ -80,6 +83,12 @@ export class RentaActualService {
       ...(dto.montoFinal !== undefined && {
         montoFinal: decStr(dto.montoFinal),
       }),
+      ...(dto.totalMantenimiento !== undefined && {
+        totalMantenimiento: decStr(dto.totalMantenimiento),
+      }),
+      ...(dto.montoFinalMantenimiento !== undefined && {
+        montoFinalMantenimiento: decStr(dto.montoFinalMantenimiento),
+      }),
       ...(dto.factorVariable !== undefined && {
         factorVariable: decStr(dto.factorVariable),
       }),
@@ -109,6 +118,8 @@ export class RentaActualService {
         total: row.total,
         idFormula: row.idFormula,
         montoFinal: row.montoFinal,
+        totalMantenimiento: row.totalMantenimiento,
+        montoFinalMantenimiento: row.montoFinalMantenimiento,
         factorVariable: row.factorVariable,
         ocupoFormula: row.ocupoFormula,
         pagada: 1,
@@ -125,7 +136,7 @@ export class RentaActualService {
         status: "success",
         message:
           "Renta marcada como pagada y movida al histórico correctamente.",
-        data,
+        data: data ? mapPagoRentaDesglose(data) : null,
       };
     });
   }
@@ -138,7 +149,7 @@ export class RentaActualService {
     if (!data) {
       throw new NotFoundException(`Renta actual con id ${id} no encontrada.`);
     }
-    return data;
+    return mapPagoRentaDesglose(data);
   }
 
   async findAllPaginated(
@@ -175,7 +186,7 @@ export class RentaActualService {
     });
 
     return {
-      data,
+      data: data.map(mapPagoRentaDesglose),
       paginated: {
         total,
         page: safePage,

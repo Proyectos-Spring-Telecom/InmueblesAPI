@@ -52,6 +52,22 @@ export class HistoricoPagosRenta {
   montoFinal: string | null;
 
   @Column("decimal", {
+    name: "TotalMantenimiento",
+    nullable: true,
+    precision: 10,
+    scale: 2,
+  })
+  totalMantenimiento: string | null;
+
+  @Column("decimal", {
+    name: "MontoFinalMantenimiento",
+    nullable: true,
+    precision: 10,
+    scale: 2,
+  })
+  montoFinalMantenimiento: string | null;
+
+  @Column("decimal", {
     name: "FactorVariable",
     nullable: true,
     precision: 10,

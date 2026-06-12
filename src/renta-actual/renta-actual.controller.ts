@@ -88,7 +88,9 @@ export class RentaActualController {
   @ApiOperation({
     summary: "Marcar renta como pagada",
     description:
-      "Mueve el registro a HistoricoPagosRenta con Pagada=1 y lo elimina de RentaActual.",
+      "Mes actual: copia a HistoricoPagosRenta, marca Pagada=1 y conserva el registro en RentaActual " +
+      "(evita duplicar el mismo arrendatario + contrato en el mes). " +
+      "Mes anterior: copia al histórico y elimina de RentaActual.",
   })
   marcarPagada(@Param("id", ParseIntPipe) id: number) {
     return this.rentaActualService.marcarPagada(id);

@@ -8,7 +8,9 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
   ValidateNested,
 } from "class-validator";
 
@@ -36,28 +38,6 @@ export class ArrendatarioJsonDto {
   @IsString()
   @MaxLength(13)
   rfc?: string;
-
-  @ApiPropertyOptional({ example: 12000.5 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsNumber({ maxDecimalPlaces: 2 })
-  renta?: number;
-
-  @ApiPropertyOptional({ example: "2026-01-01" })
-  @IsOptional()
-  @IsDateString()
-  fechaInicio?: string;
-
-  @ApiPropertyOptional({ example: "2027-01-01" })
-  @IsOptional()
-  @IsDateString()
-  fechaFin?: string;
-
-  @ApiPropertyOptional({ example: "12" })
-  @IsOptional()
-  @IsString()
-  @MaxLength(10)
-  tiempoRenta?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -217,6 +197,17 @@ export class ContratoArrendatarioJsonDto {
   @IsOptional()
   @IsString()
   observaciones?: string;
+
+  @ApiPropertyOptional({
+    example: 0,
+    description: "0 = no incluye mantenimiento, 1 = incluye mantenimiento",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  incluyeMantenimiento?: number;
 }
 
 export class CreateServicioArrendatarioItemDto {
@@ -296,10 +287,6 @@ export class RegistrarArrendatarioFormDto {
       arrendatario: "Empresa ACME",
       tipoPersona: 1,
       rfc: "XAXX010101000",
-      renta: 12000.5,
-      fechaInicio: "2026-01-01",
-      fechaFin: "2027-01-01",
-      tiempoRenta: "12",
       representanteLegal: "Juan Pérez",
       telefonoRepresentante: "5551234567",
       correoRepresentante: "contacto@empresa.com",

@@ -304,11 +304,6 @@ export class ArrendatariosService {
       idArrendador: a.idArrendador!,
       tipoPersona: a.tipoPersona ?? null,
       rfc: a.rfc ?? null,
-      renta:
-        a.renta !== undefined && a.renta !== null ? String(a.renta) : null,
-      fechaInicio: a.fechaInicio ? new Date(a.fechaInicio) : null,
-      fechaFin: a.fechaFin ? new Date(a.fechaFin) : null,
-      tiempoRenta: a.tiempoRenta ?? null,
       representanteLegal: a.representanteLegal ?? null,
       telefonoRepresentante: a.telefonoRepresentante ?? null,
       correoRepresentante: a.correoRepresentante ?? null,
@@ -327,17 +322,6 @@ export class ArrendatariosService {
     if (a.idArrendador !== undefined) patch.idArrendador = a.idArrendador;
     if (a.tipoPersona !== undefined) patch.tipoPersona = a.tipoPersona ?? null;
     if (a.rfc !== undefined) patch.rfc = a.rfc ?? null;
-    if (a.renta !== undefined) {
-      patch.renta =
-        a.renta !== null ? String(a.renta) : null;
-    }
-    if (a.fechaInicio !== undefined) {
-      patch.fechaInicio = a.fechaInicio ? new Date(a.fechaInicio) : null;
-    }
-    if (a.fechaFin !== undefined) {
-      patch.fechaFin = a.fechaFin ? new Date(a.fechaFin) : null;
-    }
-    if (a.tiempoRenta !== undefined) patch.tiempoRenta = a.tiempoRenta ?? null;
     if (a.representanteLegal !== undefined) {
       patch.representanteLegal = a.representanteLegal ?? null;
     }
@@ -412,6 +396,9 @@ export class ArrendatariosService {
     }
     if (c.observaciones !== undefined) {
       patch.observaciones = c.observaciones ?? null;
+    }
+    if (c.incluyeMantenimiento !== undefined) {
+      patch.incluyeMantenimiento = c.incluyeMantenimiento ?? 0;
     }
     return patch;
   }

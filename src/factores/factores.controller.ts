@@ -53,6 +53,14 @@ export class FactoresController {
     return this.factoresService.activar(id, req);
   }
 
+  @Get("listado")
+  @ApiOperation({
+    summary: "Listar factores activos (estatus 1) sin paginación",
+  })
+  findAllActivos() {
+    return this.factoresService.findAllActivos();
+  }
+
   @Get("paginated")
   @ApiOperation({ summary: "Listar factores paginado" })
   findAllPaginated(

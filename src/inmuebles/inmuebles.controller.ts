@@ -135,16 +135,18 @@ export class InmueblesController {
     return this.inmueblesService.findAllPaginated(page, limit);
   }
 
-  @Get("dashboard")
+  @Get("dashboard/:idInmueble")
   @ApiOperation({
-    summary: "Dashboard global de inmuebles por rango de fechas",
+    summary: "Dashboard del inmueble por rango de fechas",
     description:
-      "Incluye todos los arrendadores con sus inmuebles, pagos de inmueble (entidad Pago) " +
-      "y por cada arrendatario: contratos, zonas, locales, histórico de renta, renta actual y pagos.",
+      "Incluye datos del inmueble y su arrendador, zonas y locales asignados en contratos vigentes, " +
+      "pagos del inmueble (entidad Pago) y por cada arrendatario con contrato en el inmueble: " +
+      "contratos, histórico de renta, renta actual y pagos.",
   })
   @ApiQuery({ name: "fechaInicio", required: true, example: "2026-01-01" })
   @ApiQuery({ name: "fechaFin", required: true, example: "2026-12-31" })
   getDashboard(
+    @Param("idInmueble", ParseIntPipe) idInmueble: number,
     @Query("fechaInicio") fechaInicio: string,
     @Query("fechaFin") fechaFin: string,
   ) {
@@ -154,7 +156,11 @@ export class InmueblesController {
       );
     }
 
-    return this.inmueblesDashboardService.getDashboard(fechaInicio, fechaFin);
+    return this.inmueblesDashboardService.getDashboard(
+      idInmueble,
+      fechaInicio,
+      fechaFin,
+    );
   }
 
   @Get("arrendador/:idArrendador")

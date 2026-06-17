@@ -6,7 +6,9 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
 } from "class-validator";
 
 export class CreateFactorDto {
@@ -39,4 +41,20 @@ export class CreateFactorDto {
       "Indica si el factor aplica a contrato: 0 = no, 1 = sí. Solo se permiten 0 u 1.",
   })
   esContrato?: number = 0;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1900)
+  @Max(2100)
+  @ApiPropertyOptional({ example: 2025, description: "Año INPC asociado al factor" })
+  anioInpc?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  @ApiPropertyOptional({ example: 5, description: "Mes INPC asociado al factor (1-12)" })
+  mesInpc?: number;
 }

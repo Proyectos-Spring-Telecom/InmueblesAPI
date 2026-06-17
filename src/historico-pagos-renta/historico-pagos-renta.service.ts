@@ -9,6 +9,7 @@ import { ApiResponseCommon } from "src/common/ApiResponse";
 import {
   decStr,
   mapHistoricoPagoRentaResponse,
+  mapPagoRentaDesglose,
   PAGO_MENSUAL_RELATIONS,
   parseRangoFechas,
 } from "src/common/pago-mensual.utils";
@@ -16,6 +17,7 @@ import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Formulas } from "src/entities/Formulas";
 import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
+import { RentaActual } from "src/entities/RentaActual";
 import { CreateHistoricoPagoRentaDto } from "./dto/create-historico-pago-renta.dto";
 import { UpdateHistoricoPagoRentaDto } from "./dto/update-historico-pago-renta.dto";
 
@@ -31,6 +33,8 @@ export class HistoricoPagosRentaService {
   constructor(
     @InjectRepository(HistoricoPagosRenta)
     private readonly historicoRepository: Repository<HistoricoPagosRenta>,
+    @InjectRepository(RentaActual)
+    private readonly rentaActualRepository: Repository<RentaActual>,
     @InjectRepository(Arrendatarios)
     private readonly arrendatariosRepository: Repository<Arrendatarios>,
     @InjectRepository(ContratoArrendatarios)
@@ -140,6 +144,58 @@ export class HistoricoPagosRentaService {
     return mapHistoricoPagoRentaResponse(data, mesAnterior);
   }
 
+  async findUltimo(idArrendatario: number, idContrato: number) {
+    await this.assertArrendatario(idArrendatario);
+    await this.assertContrato(idContrato, idArrendatario);
+
+    const historico = await this.historicoRepository
+      .createQueryBuilder("h")
+      .leftJoinAndSelect("h.arrendatario", "arrendatario")
+      .leftJoinAndSelect("h.contrato", "contrato")
+      .leftJoinAndSelect("contrato.inmueble", "inmueble")
+      .leftJoinAndSelect("contrato.contratoLocales", "contratoLocales")
+      .leftJoinAndSelect("contratoLocales.local", "local")
+      .leftJoinAndSelect("h.formula", "formula")
+      .where("h.idArrendatario = :idArrendatario", { idArrendatario })
+      .andWhere("h.idContrato = :idContrato", { idContrato })
+      .orderBy("h.mes", "DESC")
+      .addOrderBy("h.id", "DESC")
+      .getOne();
+
+    if (historico) {
+      const mesAnterior = await this.findRegistroMesAnterior(historico);
+      return {
+        origen: "historico" as const,
+        data: mapHistoricoPagoRentaResponse(historico, mesAnterior),
+      };
+    }
+
+    const rentaActual = await this.rentaActualRepository
+      .createQueryBuilder("r")
+      .leftJoinAndSelect("r.arrendatario", "arrendatario")
+      .leftJoinAndSelect("r.contrato", "contrato")
+      .leftJoinAndSelect("contrato.inmueble", "inmueble")
+      .leftJoinAndSelect("contrato.contratoLocales", "contratoLocales")
+      .leftJoinAndSelect("contratoLocales.local", "local")
+      .leftJoinAndSelect("r.formula", "formula")
+      .where("r.idArrendatario = :idArrendatario", { idArrendatario })
+      .andWhere("r.idContrato = :idContrato", { idContrato })
+      .orderBy("r.mes", "DESC")
+      .addOrderBy("r.id", "DESC")
+      .getOne();
+
+    if (rentaActual) {
+      return {
+        origen: "rentaActual" as const,
+        data: mapPagoRentaDesglose(rentaActual),
+      };
+    }
+
+    throw new NotFoundException(
+      `No se encontró pago de renta para arrendatario ${idArrendatario} y contrato ${idContrato}.`,
+    );
+  }
+
   async findAllPaginated(
     page: number,
     limit: number,
@@ -200,6 +256,17 @@ export class HistoricoPagosRentaService {
 
   assertOptionalInt(value: string | undefined, field: string): number | undefined {
     if (value === undefined || value === "") return undefined;
+    const n = Number(value);
+    if (!Number.isInteger(n)) {
+      throw new BadRequestException(`${field} debe ser un entero válido.`);
+    }
+    return n;
+  }
+
+  assertRequiredInt(value: string | undefined, field: string): number {
+    if (value === undefined || value === "") {
+      throw new BadRequestException(`${field} es requerido.`);
+    }
     const n = Number(value);
     if (!Number.isInteger(n)) {
       throw new BadRequestException(`${field} debe ser un entero válido.`);

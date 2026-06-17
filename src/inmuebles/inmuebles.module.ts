@@ -3,7 +3,6 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { ArchivosInmuebles } from "src/entities/ArchivosInmuebles";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
-import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
 import { Inmuebles } from "src/entities/Inmuebles";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { Pago } from "src/entities/Pago";
@@ -26,7 +25,6 @@ import { InmueblesService } from "./inmuebles.service";
       ContratoArrendatarios,
       ArchivosInmuebles,
       Arrendatarios,
-      HistoricoPagosRenta,
       RentaActual,
       PagosArrendatarios,
       Pago,

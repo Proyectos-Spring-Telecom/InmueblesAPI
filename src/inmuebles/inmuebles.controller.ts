@@ -137,11 +137,11 @@ export class InmueblesController {
 
   @Get("dashboard/:idInmueble")
   @ApiOperation({
-    summary: "Dashboard del inmueble por rango de fechas",
+    summary: "Dashboard reducido del inmueble por rango de fechas",
     description:
-      "Incluye datos del inmueble y su arrendador, zonas y locales asignados en contratos vigentes, " +
-      "pagos del inmueble (entidad Pago) y por cada arrendatario con contrato en el inmueble: " +
-      "contratos, histórico de renta, renta actual y pagos.",
+      "Devuelve un JSON optimizado para el dashboard: inmueble, arrendador, zonas con locales, " +
+      "resumen de ocupación, arrendatarios (contrato activo, renta del mes y pagos recientes) " +
+      "y pagos del inmueble. Sin mapaInmueble, documentos ni datos anidados duplicados.",
   })
   @ApiQuery({ name: "fechaInicio", required: true, example: "2026-01-01" })
   @ApiQuery({ name: "fechaFin", required: true, example: "2026-12-31" })

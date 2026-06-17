@@ -6,12 +6,13 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { ApiResponseCommon } from "src/common/ApiResponse";
 import { PagoEstatus } from "src/common/pago-estatus.enum";
+import { parseRangoFechas } from "src/common/pago-mensual.utils";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { CatMetodosPago } from "src/entities/CatMetodosPago";
 import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { S3Service } from "src/s3/s3.service";
-import { In, Repository } from "typeorm";
+import { Repository } from "typeorm";
 import { CreatePagosArrendatarioDto } from "./dto/create-pagos-arrendatario.dto";
 
 const FOLDER_COMPROBANTE = "ComprobantesPagoArrendatarios";
@@ -23,6 +24,12 @@ const FULL_RELATIONS = [
   "servicioArrendatario.tipoServicio",
   "metodoPago",
 ];
+
+export interface PagosArrendatariosFilters {
+  fechaInicio: string;
+  fechaFin: string;
+  idArrendatario?: number;
+}
 
 @Injectable()
 export class PagosArrendatariosService {
@@ -141,44 +148,56 @@ export class PagosArrendatariosService {
   async findAllPaginated(
     page: number,
     limit: number,
+    filters: PagosArrendatariosFilters,
   ): Promise<ApiResponseCommon> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const skip = (safePage - 1) * safeLimit;
+    const { inicio, fin } = parseRangoFechas(
+      filters.fechaInicio,
+      filters.fechaFin,
+    );
 
-    const [idRows, total] =
-      await this.pagosArrendatariosRepository.findAndCount({
-        select: ["id"],
-        order: { id: "DESC" },
-        skip,
-        take: safeLimit,
+    const qb = this.pagosArrendatariosRepository
+      .createQueryBuilder("p")
+      .leftJoinAndSelect("p.arrendatario", "arrendatario")
+      .leftJoinAndSelect("p.servicioArrendatario", "servicioArrendatario")
+      .leftJoinAndSelect("servicioArrendatario.tipoServicio", "tipoServicio")
+      .leftJoinAndSelect("p.metodoPago", "metodoPago")
+      .where("p.fechaPago >= :inicio", { inicio })
+      .andWhere("p.fechaPago <= :fin", { fin });
+
+    if (filters.idArrendatario != null) {
+      qb.andWhere("p.idArrendatario = :idArrendatario", {
+        idArrendatario: filters.idArrendatario,
       });
-
-    if (idRows.length === 0) {
-      return {
-        data: [],
-        paginated: {
-          total,
-          page: safePage,
-          lastPage: total === 0 ? 0 : Math.ceil(total / safeLimit),
-        },
-      };
     }
 
-    const ids = idRows.map((r) => r.id);
-    const data = await this.pagosArrendatariosRepository.find({
-      where: { id: In(ids) },
-      relations: FULL_RELATIONS,
-      order: { id: "DESC" },
-    });
+    const total = await qb.getCount();
+
+    const data = await qb
+      .orderBy("p.fechaPago", "DESC")
+      .addOrderBy("p.id", "DESC")
+      .skip(skip)
+      .take(safeLimit)
+      .getMany();
 
     return {
       data,
       paginated: {
         total,
         page: safePage,
-        lastPage: Math.ceil(total / safeLimit),
+        lastPage: total === 0 ? 0 : Math.ceil(total / safeLimit),
       },
     };
+  }
+
+  assertOptionalInt(value: string | undefined, field: string): number | undefined {
+    if (value === undefined || value === "") return undefined;
+    const n = Number(value);
+    if (!Number.isInteger(n)) {
+      throw new BadRequestException(`${field} debe ser un entero válido.`);
+    }
+    return n;
   }
 }

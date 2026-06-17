@@ -87,6 +87,14 @@ export class FormulasController {
     return this.formulasService.activar(id, req);
   }
 
+  @Get("listado")
+  @ApiOperation({
+    summary: "Listar fórmulas activas (estatus 1) sin paginación",
+  })
+  findAllActivos() {
+    return this.formulasService.findAllActivos();
+  }
+
   @Get("paginated")
   @ApiOperation({ summary: "Listar fórmulas paginado" })
   findAllPaginated(

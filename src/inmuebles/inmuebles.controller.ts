@@ -22,6 +22,7 @@ import {
   ApiConsumes,
   ApiOkResponse,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 import { plainToInstance } from "class-transformer";
@@ -33,6 +34,7 @@ import { UpdateInmuebleDto } from "./dto/update-inmueble.dto";
 import { UpdateMapaInmuebleDto } from "./dto/update-mapa-inmueble.dto";
 import { UpdateLocalEstatusDto } from "./dto/update-local-estatus.dto";
 import { AreaOcupadaResponseDto } from "./dto/area-ocupada-response.dto";
+import { InmueblesDashboardService } from "./inmuebles-dashboard.service";
 import { InmueblesService } from "./inmuebles.service";
 import { parseNestedFormData } from "./utils/form-data-nested";
 
@@ -41,7 +43,10 @@ import { parseNestedFormData } from "./utils/form-data-nested";
 @ApiBearerAuth("access-token")
 @Controller("inmuebles")
 export class InmueblesController {
-  constructor(private readonly inmueblesService: InmueblesService) {}
+  constructor(
+    private readonly inmueblesService: InmueblesService,
+    private readonly inmueblesDashboardService: InmueblesDashboardService,
+  ) {}
 
   @Put(":id")
   @HttpCode(200)
@@ -128,6 +133,28 @@ export class InmueblesController {
     @Query("limit", ParseIntPipe) limit: number,
   ) {
     return this.inmueblesService.findAllPaginated(page, limit);
+  }
+
+  @Get("dashboard")
+  @ApiOperation({
+    summary: "Dashboard global de inmuebles por rango de fechas",
+    description:
+      "Incluye todos los arrendadores con sus inmuebles, pagos de inmueble (entidad Pago) " +
+      "y por cada arrendatario: contratos, zonas, locales, histórico de renta, renta actual y pagos.",
+  })
+  @ApiQuery({ name: "fechaInicio", required: true, example: "2026-01-01" })
+  @ApiQuery({ name: "fechaFin", required: true, example: "2026-12-31" })
+  getDashboard(
+    @Query("fechaInicio") fechaInicio: string,
+    @Query("fechaFin") fechaFin: string,
+  ) {
+    if (!fechaInicio || !fechaFin) {
+      throw new BadRequestException(
+        "Se requieren fechaInicio y fechaFin (formato YYYY-MM-DD).",
+      );
+    }
+
+    return this.inmueblesDashboardService.getDashboard(fechaInicio, fechaFin);
   }
 
   @Get("arrendador/:idArrendador")

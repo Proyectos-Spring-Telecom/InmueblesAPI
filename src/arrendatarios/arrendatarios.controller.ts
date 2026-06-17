@@ -19,6 +19,8 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiQuery,
+  ApiTags,
 } from "@nestjs/swagger";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
@@ -27,14 +29,19 @@ import { MULTIPART_FILE_OPTIONS } from "src/common/multipart-file.config";
 import { parseNestedFormData } from "src/inmuebles/utils/form-data-nested";
 import { RegistrarArrendatarioFormDto } from "./dto/registrar-arrendatario-form.dto";
 import { ActualizarArrendatarioFormDto } from "./dto/actualizar-arrendatario-form.dto";
+import { ArrendatariosDashboardService } from "./arrendatarios-dashboard.service";
 import { ArrendatariosService } from "./arrendatarios.service";
 import { parseTopLevelJsonStrings } from "./utils/parse-top-level-json";
 
+@ApiTags("Arrendatarios")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth("access-token")
 @Controller("arrendatarios")
 export class ArrendatariosController {
-  constructor(private readonly arrendatariosService: ArrendatariosService) {}
+  constructor(
+    private readonly arrendatariosService: ArrendatariosService,
+    private readonly arrendatariosDashboardService: ArrendatariosDashboardService,
+  ) {}
 
   @Get("listado")
   @ApiOperation({
@@ -44,6 +51,33 @@ export class ArrendatariosController {
   })
   findAllActivos() {
     return this.arrendatariosService.findAllActivos();
+  }
+
+  @Get("dashboard/:idArrendatario")
+  @ApiOperation({
+    summary: "Dashboard del arrendatario por rango de fechas",
+    description:
+      "Incluye datos del arrendatario, contratos vigentes en el periodo, zonas y locales " +
+      "asignados, histórico de renta, renta actual y pagos del arrendatario.",
+  })
+  @ApiQuery({ name: "fechaInicio", required: true, example: "2026-01-01" })
+  @ApiQuery({ name: "fechaFin", required: true, example: "2026-12-31" })
+  getDashboard(
+    @Param("idArrendatario", ParseIntPipe) idArrendatario: number,
+    @Query("fechaInicio") fechaInicio: string,
+    @Query("fechaFin") fechaFin: string,
+  ) {
+    if (!fechaInicio || !fechaFin) {
+      throw new BadRequestException(
+        "Se requieren fechaInicio y fechaFin (formato YYYY-MM-DD).",
+      );
+    }
+
+    return this.arrendatariosDashboardService.getDashboard(
+      idArrendatario,
+      fechaInicio,
+      fechaFin,
+    );
   }
 
   @Get("paginated")

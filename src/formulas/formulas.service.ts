@@ -55,6 +55,15 @@ export class FormulasService {
     return data;
   }
 
+  async findAllActivos(): Promise<{ data: Formulas[] }> {
+    const data = await this.formulasRepository.find({
+      where: { estatus: 1 },
+      order: { id: "DESC" },
+    });
+
+    return { data };
+  }
+
   async findAllPaginated(
     page: number,
     limit: number,

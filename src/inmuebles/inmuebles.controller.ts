@@ -205,8 +205,8 @@ export class InmueblesController {
   @ApiOperation({
     summary: "Área ocupada del inmueble",
     description:
-      "Devuelve TotalM2 del inmueble y los locales rentados (Estatus Ocupado) " +
-      "con su zona y el nombre del arrendador (arrendatario) ligado por contrato.",
+      "Devuelve TotalM2 del inmueble y las zonas con sus locales rentados (Estatus Ocupado) " +
+      "y el nombre del arrendador ligado por contrato.",
   })
   @ApiOkResponse({ type: AreaOcupadaResponseDto })
   findAreaOcupada(@Param("idInmueble", ParseIntPipe) idInmueble: number) {

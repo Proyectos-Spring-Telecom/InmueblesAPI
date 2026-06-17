@@ -22,6 +22,12 @@ export class Factores {
   @Column("tinyint", { name: "EsContrato", nullable: true })
   esContrato: number | null;
 
+  @Column("int", { name: "AnioINPC", nullable: true })
+  anioInpc: number | null;
+
+  @Column("int", { name: "MesINPC", nullable: true })
+  mesInpc: number | null;
+
   @Column("datetime", {
     name: "FHRegistro",
     nullable: true,

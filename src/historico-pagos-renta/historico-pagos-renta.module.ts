@@ -4,6 +4,7 @@ import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Formulas } from "src/entities/Formulas";
 import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
+import { RentaActual } from "src/entities/RentaActual";
 import { HistoricoPagosRentaController } from "./historico-pagos-renta.controller";
 import { HistoricoPagosRentaService } from "./historico-pagos-renta.service";
 
@@ -11,6 +12,7 @@ import { HistoricoPagosRentaService } from "./historico-pagos-renta.service";
   imports: [
     TypeOrmModule.forFeature([
       HistoricoPagosRenta,
+      RentaActual,
       Arrendatarios,
       ContratoArrendatarios,
       Formulas,

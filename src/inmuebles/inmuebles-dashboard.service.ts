@@ -1,10 +1,13 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
-import { assembleArrendatarioPanel } from "src/common/arrendatario-dashboard.utils";
+import {
+  assembleArrendatarioPanel,
+  collectLocalesAsignados,
+  filterZonasConLocales,
+} from "src/common/arrendatario-dashboard.utils";
 import { parseRangoFechas } from "src/common/pago-mensual.utils";
 import { Arrendatarios } from "src/entities/Arrendatarios";
-import { Clientes } from "src/entities/Clientes";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
 import { Inmuebles } from "src/entities/Inmuebles";
@@ -17,8 +20,6 @@ import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
 @Injectable()
 export class InmueblesDashboardService {
   constructor(
-    @InjectRepository(Clientes)
-    private readonly clientesRepository: Repository<Clientes>,
     @InjectRepository(Inmuebles)
     private readonly inmueblesRepository: Repository<Inmuebles>,
     @InjectRepository(Arrendatarios)
@@ -39,108 +40,99 @@ export class InmueblesDashboardService {
     private readonly pagoRepository: Repository<Pago>,
   ) {}
 
-  async getDashboard(fechaInicio: string, fechaFin: string) {
+  async getDashboard(
+    idInmueble: number,
+    fechaInicio: string,
+    fechaFin: string,
+  ) {
     const { inicio, fin } = parseRangoFechas(fechaInicio, fechaFin);
 
-    const [idsFromArrendatarios, idsFromInmuebles] = await Promise.all([
-      this.arrendatariosRepository
-        .createQueryBuilder("a")
-        .select("DISTINCT a.idArrendador", "idArrendador")
-        .getRawMany<{ idArrendador: string }>(),
-      this.inmueblesRepository
-        .createQueryBuilder("i")
-        .select("DISTINCT i.idArrendador", "idArrendador")
-        .getRawMany<{ idArrendador: string }>(),
-    ]);
-
-    const idArrendadores = [
-      ...new Set(
-        [...idsFromArrendatarios, ...idsFromInmuebles]
-          .map((row) => Number(row.idArrendador))
-          .filter((id) => Number.isInteger(id) && id > 0),
-      ),
-    ].sort((a, b) => a - b);
-
-    if (idArrendadores.length === 0) {
-      return {
-        filtros: { fechaInicio, fechaFin },
-        arrendadores: [],
-      };
+    const inmueble = await this.inmueblesRepository.findOne({
+      where: { id: idInmueble },
+      relations: ["arrendador", "arrendador.sociosArrendadores"],
+    });
+    if (!inmueble) {
+      throw new NotFoundException(`Inmueble con id ${idInmueble} no encontrado.`);
     }
 
-    const [arrendadores, inmuebles, arrendatarios] = await Promise.all([
-      this.clientesRepository.find({
-        where: { id: In(idArrendadores) },
-        relations: ["sociosArrendadores"],
-        order: { id: "ASC" },
-      }),
-      this.inmueblesRepository.find({
-        where: { idArrendador: In(idArrendadores) },
-        relations: ["arrendador"],
-        order: { id: "ASC" },
-      }),
-      this.arrendatariosRepository.find({
-        where: { idArrendador: In(idArrendadores) },
-        relations: ["arrendador"],
-        order: { id: "ASC" },
-      }),
-    ]);
+    const contratos = await this.contratoRepository
+      .createQueryBuilder("c")
+      .leftJoinAndSelect("c.inmueble", "inmueble")
+      .leftJoinAndSelect("c.arrendatario", "arrendatario")
+      .leftJoinAndSelect("c.contratoLocales", "contratoLocales")
+      .leftJoinAndSelect("contratoLocales.local", "local")
+      .leftJoinAndSelect("local.zona", "zona")
+      .where("c.idInmueble = :idInmueble", { idInmueble })
+      .andWhere(
+        "(c.fechaInicioContrato IS NULL OR c.fechaInicioContrato <= :fin)",
+        { fin },
+      )
+      .andWhere(
+        "(c.fechaTerminoContrato IS NULL OR c.fechaTerminoContrato >= :inicio)",
+        { inicio },
+      )
+      .orderBy("c.id", "DESC")
+      .getMany();
 
-    const idArrendatarios = arrendatarios.map((a) => a.id);
-    const idInmuebles = inmuebles.map((i) => i.id);
+    const idArrendatarios = [
+      ...new Set(
+        contratos
+          .map((c) => c.idArrendatario)
+          .filter((id): id is number => id != null),
+      ),
+    ];
+    const idContratos = contratos.map((c) => c.id);
+    const idLocalesAsignados = collectLocalesAsignados(contratos);
+    const localIds = [...idLocalesAsignados];
 
     const [
-      contratos,
+      zonasRaw,
+      localesPool,
+      arrendatarios,
       historicoPagosRenta,
       rentaActual,
       pagosArrendatarios,
       pagosInmueble,
     ] = await Promise.all([
-      idArrendatarios.length > 0
-        ? this.contratoRepository
-            .createQueryBuilder("c")
-            .leftJoinAndSelect("c.inmueble", "inmueble")
-            .leftJoinAndSelect("c.contratoLocales", "contratoLocales")
-            .leftJoinAndSelect("contratoLocales.local", "local")
-            .leftJoinAndSelect("local.zona", "zona")
-            .where("c.idArrendatario IN (:...idArrendatarios)", {
-              idArrendatarios,
-            })
-            .andWhere(
-              "(c.fechaInicioContrato IS NULL OR c.fechaInicioContrato <= :fin)",
-              { fin },
-            )
-            .andWhere(
-              "(c.fechaTerminoContrato IS NULL OR c.fechaTerminoContrato >= :inicio)",
-              { inicio },
-            )
-            .orderBy("c.id", "DESC")
-            .getMany()
+      this.zonasRepository.find({
+        where: { idInmueble },
+        relations: ["locales"],
+        order: { numeroZona: "ASC", id: "ASC" },
+      }),
+      localIds.length > 0
+        ? this.localesRepository.find({
+            where: { id: In(localIds) },
+            relations: ["zona", "zona.inmueble"],
+            order: { id: "ASC" },
+          })
         : Promise.resolve([]),
       idArrendatarios.length > 0
+        ? this.arrendatariosRepository.find({
+            where: { id: In(idArrendatarios) },
+            relations: ["arrendador"],
+            order: { id: "ASC" },
+          })
+        : Promise.resolve([]),
+      idContratos.length > 0
         ? this.historicoRepository
             .createQueryBuilder("h")
             .leftJoinAndSelect("h.contrato", "contrato")
             .leftJoinAndSelect("contrato.inmueble", "inmueble")
             .leftJoinAndSelect("h.formula", "formula")
-            .where("h.idArrendatario IN (:...idArrendatarios)", {
-              idArrendatarios,
-            })
+            .where("h.idContrato IN (:...idContratos)", { idContratos })
             .andWhere("h.mes >= :inicio", { inicio })
             .andWhere("h.mes <= :fin", { fin })
             .orderBy("h.mes", "DESC")
             .addOrderBy("h.id", "DESC")
             .getMany()
         : Promise.resolve([]),
-      idArrendatarios.length > 0
+      idContratos.length > 0
         ? this.rentaActualRepository
             .createQueryBuilder("r")
             .leftJoinAndSelect("r.contrato", "contrato")
             .leftJoinAndSelect("contrato.inmueble", "inmueble")
             .leftJoinAndSelect("r.formula", "formula")
-            .where("r.idArrendatario IN (:...idArrendatarios)", {
-              idArrendatarios,
-            })
+            .where("r.idContrato IN (:...idContratos)", { idContratos })
             .andWhere("r.mes >= :inicio", { inicio })
             .andWhere("r.mes <= :fin", { fin })
             .orderBy("r.mes", "DESC")
@@ -165,53 +157,25 @@ export class InmueblesDashboardService {
             .addOrderBy("p.id", "DESC")
             .getMany()
         : Promise.resolve([]),
-      idInmuebles.length > 0
-        ? this.pagoRepository
-            .createQueryBuilder("p")
-            .leftJoinAndSelect("p.inmueble", "inmueble")
-            .leftJoinAndSelect("p.servicioInmueble", "servicioInmueble")
-            .leftJoinAndSelect("servicioInmueble.tipoServicio", "tipoServicio")
-            .leftJoinAndSelect("p.metodoPago", "metodoPago")
-            .where("p.idInmueble IN (:...idInmuebles)", { idInmuebles })
-            .andWhere("p.fechaPago >= :inicio", { inicio })
-            .andWhere("p.fechaPago <= :fin", { fin })
-            .orderBy("p.fechaPago", "DESC")
-            .addOrderBy("p.id", "DESC")
-            .getMany()
-        : Promise.resolve([]),
+      this.pagoRepository
+        .createQueryBuilder("p")
+        .leftJoinAndSelect("p.inmueble", "inmueble")
+        .leftJoinAndSelect("p.servicioInmueble", "servicioInmueble")
+        .leftJoinAndSelect("servicioInmueble.tipoServicio", "tipoServicio")
+        .leftJoinAndSelect("p.metodoPago", "metodoPago")
+        .where("p.idInmueble = :idInmueble", { idInmueble })
+        .andWhere("p.fechaPago >= :inicio", { inicio })
+        .andWhere("p.fechaPago <= :fin", { fin })
+        .orderBy("p.fechaPago", "DESC")
+        .addOrderBy("p.id", "DESC")
+        .getMany(),
     ]);
 
-    const idInmueblesContratos = [
-      ...new Set(
-        contratos
-          .map((c) => c.idInmueble)
-          .filter((id): id is number => id != null),
-      ),
-    ];
+    const zonas = filterZonasConLocales(zonasRaw, idLocalesAsignados);
+    const locales = localesPool
+      .filter((local) => idLocalesAsignados.has(local.id))
+      .sort((a, b) => a.id - b.id);
 
-    const [zonasRaw, localesPool] = await Promise.all([
-      idInmueblesContratos.length > 0
-        ? this.zonasRepository.find({
-            where: { idInmueble: In(idInmueblesContratos) },
-            relations: ["locales"],
-            order: { numeroZona: "ASC", id: "ASC" },
-          })
-        : Promise.resolve([]),
-      idInmueblesContratos.length > 0
-        ? this.localesRepository
-            .createQueryBuilder("local")
-            .leftJoinAndSelect("local.zona", "zona")
-            .leftJoinAndSelect("zona.inmueble", "inmueble")
-            .where("zona.idInmueble IN (:...idInmueblesContratos)", {
-              idInmueblesContratos,
-            })
-            .orderBy("local.id", "ASC")
-            .getMany()
-        : Promise.resolve([]),
-    ]);
-
-    const inmueblesByArrendador = this.groupBy(inmuebles, "idArrendador");
-    const arrendatariosByArrendador = this.groupBy(arrendatarios, "idArrendador");
     const contratosByArrendatario = this.groupBy(contratos, "idArrendatario");
     const historicoByArrendatario = this.groupBy(
       historicoPagosRenta,
@@ -222,59 +186,31 @@ export class InmueblesDashboardService {
       pagosArrendatarios,
       "idArrendatario",
     );
-    const pagosInmuebleByInmueble = this.groupBy(pagosInmueble, "idInmueble");
-    const zonasByInmueble = this.groupBy(zonasRaw, "idInmueble");
 
-    const arrendadoresDashboard = arrendadores.map((arrendador) => {
-      const inmueblesArrendador = inmueblesByArrendador.get(arrendador.id) ?? [];
-
-      const pagosInmuebleArrendador = inmueblesArrendador.flatMap(
-        (inmueble) => pagosInmuebleByInmueble.get(inmueble.id) ?? [],
-      );
-
-      const arrendatariosArrendador =
-        arrendatariosByArrendador.get(arrendador.id) ?? [];
-
-      const arrendatariosPanel = arrendatariosArrendador.map((arrendatario) => {
-        const contratosArrendatario =
-          contratosByArrendatario.get(arrendatario.id) ?? [];
-        const idInmueblesArrendatario = [
-          ...new Set(
-            contratosArrendatario
-              .map((c) => c.idInmueble)
-              .filter((id): id is number => id != null),
-          ),
-        ];
-        const zonasArrendatario = idInmueblesArrendatario.flatMap(
-          (idInmueble) => zonasByInmueble.get(idInmueble) ?? [],
-        );
-
-        return assembleArrendatarioPanel(
-          arrendatario,
-          contratosArrendatario,
-          zonasArrendatario,
-          localesPool,
-          historicoByArrendatario.get(arrendatario.id) ?? [],
-          rentaByArrendatario.get(arrendatario.id) ?? [],
-          pagosArrByArrendatario.get(arrendatario.id) ?? [],
-        );
-      });
-
-      return {
-        arrendador,
-        inmuebles: inmueblesArrendador,
-        pagosInmueble: pagosInmuebleArrendador.sort((a, b) => {
-          const fa = a.fechaPago ? new Date(a.fechaPago).getTime() : 0;
-          const fb = b.fechaPago ? new Date(b.fechaPago).getTime() : 0;
-          return fb - fa || Number(b.id) - Number(a.id);
-        }),
-        arrendatarios: arrendatariosPanel,
-      };
-    });
+    const arrendatariosPanel = arrendatarios.map((arrendatario) =>
+      assembleArrendatarioPanel(
+        arrendatario,
+        contratosByArrendatario.get(arrendatario.id) ?? [],
+        zonasRaw,
+        localesPool,
+        historicoByArrendatario.get(arrendatario.id) ?? [],
+        rentaByArrendatario.get(arrendatario.id) ?? [],
+        pagosArrByArrendatario.get(arrendatario.id) ?? [],
+      ),
+    );
 
     return {
-      filtros: { fechaInicio, fechaFin },
-      arrendadores: arrendadoresDashboard,
+      filtros: {
+        idInmueble,
+        fechaInicio,
+        fechaFin,
+      },
+      inmueble,
+      arrendador: inmueble.arrendador ?? null,
+      zonas,
+      locales,
+      pagosInmueble,
+      arrendatarios: arrendatariosPanel,
     };
   }
 

@@ -85,7 +85,7 @@ export class InpcService {
   async findListadoActivos(
     fechaInicio: string,
     fechaFin: string,
-  ): Promise<{ data: Inpc[] }> {
+  ): Promise<{ data: InpcUnificadoItemDto[] }> {
     const inicio = parseAnioMes(fechaInicio);
     const fin = parseAnioMes(fechaFin);
     if (anioMesKey(inicio.anio, inicio.mes) > anioMesKey(fin.anio, fin.mes)) {
@@ -94,8 +94,12 @@ export class InpcService {
       );
     }
 
-    const data = await this.queryActivosEnRango(inicio, fin);
-    return { data };
+    const locales = await this.queryActivosEnRango(inicio, fin);
+    const banxicoDatos = await this.fetchBanxicoDatos(fechaInicio, fechaFin);
+
+    return {
+      data: this.mergeInpcItems(locales, banxicoDatos),
+    };
   }
 
   async findAllPaginated(
@@ -139,35 +143,7 @@ export class InpcService {
     }
 
     const locales = await this.queryLocalesEnRango(inicio, fin);
-
-    let banxicoDatos: InpcUnificadoItemDto[] = [];
-    if (this.banxicoClient.isConfigured()) {
-      try {
-        const banxico = await this.banxicoClient.consultarSerieRango(
-          fechaInicio,
-          fechaFin,
-        );
-        banxicoDatos = banxico.datos.map((d) => {
-          const date = this.banxicoClient.parseFechaBanxico(d.fecha);
-          return {
-            isBanxico: true,
-            anio: date.getFullYear(),
-            mes: date.getMonth() + 1,
-            inpc: d.indice,
-            porcentajeAnual: d.porcAnual,
-            porcAcumAnual: d.porcAcumAnual,
-          };
-        });
-      } catch (err) {
-        this.logger.warn(
-          `No se pudo consultar Banxico: ${
-            err instanceof Error ? err.message : err
-          }`,
-        );
-        banxicoDatos = [];
-      }
-    }
-
+    const banxicoDatos = await this.fetchBanxicoDatos(fechaInicio, fechaFin);
     const merged = this.mergeInpcItems(locales, banxicoDatos);
     const total = merged.length;
     const skip = (safePage - 1) * safeLimit;
@@ -292,6 +268,40 @@ export class InpcService {
       .addOrderBy("i.mes", "DESC")
       .addOrderBy("i.id", "DESC")
       .getMany();
+  }
+
+  private async fetchBanxicoDatos(
+    fechaInicio: string,
+    fechaFin: string,
+  ): Promise<InpcUnificadoItemDto[]> {
+    if (!this.banxicoClient.isConfigured()) {
+      return [];
+    }
+
+    try {
+      const banxico = await this.banxicoClient.consultarSerieRango(
+        fechaInicio,
+        fechaFin,
+      );
+      return banxico.datos.map((d) => {
+        const date = this.banxicoClient.parseFechaBanxico(d.fecha);
+        return {
+          isBanxico: true,
+          anio: date.getFullYear(),
+          mes: date.getMonth() + 1,
+          inpc: d.indice,
+          porcentajeAnual: d.porcAnual,
+          porcAcumAnual: d.porcAcumAnual,
+        };
+      });
+    } catch (err) {
+      this.logger.warn(
+        `No se pudo consultar Banxico: ${
+          err instanceof Error ? err.message : err
+        }`,
+      );
+      return [];
+    }
   }
 
   private mergeInpcItems(

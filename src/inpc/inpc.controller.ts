@@ -56,10 +56,10 @@ export class InpcController {
 
   @Get("listado")
   @ApiOperation({
-    summary: "Listar INPC activos (estatus 1) por rango de fechas",
+    summary: "Listar INPC activos (estatus 1) y Banxico por rango de fechas",
     description:
-      "Sin paginación. Solo registros locales con estatus = 1. " +
-      "Requiere fechaInicio y fechaFin (YYYY-MM-DD); el rango se interpreta por año/mes.",
+      "Sin paginación. Concatena registros locales con estatus = 1 y datos de Banxico " +
+      "en un arreglo (pueden repetirse meses). Cada item incluye `isBanxico`.",
   })
   @ApiQuery({ name: "fechaInicio", required: true, example: "2025-01-01" })
   @ApiQuery({ name: "fechaFin", required: true, example: "2025-12-31" })

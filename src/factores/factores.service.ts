@@ -57,6 +57,15 @@ export class FactoresService {
     return data;
   }
 
+  async findAllActivos(): Promise<{ data: Factores[] }> {
+    const data = await this.factoresRepository.find({
+      where: { estatus: 1 },
+      order: { id: "DESC" },
+    });
+
+    return { data };
+  }
+
   async findAllPaginated(
     page: number,
     limit: number,

@@ -82,6 +82,22 @@ export class InpcService {
     return data;
   }
 
+  async findListadoActivos(
+    fechaInicio: string,
+    fechaFin: string,
+  ): Promise<{ data: Inpc[] }> {
+    const inicio = parseAnioMes(fechaInicio);
+    const fin = parseAnioMes(fechaFin);
+    if (anioMesKey(inicio.anio, inicio.mes) > anioMesKey(fin.anio, fin.mes)) {
+      throw new BadRequestException(
+        "fechaInicio no puede ser posterior a fechaFin.",
+      );
+    }
+
+    const data = await this.queryActivosEnRango(inicio, fin);
+    return { data };
+  }
+
   async findAllPaginated(
     page: number,
     limit: number,
@@ -253,6 +269,24 @@ export class InpcService {
     return this.inpcRepository
       .createQueryBuilder("i")
       .where("(i.anio * 100 + i.mes) >= :start", { start })
+      .andWhere("(i.anio * 100 + i.mes) <= :end", { end })
+      .orderBy("i.anio", "DESC")
+      .addOrderBy("i.mes", "DESC")
+      .addOrderBy("i.id", "DESC")
+      .getMany();
+  }
+
+  private async queryActivosEnRango(
+    inicio: { anio: number; mes: number },
+    fin: { anio: number; mes: number },
+  ): Promise<Inpc[]> {
+    const start = anioMesKey(inicio.anio, inicio.mes);
+    const end = anioMesKey(fin.anio, fin.mes);
+
+    return this.inpcRepository
+      .createQueryBuilder("i")
+      .where("i.estatus = :estatus", { estatus: 1 })
+      .andWhere("(i.anio * 100 + i.mes) >= :start", { start })
       .andWhere("(i.anio * 100 + i.mes) <= :end", { end })
       .orderBy("i.anio", "DESC")
       .addOrderBy("i.mes", "DESC")

@@ -282,24 +282,69 @@ export class InmueblesService {
       .addOrderBy("local.id", "ASC")
       .getMany();
 
+    const zonasMap = new Map<
+      number,
+      {
+        id: number;
+        zonaPrincipal: string | null;
+        superficieZonaM2: string | null;
+        superficieDisponibleM2: string | null;
+        numeroZona: number | null;
+        estatus: number | null;
+        localesRentados: Array<{
+          id: number;
+          nombre: string | null;
+          areaM2: string | null;
+          idContrato: number | null;
+          idArrendatario: number | null;
+          nombreArrendador: string | null;
+        }>;
+      }
+    >();
+
+    for (const local of locales) {
+      const zona = local.zona;
+      if (!zona?.id) continue;
+
+      const contratoLocal = this.pickContratoLocalActivo(local.contratoLocales);
+      const contrato = contratoLocal?.contrato;
+
+      const localItem = {
+        id: local.id,
+        nombre: local.nombre,
+        areaM2: local.areaM2,
+        idContrato: contrato?.id ?? null,
+        idArrendatario: contrato?.idArrendatario ?? null,
+        nombreArrendador: contrato?.arrendatario?.arrendatario ?? null,
+      };
+
+      const existing = zonasMap.get(zona.id);
+      if (existing) {
+        existing.localesRentados.push(localItem);
+        continue;
+      }
+
+      zonasMap.set(zona.id, {
+        id: zona.id,
+        zonaPrincipal: zona.zonaPrincipal,
+        superficieZonaM2: zona.superficieZonaM2,
+        superficieDisponibleM2: zona.superficieDisponibleM2,
+        numeroZona: zona.numeroZona,
+        estatus: zona.estatus,
+        localesRentados: [localItem],
+      });
+    }
+
+    const zonas = [...zonasMap.values()].sort((a, b) => {
+      const zonaA = a.numeroZona ?? 0;
+      const zonaB = b.numeroZona ?? 0;
+      if (zonaA !== zonaB) return Number(zonaA) - Number(zonaB);
+      return a.id - b.id;
+    });
+
     return {
       totalM2: inmueble.totalM2,
-      localesRentados: locales.map((local) => {
-        const contratoLocal = this.pickContratoLocalActivo(local.contratoLocales);
-        const contrato = contratoLocal?.contrato;
-
-        return {
-          id: local.id,
-          nombre: local.nombre,
-          areaM2: local.areaM2,
-          idZona: local.idZona,
-          zonaPrincipal: local.zona?.zonaPrincipal ?? null,
-          numeroZona: local.zona?.numeroZona ?? null,
-          idContrato: contrato?.id ?? null,
-          idArrendatario: contrato?.idArrendatario ?? null,
-          nombreArrendador: contrato?.arrendatario?.arrendatario ?? null,
-        };
-      }),
+      zonas,
     };
   }
 

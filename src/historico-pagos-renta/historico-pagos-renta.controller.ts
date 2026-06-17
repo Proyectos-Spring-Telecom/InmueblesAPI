@@ -9,6 +9,7 @@ import {
   Put,
   Query,
   UseGuards,
+  BadRequestException,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
@@ -42,10 +43,40 @@ export class HistoricoPagosRentaController {
     return this.historicoPagosRentaService.update(id, dto);
   }
 
+  @Get("ultimo")
+  @ApiOperation({
+    summary: "Último pago de renta por arrendatario y contrato",
+    description:
+      "Busca el registro más reciente en HistoricoPagosRenta. Si no existe, " +
+      "consulta RentaActual. Incluye `origen` para indicar de qué tabla proviene.",
+  })
+  @ApiQuery({ name: "idArrendatario", required: true, type: Number })
+  @ApiQuery({ name: "idContrato", required: true, type: Number })
+  findUltimo(
+    @Query("idArrendatario") idArrendatario: string,
+    @Query("idContrato") idContrato: string,
+  ) {
+    return this.historicoPagosRentaService.findUltimo(
+      this.historicoPagosRentaService.assertRequiredInt(
+        idArrendatario,
+        "idArrendatario",
+      ),
+      this.historicoPagosRentaService.assertRequiredInt(
+        idContrato,
+        "idContrato",
+      ),
+    );
+  }
+
   @Get("paginated")
   @ApiOperation({
     summary: "Listar histórico de pagos de renta paginado por rango de fechas",
+    description:
+      "Filtra por `mes` entre fechaInicio y fechaFin (YYYY-MM-DD). " +
+      "Opcionalmente por idArrendatario e idContrato. Incluye desglose e incrementos vs. mes anterior.",
   })
+  @ApiQuery({ name: "page", required: true, type: Number, example: 1 })
+  @ApiQuery({ name: "limit", required: true, type: Number, example: 10 })
   @ApiQuery({ name: "fechaInicio", required: true, example: "2026-01-01" })
   @ApiQuery({ name: "fechaFin", required: true, example: "2026-12-31" })
   @ApiQuery({ name: "idArrendatario", required: false, type: Number })
@@ -58,6 +89,12 @@ export class HistoricoPagosRentaController {
     @Query("idArrendatario") idArrendatario?: string,
     @Query("idContrato") idContrato?: string,
   ) {
+    if (!fechaInicio || !fechaFin) {
+      throw new BadRequestException(
+        "Se requieren fechaInicio y fechaFin (formato YYYY-MM-DD).",
+      );
+    }
+
     return this.historicoPagosRentaService.findAllPaginated(page, limit, {
       fechaInicio,
       fechaFin,

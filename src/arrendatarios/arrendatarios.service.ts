@@ -123,6 +123,16 @@ export class ArrendatariosService {
     });
   }
 
+  async findAllActivos(): Promise<{ data: Arrendatarios[] }> {
+    const data = await this.arrendatariosRepository.find({
+      where: { estatus: 1 },
+      relations: [...FULL_RELATIONS],
+      order: { id: "DESC" },
+    });
+
+    return { data };
+  }
+
   async findAllPaginated(
     page: number,
     limit: number,

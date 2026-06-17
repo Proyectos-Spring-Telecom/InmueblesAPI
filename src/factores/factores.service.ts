@@ -31,6 +31,8 @@ export class FactoresService {
       valor: dto.valor ?? null,
       descripcion: dto.descripcion ?? null,
       esContrato: dto.esContrato ?? null,
+      anioInpc: dto.anioInpc ?? null,
+      mesInpc: dto.mesInpc ?? null,
     });
     const saved = await this.factoresRepository.save(row);
 
@@ -91,6 +93,8 @@ export class FactoresService {
       ...(dto.valor !== undefined && { valor: dto.valor }),
       ...(dto.descripcion !== undefined && { descripcion: dto.descripcion }),
       ...(dto.esContrato !== undefined && { esContrato: dto.esContrato }),
+      ...(dto.anioInpc !== undefined && { anioInpc: dto.anioInpc ?? null }),
+      ...(dto.mesInpc !== undefined && { mesInpc: dto.mesInpc ?? null }),
     });
 
     const updated = await this.findOne(id);

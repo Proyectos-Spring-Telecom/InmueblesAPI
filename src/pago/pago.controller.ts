@@ -12,6 +12,7 @@ import {
   UploadedFile,
   UseGuards,
   UseInterceptors,
+  BadRequestException,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
 import {
@@ -19,6 +20,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 import * as multer from "multer";
@@ -103,12 +105,35 @@ export class PagoController {
   }
 
   @Get("paginated")
-  @ApiOperation({ summary: "Listar pagos paginado" })
+  @ApiOperation({
+    summary: "Listar pagos de inmuebles paginado por rango de fechas",
+    description:
+      "Filtra por `fechaPago` entre fechaInicio y fechaFin (YYYY-MM-DD). " +
+      "Opcionalmente por idInmueble.",
+  })
+  @ApiQuery({ name: "page", required: true, type: Number, example: 1 })
+  @ApiQuery({ name: "limit", required: true, type: Number, example: 10 })
+  @ApiQuery({ name: "fechaInicio", required: true, example: "2026-01-01" })
+  @ApiQuery({ name: "fechaFin", required: true, example: "2026-12-31" })
+  @ApiQuery({ name: "idInmueble", required: false, type: Number })
   findAllPaginated(
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
+    @Query("fechaInicio") fechaInicio: string,
+    @Query("fechaFin") fechaFin: string,
+    @Query("idInmueble") idInmueble?: string,
   ) {
-    return this.pagoService.findAllPaginated(page, limit);
+    if (!fechaInicio || !fechaFin) {
+      throw new BadRequestException(
+        "Se requieren fechaInicio y fechaFin (formato YYYY-MM-DD).",
+      );
+    }
+
+    return this.pagoService.findAllPaginated(page, limit, {
+      fechaInicio,
+      fechaFin,
+      idInmueble: this.pagoService.assertOptionalInt(idInmueble, "idInmueble"),
+    });
   }
 
   @Patch(":id/estatus")

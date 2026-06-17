@@ -36,6 +36,16 @@ import { parseTopLevelJsonStrings } from "./utils/parse-top-level-json";
 export class ArrendatariosController {
   constructor(private readonly arrendatariosService: ArrendatariosService) {}
 
+  @Get("listado")
+  @ApiOperation({
+    summary: "Listar arrendatarios activos (estatus 1) sin paginación",
+    description:
+      "Devuelve todos los arrendatarios con estatus = 1 y sus relaciones (contratos, servicios, etc.).",
+  })
+  findAllActivos() {
+    return this.arrendatariosService.findAllActivos();
+  }
+
   @Get("paginated")
   @ApiOperation({
     summary: "Listar arrendatarios paginados (con relaciones).",

@@ -10,6 +10,7 @@ import {
   Query,
   Req,
   UseGuards,
+  BadRequestException,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
@@ -51,6 +52,27 @@ export class InpcController {
   @ApiOperation({ summary: "Dar de alta (estatus 1) un registro INPC" })
   activar(@Param("id", ParseIntPipe) id: number, @Req() req: any) {
     return this.inpcService.activar(id, req);
+  }
+
+  @Get("listado")
+  @ApiOperation({
+    summary: "Listar INPC activos (estatus 1) por rango de fechas",
+    description:
+      "Sin paginación. Solo registros locales con estatus = 1. " +
+      "Requiere fechaInicio y fechaFin (YYYY-MM-DD); el rango se interpreta por año/mes.",
+  })
+  @ApiQuery({ name: "fechaInicio", required: true, example: "2025-01-01" })
+  @ApiQuery({ name: "fechaFin", required: true, example: "2025-12-31" })
+  findListadoActivos(
+    @Query("fechaInicio") fechaInicio: string,
+    @Query("fechaFin") fechaFin: string,
+  ) {
+    if (!fechaInicio || !fechaFin) {
+      throw new BadRequestException(
+        "Se requieren fechaInicio y fechaFin (formato YYYY-MM-DD).",
+      );
+    }
+    return this.inpcService.findListadoActivos(fechaInicio, fechaFin);
   }
 
   @Get("paginated")

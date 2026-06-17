@@ -10,6 +10,7 @@ import { EstatusEnumBitcora } from "src/common/ApiResponse";
 import { Formulas } from "src/entities/Formulas";
 import { Factores } from "src/entities/Factores";
 import { FormulaEvaluaciones } from "src/entities/FormulaEvaluaciones";
+import { Inpc } from "src/entities/Inpc";
 import { EvaluarFormulaDto } from "./dto/evaluar-formula.dto";
 
 interface ParseResult {
@@ -24,6 +25,8 @@ export class FormulaEngineService {
     private readonly formulasRepository: Repository<Formulas>,
     @InjectRepository(Factores)
     private readonly factoresRepository: Repository<Factores>,
+    @InjectRepository(Inpc)
+    private readonly inpcRepository: Repository<Inpc>,
     @InjectRepository(FormulaEvaluaciones)
     private readonly evaluacionRepository: Repository<FormulaEvaluaciones>,
     private readonly bitacoraLogger: BitacoraService,
@@ -45,41 +48,18 @@ export class FormulaEngineService {
       throw new BadRequestException("La fórmula no tiene expresión definida");
     }
 
-    const variables = [
-      ...new Set(formula.formula.match(/[A-Z_][A-Z0-9_]*/g) ?? []),
-    ];
-    if (variables.length === 0) {
-      throw new BadRequestException("La fórmula no contiene variables");
-    }
-
-    const valoresResueltos: Record<string, number> = {};
-    for (const nombre of variables) {
-      const factor = await this.factoresRepository.findOne({
-        where: { variable: nombre, estatus: 1 },
-      });
-      if (!factor) {
-        throw new BadRequestException(
-          `No se encontró el factor "${nombre}" en la tabla Factores. Créalo antes de evaluar.`,
-        );
-      }
-      if (factor.valor == null) {
-        throw new BadRequestException(
-          `El factor "${nombre}" no tiene un valor numérico válido: "${factor.valor}"`,
-        );
-      }
-      const num = Number.parseFloat(factor.valor);
-      if (!Number.isFinite(num)) {
-        throw new BadRequestException(
-          `El factor "${nombre}" no tiene un valor numérico válido: "${factor.valor}"`,
-        );
-      }
-      valoresResueltos[nombre] = num;
-    }
+    const valoresResueltos = await this.resolverVariables(formula.formula);
 
     let expresionFinal = formula.formula;
-    for (const [nombre, valor] of Object.entries(valoresResueltos)) {
-      const regex = new RegExp(`\\b${nombre}\\b`, "g");
-      expresionFinal = expresionFinal.replace(regex, valor.toString());
+    const nombresOrdenados = Object.keys(valoresResueltos).sort(
+      (a, b) => b.length - a.length,
+    );
+    for (const nombre of nombresOrdenados) {
+      const regex = new RegExp(`\\b${this.escapeRegex(nombre)}\\b`, "gi");
+      expresionFinal = expresionFinal.replace(
+        regex,
+        valoresResueltos[nombre].toString(),
+      );
     }
 
     const resultado = this.evaluarExpresion(expresionFinal);
@@ -132,6 +112,108 @@ export class FormulaEngineService {
       qb.andWhere("e.idContrato = :idContrato", { idContrato });
     }
     return qb.orderBy("e.fhRegistro", "DESC").limit(50).getMany();
+  }
+
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  private extractFormulaIdentifiers(formula: string): string[] {
+    return [
+      ...new Set(formula.toUpperCase().match(/[A-Z_][A-Z0-9_]*/g) ?? []),
+    ];
+  }
+
+  private normalizarVariable(value: string): string {
+    return value.trim().toUpperCase();
+  }
+
+  private findFactor(factores: Factores[], nombre: string): Factores | undefined {
+    const key = this.normalizarVariable(nombre);
+    return factores.find(
+      (f) => f.variable && this.normalizarVariable(f.variable) === key,
+    );
+  }
+
+  private async resolverVariables(
+    formulaText: string,
+  ): Promise<Record<string, number>> {
+    const identifiers = this.extractFormulaIdentifiers(formulaText);
+    if (identifiers.length === 0) {
+      throw new BadRequestException("La fórmula no contiene variables");
+    }
+
+    const factores = await this.factoresRepository.find({
+      where: { estatus: 1 },
+    });
+
+    const valoresResueltos: Record<string, number> = {};
+    const faltantes: string[] = [];
+
+    for (const nombre of identifiers) {
+      const factor = this.findFactor(factores, nombre);
+      if (!factor) {
+        faltantes.push(nombre);
+        continue;
+      }
+      valoresResueltos[nombre] = await this.resolveFactorNumericValue(factor);
+    }
+
+    if (faltantes.length > 0) {
+      const disponibles = factores
+        .map((f) => f.variable)
+        .filter((v): v is string => Boolean(v?.trim()))
+        .join(", ");
+
+      throw new BadRequestException(
+        `No se encontraron factores: ${faltantes.join(", ")}. ` +
+          `Factores activos disponibles: ${disponibles || "(ninguno)"}.`,
+      );
+    }
+
+    return valoresResueltos;
+  }
+
+  private async resolveFactorNumericValue(factor: Factores): Promise<number> {
+    if (factor.anioInpc != null && factor.mesInpc != null) {
+      const inpcRow = await this.inpcRepository.findOne({
+        where: {
+          anio: factor.anioInpc,
+          mes: factor.mesInpc,
+          estatus: 1,
+        },
+      });
+
+      if (inpcRow?.inpc != null) {
+        const num = Number.parseFloat(inpcRow.inpc);
+        if (Number.isFinite(num)) return num;
+      }
+
+      if (inpcRow?.porcentajeAnual != null) {
+        const num = Number.parseFloat(inpcRow.porcentajeAnual);
+        if (Number.isFinite(num)) return num;
+      }
+
+      throw new BadRequestException(
+        `No hay INPC activo para ${factor.anioInpc}/${factor.mesInpc} ` +
+          `(factor "${factor.variable}").`,
+      );
+    }
+
+    if (factor.valor == null || factor.valor.trim() === "") {
+      throw new BadRequestException(
+        `El factor "${factor.variable}" no tiene un valor numérico válido.`,
+      );
+    }
+
+    const num = Number.parseFloat(factor.valor);
+    if (!Number.isFinite(num)) {
+      throw new BadRequestException(
+        `El factor "${factor.variable}" no tiene un valor numérico válido: "${factor.valor}"`,
+      );
+    }
+
+    return num;
   }
 
   private evaluarExpresion(expr: string): number {

@@ -10,7 +10,6 @@ import { EstatusEnumBitcora } from "src/common/ApiResponse";
 import { Formulas } from "src/entities/Formulas";
 import { Factores } from "src/entities/Factores";
 import { FormulaEvaluaciones } from "src/entities/FormulaEvaluaciones";
-import { Inpc } from "src/entities/Inpc";
 import { EvaluarFormulaDto } from "./dto/evaluar-formula.dto";
 
 interface ParseResult {
@@ -25,12 +24,10 @@ export class FormulaEngineService {
     private readonly formulasRepository: Repository<Formulas>,
     @InjectRepository(Factores)
     private readonly factoresRepository: Repository<Factores>,
-    @InjectRepository(Inpc)
-    private readonly inpcRepository: Repository<Inpc>,
     @InjectRepository(FormulaEvaluaciones)
     private readonly evaluacionRepository: Repository<FormulaEvaluaciones>,
     private readonly bitacoraLogger: BitacoraService,
-  ) {}
+  ) { }
 
   async evaluar(
     dto: EvaluarFormulaDto,
@@ -156,8 +153,9 @@ export class FormulaEngineService {
         faltantes.push(nombre);
         continue;
       }
-      valoresResueltos[nombre] = await this.resolveFactorNumericValue(factor);
+      valoresResueltos[nombre] = this.resolveFactorNumericValue(factor);
     }
+
 
     if (faltantes.length > 0) {
       const disponibles = factores
@@ -167,39 +165,14 @@ export class FormulaEngineService {
 
       throw new BadRequestException(
         `No se encontraron factores: ${faltantes.join(", ")}. ` +
-          `Factores activos disponibles: ${disponibles || "(ninguno)"}.`,
+        `Factores activos disponibles: ${disponibles || "(ninguno)"}.`,
       );
     }
 
     return valoresResueltos;
   }
 
-  private async resolveFactorNumericValue(factor: Factores): Promise<number> {
-    if (factor.anioInpc != null && factor.mesInpc != null) {
-      const inpcRow = await this.inpcRepository.findOne({
-        where: {
-          anio: factor.anioInpc,
-          mes: factor.mesInpc,
-          estatus: 1,
-        },
-      });
-
-      if (inpcRow?.inpc != null) {
-        const num = Number.parseFloat(inpcRow.inpc);
-        if (Number.isFinite(num)) return num;
-      }
-
-      if (inpcRow?.porcentajeAnual != null) {
-        const num = Number.parseFloat(inpcRow.porcentajeAnual);
-        if (Number.isFinite(num)) return num;
-      }
-
-      throw new BadRequestException(
-        `No hay INPC activo para ${factor.anioInpc}/${factor.mesInpc} ` +
-          `(factor "${factor.variable}").`,
-      );
-    }
-
+  private resolveFactorNumericValue(factor: Factores): number {
     if (factor.valor == null || factor.valor.trim() === "") {
       throw new BadRequestException(
         `El factor "${factor.variable}" no tiene un valor numérico válido.`,

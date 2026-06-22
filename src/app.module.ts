@@ -26,6 +26,7 @@ import { MailServiceModule } from './mail-service/mail-service.module'
 import { CatServiciosModule } from './cat-servicios/cat-servicios.module';
 import { InmueblesModule } from './inmuebles/inmuebles.module';
 import { ArrendatariosModule } from './arrendatarios/arrendatarios.module';
+import { ContratosModule } from './contratos/contratos.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
 import { InpcModule } from './inpc/inpc.module';
 import { FactoresModule } from './factores/factores.module';
@@ -119,6 +120,7 @@ import { join } from 'path';
     CatServiciosModule,
     InmueblesModule,
     ArrendatariosModule,
+    ContratosModule,
     NotificacionesModule,
     InpcModule,
     FactoresModule,

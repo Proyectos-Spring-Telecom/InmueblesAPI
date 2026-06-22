@@ -136,6 +136,40 @@ export class PagoController {
     });
   }
 
+  @Get("inmueble/:idInmueble/tipo-servicio/:idTipoServicio/paginated")
+  @ApiOperation({
+    summary: "Listar pagos de inmueble por tipo de servicio (paginado)",
+    description:
+      "Devuelve los registros de Pago del inmueble cuyo ServiciosInmuebles " +
+      "tiene el idTipoServicio indicado (ej. 7), filtrados por fechaPago.",
+  })
+  @ApiQuery({ name: "page", required: true, type: Number, example: 1 })
+  @ApiQuery({ name: "limit", required: true, type: Number, example: 10 })
+  @ApiQuery({ name: "fechaInicio", required: true, example: "2026-01-01" })
+  @ApiQuery({ name: "fechaFin", required: true, example: "2026-12-31" })
+  findByInmuebleTipoServicioPaginated(
+    @Param("idInmueble", ParseIntPipe) idInmueble: number,
+    @Param("idTipoServicio", ParseIntPipe) idTipoServicio: number,
+    @Query("page", ParseIntPipe) page: number,
+    @Query("limit", ParseIntPipe) limit: number,
+    @Query("fechaInicio") fechaInicio: string,
+    @Query("fechaFin") fechaFin: string,
+  ) {
+    if (!fechaInicio || !fechaFin) {
+      throw new BadRequestException(
+        "Se requieren fechaInicio y fechaFin (formato YYYY-MM-DD).",
+      );
+    }
+
+    return this.pagoService.findByInmuebleTipoServicioPaginated(
+      idInmueble,
+      idTipoServicio,
+      page,
+      limit,
+      { fechaInicio, fechaFin },
+    );
+  }
+
   @Patch(":id/estatus")
   @HttpCode(200)
   @ApiOperation({ summary: "Actualizar estatus de un pago por id" })

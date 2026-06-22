@@ -31,6 +31,12 @@ export class ContratoLocales {
   })
   fhRegistro: Date | null;
 
+  @Column("tinyint", { name: "Estatus", nullable: true, default: () => "'1'" })
+  estatus: number | null;
+
+  @Column("datetime", { name: "FechaBaja", nullable: true })
+  fechaBaja: Date | null;
+
   @ManyToOne(() => ContratoArrendatarios, (contrato) => contrato.contratoLocales, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",

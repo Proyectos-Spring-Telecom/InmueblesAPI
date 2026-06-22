@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { ApiResponseCommon } from "src/common/ApiResponse";
+import { findContratoActivo } from "src/common/contrato-validation";
 import {
   decStr,
   getMesActual,
@@ -72,6 +73,14 @@ export class RentaActualService {
       throw new NotFoundException(`Renta actual con id ${id} no encontrada.`);
     }
 
+    if (current.idContrato != null && current.idArrendatario != null) {
+      await findContratoActivo(
+        this.contratoRepository,
+        Number(current.idContrato),
+        Number(current.idArrendatario),
+      );
+    }
+
     if (dto.idFormula !== undefined) {
       await this.assertFormula(dto.idFormula);
     }
@@ -110,6 +119,14 @@ export class RentaActualService {
       const row = await manager.findOne(RentaActual, { where: { id } });
       if (!row) {
         throw new NotFoundException(`Renta actual con id ${id} no encontrada.`);
+      }
+
+      if (row.idContrato != null && row.idArrendatario != null) {
+        await findContratoActivo(
+          this.contratoRepository,
+          Number(row.idContrato),
+          Number(row.idArrendatario),
+        );
       }
 
       if (Number(row.pagada) === 1) {
@@ -272,18 +289,11 @@ export class RentaActualService {
   }
 
   private async assertContrato(idContrato: number, idArrendatario: number) {
-    const contrato = await this.contratoRepository.findOne({
-      where: { id: idContrato },
-      select: ["id", "idArrendatario"],
-    });
-    if (!contrato) {
-      throw new NotFoundException(`Contrato con id ${idContrato} no encontrado.`);
-    }
-    if (Number(contrato.idArrendatario) !== idArrendatario) {
-      throw new BadRequestException(
-        `El contrato ${idContrato} no pertenece al arrendatario ${idArrendatario}.`,
-      );
-    }
+    await findContratoActivo(
+      this.contratoRepository,
+      idContrato,
+      idArrendatario,
+    );
   }
 
   private async assertFormula(idFormula: number | undefined) {

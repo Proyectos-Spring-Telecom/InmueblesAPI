@@ -5,10 +5,12 @@ import {
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { ApiResponseCommon } from "src/common/ApiResponse";
+import { assertArrendatarioConContratoActivo } from "src/common/contrato-validation";
 import { PagoEstatus } from "src/common/pago-estatus.enum";
 import { parseRangoFechas } from "src/common/pago-mensual.utils";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { CatMetodosPago } from "src/entities/CatMetodosPago";
+import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { S3Service } from "src/s3/s3.service";
@@ -38,6 +40,8 @@ export class PagosArrendatariosService {
     private readonly pagosArrendatariosRepository: Repository<PagosArrendatarios>,
     @InjectRepository(Arrendatarios)
     private readonly arrendatariosRepository: Repository<Arrendatarios>,
+    @InjectRepository(ContratoArrendatarios)
+    private readonly contratoRepository: Repository<ContratoArrendatarios>,
     @InjectRepository(ServiciosArrendatarios)
     private readonly serviciosArrendatariosRepository: Repository<ServiciosArrendatarios>,
     @InjectRepository(CatMetodosPago)
@@ -62,6 +66,11 @@ export class PagosArrendatariosService {
         `Arrendatario con id ${dto.idArrendatario} no encontrado`,
       );
     }
+
+    await assertArrendatarioConContratoActivo(
+      this.contratoRepository,
+      dto.idArrendatario,
+    );
 
     if (dto.idServicioArrendatario != null) {
       const servicio = await this.serviciosArrendatariosRepository.findOne({

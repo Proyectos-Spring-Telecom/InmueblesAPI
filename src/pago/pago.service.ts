@@ -31,6 +31,11 @@ export interface PagoFilters {
   idInmueble?: number;
 }
 
+export interface PagoInmuebleTipoServicioFilters {
+  fechaInicio: string;
+  fechaFin: string;
+}
+
 @Injectable()
 export class PagoService {
   constructor(
@@ -133,6 +138,63 @@ export class PagoService {
       status: "success",
       message: "Estatus del pago actualizado correctamente.",
       data: await this.findOne(id),
+    };
+  }
+
+  async findByInmuebleTipoServicioPaginated(
+    idInmueble: number,
+    idTipoServicio: number,
+    page: number,
+    limit: number,
+    filters: PagoInmuebleTipoServicioFilters,
+  ): Promise<ApiResponseCommon> {
+    const inmueble = await this.inmueblesRepository.findOne({
+      where: { id: idInmueble },
+      select: ["id"],
+    });
+    if (!inmueble) {
+      throw new NotFoundException(
+        `Inmueble con id ${idInmueble} no encontrado`,
+      );
+    }
+
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.max(1, limit);
+    const skip = (safePage - 1) * safeLimit;
+    const { inicio, fin } = parseRangoFechas(
+      filters.fechaInicio,
+      filters.fechaFin,
+    );
+
+    const qb = this.pagoRepository
+      .createQueryBuilder("p")
+      .leftJoinAndSelect("p.inmueble", "inmueble")
+      .innerJoinAndSelect("p.servicioInmueble", "servicioInmueble")
+      .leftJoinAndSelect("servicioInmueble.tipoServicio", "tipoServicio")
+      .leftJoinAndSelect("p.metodoPago", "metodoPago")
+      .where("p.idInmueble = :idInmueble", { idInmueble })
+      .andWhere("servicioInmueble.idTipoServicio = :idTipoServicio", {
+        idTipoServicio,
+      })
+      .andWhere("p.fechaPago >= :inicio", { inicio })
+      .andWhere("p.fechaPago <= :fin", { fin });
+
+    const total = await qb.getCount();
+
+    const data = await qb
+      .orderBy("p.fechaPago", "DESC")
+      .addOrderBy("p.id", "DESC")
+      .skip(skip)
+      .take(safeLimit)
+      .getMany();
+
+    return {
+      data,
+      paginated: {
+        total,
+        page: safePage,
+        lastPage: total === 0 ? 0 : Math.ceil(total / safeLimit),
+      },
     };
   }
 

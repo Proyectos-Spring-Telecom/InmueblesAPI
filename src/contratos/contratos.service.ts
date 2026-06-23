@@ -43,7 +43,7 @@ export class ContratosService {
         );
       }
 
-      if (Number(row.estatus) === ContratoEstatus.Baja) {
+      if (row.fechaBaja != null || Number(row.estatus) === ContratoEstatus.Baja) {
         throw new BadRequestException(
           "El contrato local ya se encuentra cancelado.",
         );
@@ -58,7 +58,6 @@ export class ContratosService {
       const fechaBaja = new Date();
 
       await manager.update(ContratoLocales, idContratoLocal, {
-        estatus: ContratoEstatus.Baja,
         fechaBaja,
       });
 
@@ -107,12 +106,14 @@ export class ContratosService {
       });
 
       for (const contratoLocal of contratoLocales) {
-        if (Number(contratoLocal.estatus) === ContratoEstatus.Baja) {
+        if (
+          contratoLocal.fechaBaja != null ||
+          Number(contratoLocal.estatus) === ContratoEstatus.Baja
+        ) {
           continue;
         }
 
         await manager.update(ContratoLocales, contratoLocal.id, {
-          estatus: ContratoEstatus.Baja,
           fechaBaja,
         });
 

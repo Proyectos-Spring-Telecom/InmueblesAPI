@@ -31,7 +31,13 @@ export class ContratoLocales {
   })
   fhRegistro: Date | null;
 
-  @Column("tinyint", { name: "Estatus", nullable: true, default: () => "'1'" })
+  @Column({
+    type: "tinyint",
+    name: "Estatus",
+    nullable: true,
+    insert: false,
+    update: false,
+  })
   estatus: number | null;
 
   @Column("datetime", { name: "FechaBaja", nullable: true })

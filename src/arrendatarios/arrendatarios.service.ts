@@ -8,7 +8,6 @@ import { DataSource, In, Repository } from "typeorm";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { ContratoLocales } from "src/entities/ContratoLocales";
-import { ContratoEstatus } from "src/common/contrato-estatus.enum";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { ArchivosArrendatarios } from "src/entities/ArchivosArrendatarios";
@@ -470,7 +469,6 @@ export class ArrendatariosService {
         manager.create(ContratoLocales, {
           idContrato: contratoId,
           idLocal,
-          estatus: ContratoEstatus.Activo,
         }),
       );
     }

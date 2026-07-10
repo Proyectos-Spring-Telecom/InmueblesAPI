@@ -36,6 +36,13 @@ export function getMesActual(): Date {
   return new Date(mx.getFullYear(), mx.getMonth(), 1);
 }
 
+/** Avanza la fecha un mes calendario, preservando día y hora. */
+export function addOneMonth(fecha: Date): Date {
+  const d = new Date(fecha.getTime());
+  d.setMonth(d.getMonth() + 1);
+  return d;
+}
+
 function getAnioMesMx(fecha: Date): { anio: number; mes: number } {
   const mx = new Date(fecha.toLocaleString("en-US", { timeZone: MX_TZ }));
   return { anio: mx.getFullYear(), mes: mx.getMonth() };

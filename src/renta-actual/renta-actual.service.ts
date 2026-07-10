@@ -9,6 +9,7 @@ import { DataSource, EntityManager, In, Repository } from "typeorm";
 import { ApiResponseCommon } from "src/common/ApiResponse";
 import { findContratoActivo } from "src/common/contrato-validation";
 import {
+  addOneMonth,
   decStr,
   getMesActual,
   isMesActual,
@@ -61,6 +62,56 @@ export class RentaActualService {
     return {
       status: "success",
       message: "Renta actual registrada correctamente.",
+      data: await this.findOne(Number(saved.id)),
+    };
+  }
+
+  async duplicarSiguienteMes(id: number) {
+    const source = await this.rentaActualRepository.findOne({ where: { id } });
+    if (!source) {
+      throw new NotFoundException(`Renta actual con id ${id} no encontrada.`);
+    }
+    if (!source.mes) {
+      throw new BadRequestException(
+        `La renta actual con id ${id} no tiene Mes definido.`,
+      );
+    }
+    if (source.idArrendatario == null || source.idContrato == null) {
+      throw new BadRequestException(
+        `La renta actual con id ${id} no tiene arrendatario o contrato.`,
+      );
+    }
+
+    await this.assertContrato(
+      Number(source.idContrato),
+      Number(source.idArrendatario),
+    );
+
+    const mesSiguiente = addOneMonth(source.mes);
+    await this.assertNoRegistroEnMes(
+      Number(source.idArrendatario),
+      Number(source.idContrato),
+      mesSiguiente,
+    );
+
+    const row = this.rentaActualRepository.create({
+      idArrendatario: source.idArrendatario,
+      idContrato: source.idContrato,
+      mes: mesSiguiente,
+      total: source.total,
+      idFormula: source.idFormula,
+      montoFinal: source.montoFinal,
+      totalMantenimiento: source.totalMantenimiento,
+      montoFinalMantenimiento: source.montoFinalMantenimiento,
+      factorVariable: source.factorVariable,
+      ocupoFormula: source.ocupoFormula,
+      pagada: source.pagada,
+    });
+
+    const saved = await this.rentaActualRepository.save(row);
+    return {
+      status: "success",
+      message: "Renta actual duplicada al mes siguiente correctamente.",
       data: await this.findOne(Number(saved.id)),
     };
   }
@@ -259,19 +310,33 @@ export class RentaActualService {
     idArrendatario: number,
     idContrato: number,
   ) {
-    const mesActual = getMesActual();
+    await this.assertNoRegistroEnMes(
+      idArrendatario,
+      idContrato,
+      getMesActual(),
+      `Ya existe una renta actual para el mes en curso (arrendatario ${idArrendatario}, contrato ${idContrato}).`,
+    );
+  }
+
+  private async assertNoRegistroEnMes(
+    idArrendatario: number,
+    idContrato: number,
+    mes: Date,
+    message?: string,
+  ) {
     const existing = await this.rentaActualRepository
       .createQueryBuilder("r")
       .where("r.idArrendatario = :idArrendatario", { idArrendatario })
       .andWhere("r.idContrato = :idContrato", { idContrato })
-      .andWhere("YEAR(r.mes) = :anio", { anio: mesActual.getFullYear() })
-      .andWhere("MONTH(r.mes) = :mes", { mes: mesActual.getMonth() + 1 })
+      .andWhere("YEAR(r.mes) = :anio", { anio: mes.getFullYear() })
+      .andWhere("MONTH(r.mes) = :mesNum", { mesNum: mes.getMonth() + 1 })
       .select(["r.id"])
       .getOne();
 
     if (existing) {
       throw new ConflictException(
-        `Ya existe una renta actual para el mes en curso (arrendatario ${idArrendatario}, contrato ${idContrato}).`,
+        message ??
+          `Ya existe una renta actual para el mes ${mes.getFullYear()}-${String(mes.getMonth() + 1).padStart(2, "0")} (arrendatario ${idArrendatario}, contrato ${idContrato}).`,
       );
     }
   }

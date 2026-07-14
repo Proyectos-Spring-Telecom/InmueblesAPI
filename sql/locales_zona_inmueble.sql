@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS `LocalesZonaInmueble` (
   `IdZona` bigint DEFAULT NULL,
   `FHRegistro` datetime DEFAULT CURRENT_TIMESTAMP,
   `FachadaUrl` varchar(500) DEFAULT NULL,
+  `MensualidadIVA` decimal(10,2) DEFAULT NULL,
+  `Mantenimiento` decimal(10,2) DEFAULT NULL,
+  `MantenimientoIVA` decimal(10,2) DEFAULT NULL,
   PRIMARY KEY (`Id`),
   KEY `FK_Zona_Locales_idx` (`IdZona`),
   CONSTRAINT `FK_Zona_Locales`

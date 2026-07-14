@@ -56,6 +56,30 @@ export class LocalesZonaInmueble {
   @Column("varchar", { name: "FachadaUrl", nullable: true, length: 500 })
   fachadaUrl: string | null;
 
+  @Column("decimal", {
+    name: "MensualidadIVA",
+    nullable: true,
+    precision: 10,
+    scale: 2,
+  })
+  mensualidadIva: string | null;
+
+  @Column("decimal", {
+    name: "Mantenimiento",
+    nullable: true,
+    precision: 10,
+    scale: 2,
+  })
+  mantenimiento: string | null;
+
+  @Column("decimal", {
+    name: "MantenimientoIVA",
+    nullable: true,
+    precision: 10,
+    scale: 2,
+  })
+  mantenimientoIva: string | null;
+
   @ManyToOne(() => ZonasInmuebles, (zona) => zona.locales, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",

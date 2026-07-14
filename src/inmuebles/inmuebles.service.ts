@@ -719,6 +719,18 @@ export class InmueblesService {
       patch.mensualidad =
         local.mensualidad != null ? String(local.mensualidad) : null;
     }
+    if (local.mensualidadIva !== undefined) {
+      patch.mensualidadIva =
+        local.mensualidadIva != null ? String(local.mensualidadIva) : null;
+    }
+    if (local.mantenimiento !== undefined) {
+      patch.mantenimiento =
+        local.mantenimiento != null ? String(local.mantenimiento) : null;
+    }
+    if (local.mantenimientoIva !== undefined) {
+      patch.mantenimientoIva =
+        local.mantenimientoIva != null ? String(local.mantenimientoIva) : null;
+    }
     if (local.giro !== undefined) patch.giro = local.giro ?? null;
     return patch;
   }
@@ -786,6 +798,14 @@ export class InmueblesService {
         estatus: local.estatus ?? LocalesEstatus.Disponible,
         mensualidad:
           local.mensualidad != null ? String(local.mensualidad) : null,
+        mensualidadIva:
+          local.mensualidadIva != null ? String(local.mensualidadIva) : null,
+        mantenimiento:
+          local.mantenimiento != null ? String(local.mantenimiento) : null,
+        mantenimientoIva:
+          local.mantenimientoIva != null
+            ? String(local.mantenimientoIva)
+            : null,
         giro: local.giro ?? null,
         fachadaUrl,
       });

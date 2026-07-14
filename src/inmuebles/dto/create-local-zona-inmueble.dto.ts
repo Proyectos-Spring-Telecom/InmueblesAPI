@@ -38,6 +38,24 @@ export class CreateLocalZonaInmuebleDto {
   @IsNumber({ maxDecimalPlaces: 2 })
   mensualidad?: number;
 
+  @ApiPropertyOptional({ example: 1360 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  mensualidadIva?: number;
+
+  @ApiPropertyOptional({ example: 500 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  mantenimiento?: number;
+
+  @ApiPropertyOptional({ example: 80 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  mantenimientoIva?: number;
+
   @ApiPropertyOptional({ example: "Restaurante" })
   @IsOptional()
   @IsString()

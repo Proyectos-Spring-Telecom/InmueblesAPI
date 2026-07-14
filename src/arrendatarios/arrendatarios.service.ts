@@ -466,7 +466,10 @@ export class ArrendatariosService {
     for (const idLocal of toAdd) {
       await manager.save(
         ContratoLocales,
-        manager.create(ContratoLocales, { idContrato: contratoId, idLocal }),
+        manager.create(ContratoLocales, {
+          idContrato: contratoId,
+          idLocal,
+        }),
       );
     }
 

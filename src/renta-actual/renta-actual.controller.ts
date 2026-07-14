@@ -54,6 +54,19 @@ export class RentaActualController {
     return this.rentaActualService.create(dto);
   }
 
+  @Post(":id/siguiente-mes")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Duplicar renta actual al mes siguiente",
+    description:
+      "Crea un nuevo registro idéntico al indicado, con Mes avanzado un mes " +
+      "(ej. 2026-07-01 06:00:00 → 2026-08-01 06:00:00). " +
+      "Falla si ya existe renta para ese arrendatario + contrato en el mes destino.",
+  })
+  duplicarSiguienteMes(@Param("id", ParseIntPipe) id: number) {
+    return this.rentaActualService.duplicarSiguienteMes(id);
+  }
+
   @Put(":id")
   @HttpCode(200)
   @ApiOperation({

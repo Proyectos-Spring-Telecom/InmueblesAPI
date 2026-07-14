@@ -46,3 +46,7 @@
 # temp directory
 .temp
 .tmp
+
+# archives / backups
+*.zip
+InmueblesAPI.zip

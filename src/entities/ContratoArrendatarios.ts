@@ -157,6 +157,9 @@ export class ContratoArrendatarios {
   @Column("tinyint", { name: "Estatus", nullable: true, default: () => "'1'" })
   estatus: number | null;
 
+  @Column("datetime", { name: "FechaBaja", nullable: true })
+  fechaBaja: Date | null;
+
   @ManyToOne(() => Arrendatarios, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",

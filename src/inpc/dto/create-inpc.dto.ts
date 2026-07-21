@@ -31,7 +31,7 @@ export class CreateInpcDto {
   inpc: number;
 
   @IsOptional()
-  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsNumber({ maxDecimalPlaces: 4 })
   @Type(() => Number)
   @ApiPropertyOptional({ example: 3.79, description: "Porcentaje anual (%)" })
   porcentajeAnual?: number;

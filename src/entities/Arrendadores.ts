@@ -8,21 +8,25 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 
-import { Usuarios } from "./Usuarios";
 import { applySchema } from "src/utils/schema";
-import { Arrendadores } from "./Arrendadores";
+import { Equipos } from "./Equipos";
+import { InstalacionCentral } from "./InstalacionCentral";
+import { InstalacionEquipo } from "./InstalacionEquipo";
+import { CatDepartamentos } from "./CatDepartamentos";
+import { SociosArrendadores } from "./SociosArrendadores";
+import { Clientes } from "./Clientes";
 
 
-@Index("UQ_Clientes_RFC", ["rfc"], { unique: true })
-@Index("IX_Clientes_IdPadre", ["idPadre"], {})
-@Entity("Clientes")
+@Index("UQ_Arrendadores_RFC", ["rfc"], { unique: true })
+@Index("FK_Arrendadores_Clientes_idx", ["idCliente"], {})
+@Entity("Arrendadores")
 @applySchema
-export class Clientes {
+export class Arrendadores {
   @PrimaryGeneratedColumn({ type: "bigint", name: "Id" })
   id: number;
 
-  @Column("bigint", { name: "IdPadre", nullable: true })
-  idPadre: number | null;
+  @Column("bigint", { name: "IdCliente", nullable: true })
+  idCliente: number | null;
 
   @Column("varchar", { name: "RFC", unique: true, length: 16 })
   rfc: string;
@@ -116,53 +120,25 @@ export class Clientes {
   @Column("tinyint", { name: "Estatus", default: () => "'1'" })
   estatus: number;
 
-  @Column("varchar", {
-    name: "LicenciaFuncionamiento",
-    nullable: true,
-    length: 500,
-  })
-  licenciaFuncionamiento: string | null;
-
-  @Column("varchar", {
-    name: "ConstanciaProteccionCivil",
-    nullable: true,
-    length: 500,
-  })
-  constanciaProteccionCivil: string | null;
-
-  @Column("varchar", { name: "UsoSuelo", nullable: true, length: 500 })
-  usoSuelo: string | null;
-
-  @Column("varchar", { name: "PlanoCatastral", nullable: true, length: 500 })
-  planoCatastral: string | null;
-
-  @Column("varchar", {
-    name: "PoderRepresentanteLegal",
-    nullable: true,
-    length: 500,
-  })
-  poderRepresentanteLegal: string | null;
-
-  @Column("varchar", {
-    name: "IneRepresentanteLegal",
-    nullable: true,
-    length: 500,
-  })
-  ineRepresentanteLegal: string | null;
-
-  @ManyToOne(() => Clientes, (clientes) => clientes.clientes, {
+  @ManyToOne(() => Clientes, (cliente) => cliente.arrendadores, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",
   })
-  @JoinColumn([{ name: "IdPadre", referencedColumnName: "id" }])
-  idPadre2: Clientes;
+  @JoinColumn([{ name: "IdCliente", referencedColumnName: "id" }])
+  cliente: Clientes;
 
-  @OneToMany(() => Clientes, (clientes) => clientes.idPadre2)
-  clientes: Clientes[];
+  @OneToMany(() => Equipos, (equipo) => equipo.cliente)
+  equipos: Equipos[];
 
-  @OneToMany(() => Usuarios, (usuarios) => usuarios.idCliente2)
-  usuarios: Usuarios[];
+  @OneToMany(() => InstalacionCentral, (instalacion) => instalacion.cliente)
+  instalaciones: InstalacionCentral[];
 
-  @OneToMany(() => Arrendadores, (arrendador) => arrendador.cliente)
-  arrendadores: Arrendadores[];
+  @OneToMany(() => InstalacionEquipo, (instalacion) => instalacion.cliente)
+  instalacionesEquipo: InstalacionEquipo[];
+
+  @OneToMany(() => CatDepartamentos, (departamento) => departamento.cliente)
+  departamentos: CatDepartamentos[];
+
+  @OneToMany(() => SociosArrendadores, (socio) => socio.cliente)
+  sociosArrendadores: SociosArrendadores[];
 }

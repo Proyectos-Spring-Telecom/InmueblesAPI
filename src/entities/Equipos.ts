@@ -9,7 +9,7 @@ import {
     OneToMany,
   } from 'typeorm';
   import { CatModelos } from './CatModelos';
-import { Clientes } from './Clientes';
+import { Arrendadores } from './Arrendadores';
 import { InstalacionEquipo } from './InstalacionEquipo';
 import { CatEstadoEquipo } from './CatEstadoEquipo';
   
@@ -96,13 +96,13 @@ import { CatEstadoEquipo } from './CatEstadoEquipo';
     @JoinColumn({ name: 'IdModelo' })
     modelo: CatModelos;
 
-  // 🔗 Relación con Clientes
-  @ManyToOne(() => Clientes, (cliente) => cliente.equipos, {
+  // 🔗 Relación con Arrendadores
+  @ManyToOne(() => Arrendadores, (cliente) => cliente.equipos, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'IdCliente' })
-  cliente: Clientes;
+  cliente: Arrendadores;
 
     @OneToMany(() => InstalacionEquipo, (instalacion) => instalacion.equipo)
   instalacionesEquipo: InstalacionEquipo[];

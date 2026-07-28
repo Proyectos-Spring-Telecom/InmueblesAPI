@@ -4,10 +4,10 @@ import { EquiposController } from './equipos.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Equipos } from 'src/entities/Equipos';
 import { BitacoraModule } from 'src/bitacora/bitacora.module';
-import { Clientes } from 'src/entities/Clientes';
+import { Arrendadores } from 'src/entities/Arrendadores';
 
 @Module({
-  imports:[TypeOrmModule.forFeature([Equipos, Clientes]),BitacoraModule],
+  imports:[TypeOrmModule.forFeature([Equipos, Arrendadores]),BitacoraModule],
   controllers: [EquiposController],
   providers: [EquiposService],
 })

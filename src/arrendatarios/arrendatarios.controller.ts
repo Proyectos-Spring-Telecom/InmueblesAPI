@@ -49,8 +49,10 @@ export class ArrendatariosController {
     description:
       "Devuelve todos los arrendatarios con estatus = 1 y sus relaciones (contratos, servicios, etc.).",
   })
-  findAllActivos() {
-    return this.arrendatariosService.findAllActivos();
+  findAllActivos(@Req() req: any) {
+    const cliente = Number(req.user?.cliente || 0);
+    const rol = Number(req.user?.rol || 0);
+    return this.arrendatariosService.findAllActivos(cliente, rol);
   }
 
   @Get("dashboard/:idArrendatario")
@@ -85,10 +87,18 @@ export class ArrendatariosController {
     summary: "Listar arrendatarios paginados (con relaciones).",
   })
   findAllPaginated(
+    @Req() req: any,
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
   ) {
-    return this.arrendatariosService.findAllPaginated(page, limit);
+    const cliente = Number(req.user?.cliente || 0);
+    const rol = Number(req.user?.rol || 0);
+    return this.arrendatariosService.findAllPaginated(
+      page,
+      limit,
+      cliente,
+      rol,
+    );
   }
 
   @Get("inmueble/:idInmueble")

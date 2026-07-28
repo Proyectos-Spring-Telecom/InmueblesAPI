@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { applySchema } from "src/utils/schema";
-import { Clientes } from "./Clientes";
+import { Arrendadores } from "./Arrendadores";
 import { ServiciosInmuebles } from "./ServiciosInmuebles";
 import { ZonasInmuebles } from "./ZonasInmuebles";
 import { ArchivosInmuebles } from "./ArchivosInmuebles";
@@ -85,12 +85,12 @@ export class Inmuebles {
   @Column("json", { name: "MapaInmueble", nullable: true })
   mapaInmueble: object | null;
 
-  @ManyToOne(() => Clientes, {
+  @ManyToOne(() => Arrendadores, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",
   })
   @JoinColumn([{ name: "IdArrendador", referencedColumnName: "id" }])
-  arrendador: Clientes;
+  arrendador: Arrendadores;
 
   @OneToMany(() => ServiciosInmuebles, (servicio) => servicio.inmueble)
   servicios: ServiciosInmuebles[];

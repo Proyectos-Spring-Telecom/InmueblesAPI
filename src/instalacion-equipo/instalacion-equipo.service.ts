@@ -10,7 +10,7 @@ import { ApiCrudResponse, EstatusEnumBitcora } from 'src/common/ApiResponse';
 import { BitacoraService } from 'src/bitacora/bitacora.service';
 import { InstalacionCentral } from 'src/entities/InstalacionCentral';
 import { getClienteHijos } from 'src/utils/cliente-utils';
-import { Clientes } from 'src/entities/Clientes';
+import { Arrendadores } from 'src/entities/Arrendadores';
 
 @Injectable()
 export class InstalacionEquipoService {
@@ -18,7 +18,7 @@ export class InstalacionEquipoService {
     @InjectRepository(InstalacionCentral) private readonly instalacionCentral:Repository<InstalacionCentral>,
     @InjectRepository(Equipos) private readonly equiposRepository:Repository<Equipos>,
     @InjectRepository(InstalacionEquipo) private readonly instalacionEquipo:Repository<InstalacionEquipo>,
-    @InjectRepository(Clientes) private readonly clienteRepository:Repository<Clientes>,
+    @InjectRepository(Arrendadores) private readonly clienteRepository:Repository<Arrendadores>,
     private readonly bitacoraService: BitacoraService
   ){}
 

@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { Arrendatarios } from "src/entities/Arrendatarios";
+import { Arrendadores } from "src/entities/Arrendadores";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { ContratoLocales } from "src/entities/ContratoLocales";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
@@ -16,6 +17,10 @@ import { S3Service } from "src/s3/s3.service";
 import { ApiResponseCommon } from "src/common/ApiResponse";
 import { LocalesEstatus } from "src/common/locales-estatus.enum";
 import { resolveEntityId } from "src/common/resolve-entity-id";
+import {
+  getClienteHijos,
+  isSuperAdmin,
+} from "src/utils/cliente-utils";
 import { UpdateSocioArrendatarioDto } from "./dto/update-socio-arrendatario.dto";
 import {
   RegistrarArrendatarioFormDto,
@@ -68,9 +73,21 @@ export class ArrendatariosService {
     private readonly s3Service: S3Service,
     @InjectRepository(Arrendatarios)
     private readonly arrendatariosRepository: Repository<Arrendatarios>,
+    @InjectRepository(Arrendadores)
+    private readonly arrendadoresRepository: Repository<Arrendadores>,
     @InjectRepository(ServiciosArrendatarios)
     private readonly serviciosArrendatariosRepository: Repository<ServiciosArrendatarios>,
   ) {}
+
+  private async arrendadorScopeWhere(
+    rol: number,
+    idCliente: number,
+  ): Promise<{ idArrendador?: any } | null> {
+    if (isSuperAdmin(rol)) return {};
+    const { ids } = await getClienteHijos(this.arrendadoresRepository, idCliente);
+    if (ids.length === 0) return null;
+    return { idArrendador: In(ids) };
+  }
 
   async findByIdInmueble(idInmueble: number): Promise<Arrendatarios[]> {
     const idRows = await this.arrendatariosRepository
@@ -123,9 +140,17 @@ export class ArrendatariosService {
     });
   }
 
-  async findAllActivos(): Promise<{ data: Arrendatarios[] }> {
+  async findAllActivos(
+    idCliente: number,
+    rol: number,
+  ): Promise<{ data: Arrendatarios[] }> {
+    const scope = await this.arrendadorScopeWhere(rol, idCliente);
+    if (scope === null) {
+      return { data: [] };
+    }
+
     const data = await this.arrendatariosRepository.find({
-      where: { estatus: 1 },
+      where: { estatus: 1, ...scope },
       relations: [...FULL_RELATIONS],
       order: { id: "DESC" },
     });
@@ -136,13 +161,28 @@ export class ArrendatariosService {
   async findAllPaginated(
     page: number,
     limit: number,
+    idCliente: number,
+    rol: number,
   ): Promise<ApiResponseCommon> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const skip = (safePage - 1) * safeLimit;
 
+    const scope = await this.arrendadorScopeWhere(rol, idCliente);
+    if (scope === null) {
+      return {
+        data: [],
+        paginated: {
+          total: 0,
+          page: safePage,
+          lastPage: 0,
+        },
+      };
+    }
+
     const [idRows, total] = await this.arrendatariosRepository.findAndCount({
       select: ["id"],
+      where: scope,
       order: { id: "DESC" },
       skip,
       take: safeLimit,

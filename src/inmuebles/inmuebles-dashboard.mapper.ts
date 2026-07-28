@@ -1,7 +1,7 @@
 import { PagoEstatus } from "src/common/pago-estatus.enum";
 import { LocalesEstatus } from "src/common/locales-estatus.enum";
 import { Arrendatarios } from "src/entities/Arrendatarios";
-import { Clientes } from "src/entities/Clientes";
+import { Arrendadores } from "src/entities/Arrendadores";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Inmuebles } from "src/entities/Inmuebles";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
@@ -33,7 +33,7 @@ function toDateString(value: Date | string | null | undefined): string | null {
   return d.toISOString().split("T")[0];
 }
 
-function clienteNombre(cliente: Clientes | null | undefined): string | null {
+function clienteNombre(cliente: Arrendadores | null | undefined): string | null {
   if (!cliente) return null;
   const parts = [
     cliente.nombre,

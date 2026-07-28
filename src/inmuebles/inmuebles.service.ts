@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from "@nestjs/typeorm";
 import { DataSource, In, Repository } from "typeorm";
 import { Inmuebles } from "src/entities/Inmuebles";
+import { Arrendadores } from "src/entities/Arrendadores";
 import { ServiciosInmuebles } from "src/entities/ServiciosInmuebles";
 import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
@@ -16,6 +17,11 @@ import { S3Service } from "src/s3/s3.service";
 import { ApiResponseCommon } from "src/common/ApiResponse";
 import { LocalesEstatus } from "src/common/locales-estatus.enum";
 import { resolveEntityId } from "src/common/resolve-entity-id";
+import {
+  assertArrendadorAccess,
+  getClienteHijos,
+  isSuperAdmin,
+} from "src/utils/cliente-utils";
 import { CreateInmuebleDto } from "./dto/create-inmueble.dto";
 import { UpdateInmuebleDto } from "./dto/update-inmueble.dto";
 import { CreateZonaInmuebleDto } from "./dto/create-zona-inmueble.dto";
@@ -67,6 +73,8 @@ export class InmueblesService {
     private readonly s3Service: S3Service,
     @InjectRepository(Inmuebles)
     private readonly inmueblesRepository: Repository<Inmuebles>,
+    @InjectRepository(Arrendadores)
+    private readonly arrendadoresRepository: Repository<Arrendadores>,
     @InjectRepository(ZonasInmuebles)
     private readonly zonasRepository: Repository<ZonasInmuebles>,
     @InjectRepository(LocalesZonaInmueble)
@@ -76,6 +84,16 @@ export class InmueblesService {
     @InjectRepository(ServiciosInmuebles)
     private readonly serviciosInmueblesRepository: Repository<ServiciosInmuebles>,
   ) {}
+
+  private async arrendadorScopeWhere(
+    rol: number,
+    idCliente: number,
+  ): Promise<{ idArrendador?: any } | null> {
+    if (isSuperAdmin(rol)) return {};
+    const { ids } = await getClienteHijos(this.arrendadoresRepository, idCliente);
+    if (ids.length === 0) return null;
+    return { idArrendador: In(ids) };
+  }
 
   async registrar(dto: CreateInmuebleDto, idUser: number) {
     return this.dataSource.transaction(async (manager) => {
@@ -226,7 +244,18 @@ export class InmueblesService {
     };
   }
 
-  async findByIdArrendador(idArrendador: number) {
+  async findByIdArrendador(
+    idArrendador: number,
+    idCliente: number,
+    rol: number,
+  ) {
+    await assertArrendadorAccess(
+      this.arrendadoresRepository,
+      rol,
+      idCliente,
+      idArrendador,
+    );
+
     return this.inmueblesRepository.find({
       where: { idArrendador },
       relations: FULL_RELATIONS,
@@ -473,13 +502,28 @@ export class InmueblesService {
   async findAllPaginated(
     page: number,
     limit: number,
+    idCliente: number,
+    rol: number,
   ): Promise<ApiResponseCommon> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const skip = (safePage - 1) * safeLimit;
 
+    const scope = await this.arrendadorScopeWhere(rol, idCliente);
+    if (scope === null) {
+      return {
+        data: [],
+        paginated: {
+          total: 0,
+          page: safePage,
+          lastPage: 0,
+        },
+      };
+    }
+
     const [idRows, total] = await this.inmueblesRepository.findAndCount({
       select: ["id"],
+      where: scope,
       order: { id: "DESC" },
       skip,
       take: safeLimit,

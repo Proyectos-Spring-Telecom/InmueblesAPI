@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { Arrendatarios } from "src/entities/Arrendatarios";
+import { Arrendadores } from "src/entities/Arrendadores";
 import { ArchivosArrendatarios } from "src/entities/ArchivosArrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { ContratoLocales } from "src/entities/ContratoLocales";
@@ -20,6 +21,7 @@ import { ArrendatariosService } from "./arrendatarios.service";
   imports: [
     TypeOrmModule.forFeature([
       Arrendatarios,
+      Arrendadores,
       ContratoArrendatarios,
       ContratoLocales,
       ServiciosArrendatarios,

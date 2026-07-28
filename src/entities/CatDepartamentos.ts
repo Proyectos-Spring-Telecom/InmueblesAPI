@@ -7,7 +7,7 @@ import {
   CreateDateColumn,
   OneToMany,
 } from "typeorm";
-import { Clientes } from "./Clientes";
+import { Arrendadores } from "./Arrendadores";
 import { InstalacionEquipo } from "./InstalacionEquipo";
 
 @Entity({ name: "CatDepartamentos" })
@@ -27,11 +27,11 @@ export class CatDepartamentos {
   @Column("tinyint", { name: "Estatus", default: () => "'1'" })
   estatus: number;
 
-  @ManyToOne(() => Clientes, (cliente) => cliente.departamentos, {
+  @ManyToOne(() => Arrendadores, (cliente) => cliente.departamentos, {
     onDelete: "RESTRICT",
   })
   @JoinColumn({ name: "IdCliente", referencedColumnName: "id" })
-  cliente: Clientes;
+  cliente: Arrendadores;
 
   @OneToMany(() => InstalacionEquipo, (instalacionEquipo) => instalacionEquipo.departamento)
   instalacionesEquipo: InstalacionEquipo[];

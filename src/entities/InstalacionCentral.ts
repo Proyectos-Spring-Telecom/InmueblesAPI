@@ -6,7 +6,7 @@ import {
   JoinColumn,
   OneToMany,
 } from "typeorm";
-import { Clientes } from "./Clientes";
+import { Arrendadores } from "./Arrendadores";
 import { InstalacionEquipo } from "./InstalacionEquipo";
 
 @Entity({ name: "InstalacionCentral" })
@@ -32,11 +32,11 @@ export class InstalacionCentral {
   @Column("tinyint", { name: "Estatus", default: () => "'1'" })
   estatus: number;
 
-  @ManyToOne(() => Clientes, (cliente) => cliente.instalaciones, {
+  @ManyToOne(() => Arrendadores, (cliente) => cliente.instalaciones, {
     onDelete: "RESTRICT",  
   })
   @JoinColumn({ name: "IdCliente", referencedColumnName: "id" })
-  cliente: Clientes;
+  cliente: Arrendadores;
 
 
 

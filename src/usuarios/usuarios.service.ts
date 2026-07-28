@@ -9,12 +9,10 @@ import { Usuarios } from 'src/entities/Usuarios';
 import { Repository } from 'typeorm';
 import { BitacoraService } from 'src/bitacora/bitacora.service';
 import { S3Service } from 'src/s3/s3.service';
-import { ClientesService } from 'src/clientes/clientes.service';
 import { UsuariosPermisos } from 'src/entities/UsuariosPermisos';
 import { UpdateUsuarioEstatusDto } from './dto/update-usuario-estatus.dto';
 import { MailServiceService } from 'src/mail-service/mail-service.service';
 import { JwtService } from '@nestjs/jwt';
-import { getClienteHijos, getClienteHijosPag } from 'src/utils/cliente-utils';
 import { Clientes } from 'src/entities/Clientes';
 
 @Injectable()
@@ -24,14 +22,22 @@ export class UsuariosService {
         private readonly usuarioRepository: Repository<Usuarios>,
         private readonly bitacoraLogger: BitacoraService,
         private readonly s3Service: S3Service,
-        private readonly clientesService: ClientesService,
         @InjectRepository(UsuariosPermisos)
         private usuariosPermisosRepository: Repository<UsuariosPermisos>,
         @InjectRepository(Clientes)
-        private readonly clienteRepository: Repository<Clientes>,
+        private readonly clientesRepository: Repository<Clientes>,
         private readonly emailService: MailServiceService,
         private readonly jwtService: JwtService,
       ) {}
+
+      private async assertClienteExists(idCliente: number): Promise<void> {
+        const cliente = await this.clientesRepository.findOne({
+          where: { id: idCliente },
+        });
+        if (!cliente) {
+          throw new BadRequestException('Cliente inválido');
+        }
+      }
     
       // Obtener todos los usuarios con paginación
       async getAllUsuario(
@@ -96,16 +102,9 @@ export class UsuariosService {
               break;
     
             default:
-              // Consulta de datos paginados resto Usuario
-              const { ids, placeholders } = await getClienteHijosPag(this.clienteRepository, cliente);
-              
-              // Si no hay IDs, retornar resultados vacíos
-              if (ids.length === 0 || !placeholders) {
-                usuarios = [];
-                totalResult = [{ total: 0 }];
-              } else {
-                usuarios = await this.usuarioRepository.query(
-                  `
+              // Rol > 1: usuarios del mismo cliente
+              usuarios = await this.usuarioRepository.query(
+                `
     SELECT
       -- Datos del Usuario
       u.Id AS Id,
@@ -133,24 +132,21 @@ export class UsuariosService {
     FROM Usuarios u
     INNER JOIN Roles r ON u.IdRol = r.Id
     LEFT JOIN Clientes c ON u.IdCliente = c.Id
-    WHERE c.Id IN (${placeholders})
+    WHERE u.IdCliente = ?
     ORDER BY u.Id DESC
     LIMIT ? OFFSET ?;
             `,
-                  [...ids, limit, offset],
-                );
-    
-                // Query para total (sin paginación)
-                totalResult = await this.usuarioRepository.query(
-                  `
+                [cliente, limit, offset],
+              );
+
+              totalResult = await this.usuarioRepository.query(
+                `
       SELECT COUNT(*) AS total
       FROM Usuarios u
-      INNER JOIN Clientes c ON u.IdCliente = c.Id
-        WHERE c.Id IN (${placeholders})
+      WHERE u.IdCliente = ?
       `,
-                  [...ids],
-                );
-              }
+                [cliente],
+              );
               break;
           }
     
@@ -231,15 +227,9 @@ export class UsuariosService {
               break;
     
             default:
-              // Consulta de datos listado resto Usuario
-              const { ids: idsList, placeholders: placeholdersList } = await getClienteHijos(this.clienteRepository, cliente);
-              
-              // Si no hay IDs, retornar resultados vacíos
-              if (idsList.length === 0 || !placeholdersList) {
-                usuarios = [];
-              } else {
-                usuarios = await this.usuarioRepository.query(
-                  `
+              // Rol > 1: usuarios del mismo cliente
+              usuarios = await this.usuarioRepository.query(
+                `
     SELECT
       -- Datos del Usuario
       u.Id AS Id,
@@ -267,14 +257,12 @@ export class UsuariosService {
     FROM Usuarios u
     INNER JOIN Roles r ON u.IdRol = r.Id
     LEFT JOIN Clientes c ON u.IdCliente = c.Id
-    WHERE c.Id IN (${placeholdersList})
+    WHERE u.IdCliente = ?
     AND u.Estatus = 1
     ORDER BY u.Id DESC;
             `,
-                  [...idsList],
-                );
-              }
-    
+                [cliente],
+              );
               break;
           }
     
@@ -434,7 +422,7 @@ export class UsuariosService {
     INNER JOIN Roles r ON u.IdRol = r.Id
     LEFT JOIN Clientes c ON u.IdCliente = c.Id
     WHERE u.Id = ?
-    AND c.Id = ?
+    AND u.IdCliente = ?
     ORDER BY u.Id DESC
             `,
                 [id, cliente],
@@ -489,6 +477,10 @@ export class UsuariosService {
           if (existUsuario) {
             throw new BadRequestException('El usuario ya existe');
           }
+
+          if (createUsuarioDto.idCliente != null) {
+            await this.assertClienteExists(Number(createUsuarioDto.idCliente));
+          }
     
           // Subir foto de perfil a S3 si existe
           if (fotoPerfilFile) {
@@ -503,13 +495,13 @@ export class UsuariosService {
             10,
           ); //encriptamos la contraseña
           createUsuarioDto.passwordHash = hashedPassword;
+
+          const { permisosIds, ...usuarioData } = createUsuarioDto;
+          const newUser = this.usuarioRepository.create(usuarioData);
+          const userSave = await this.usuarioRepository.save(newUser);
     
-          const newUser = await this.usuarioRepository.create(createUsuarioDto);
-    
-          const userSave = await this.usuarioRepository.save(newUser); //creamos el usuario
-    
-          if (createUsuarioDto.permisosIds.length > 0) {
-            const usuariosPermisos = createUsuarioDto.permisosIds.map((permisoId) =>
+          if (permisosIds.length > 0) {
+            const usuariosPermisos = permisosIds.map((permisoId) =>
               this.usuariosPermisosRepository.create({
                 idUsuario: userSave.id,
                 idPermiso: permisoId,
@@ -707,11 +699,8 @@ export class UsuariosService {
             updateUsuarioDto.fotoPerfil = uploadResult.url;
           }
     
-          if (updateUsuarioDto.idCliente) {
-            const cliente = await this.clientesService.getOneCliente(
-              Number(updateUsuarioDto.idCliente),
-            );
-            if (!cliente) throw new BadRequestException('Cliente Invalido');
+          if (updateUsuarioDto.idCliente != null) {
+            await this.assertClienteExists(Number(updateUsuarioDto.idCliente));
           }
     
           const { permisosIds, ...usuarioUpdate } = updateUsuarioDto;

@@ -5,7 +5,8 @@ import { InstalacionCentral } from 'src/entities/InstalacionCentral';
 import { InstalacionEquipo } from 'src/entities/InstalacionEquipo';
 import { Equipos } from 'src/entities/Equipos';
 import { Incidencia } from 'src/entities/Incidencias';
-import { Clientes } from 'src/entities/Clientes';
+import { Arrendadores } from 'src/entities/Arrendadores';
+import { getClienteHijos, isSuperAdmin } from 'src/utils/cliente-utils';
 import PDFDocument from 'pdfkit';
 import { ChartJSNodeCanvas } from 'chartjs-node-canvas';
 import axios from 'axios';
@@ -25,14 +26,15 @@ export class ReportesService {
     private equiposRepository: Repository<Equipos>,
     @InjectRepository(Incidencia)
     private incidenciaRepository: Repository<Incidencia>,
-    @InjectRepository(Clientes)
-    private clienteRepository: Repository<Clientes>,
+    @InjectRepository(Arrendadores)
+    private clienteRepository: Repository<Arrendadores>,
   ) {}
 
   async generarReportePDF(
     fechaInicio?: string,
     fechaFin?: string,
     idCliente?: number,
+    rol?: number,
   ): Promise<Buffer> {
     try {
       // Determinar fechas por defecto (último mes si no se proporcionan)
@@ -43,11 +45,23 @@ export class ReportesService {
         ? new Date(`${fechaInicio} 00:00:00`)
         : new Date(new Date().setMonth(new Date().getMonth() - 1));
 
+      // Alcance: rol 1 = todo; rol > 1 = instalaciones de sus arrendadores
+      let arrendadorIds: number[] | null = null;
+      if (idCliente && !isSuperAdmin(rol ?? 0)) {
+        const scope = await getClienteHijos(this.clienteRepository, idCliente);
+        arrendadorIds = scope.ids;
+        if (arrendadorIds.length === 0) {
+          throw new BadRequestException(
+            'No se encontraron arrendadores para el cliente logueado.',
+          );
+        }
+      }
+
       // Obtener instalaciones centrales
       let instalacionesCentrales: InstalacionCentral[];
-      if (idCliente) {
+      if (arrendadorIds) {
         instalacionesCentrales = await this.instalacionCentralRepository.find({
-          where: { idCliente, estatus: 1 },
+          where: { idCliente: In(arrendadorIds), estatus: 1 },
           relations: ['cliente', 'instalaciones', 'instalaciones.equipo'],
         });
       } else {
@@ -150,8 +164,8 @@ export class ReportesService {
 
       // Obtener todas las ubicaciones de equipos para el mapa
       const whereCondition: any = { estatus: 1 };
-      if (idCliente) {
-        whereCondition.idCliente = idCliente;
+      if (arrendadorIds) {
+        whereCondition.idCliente = In(arrendadorIds);
       }
       
       const ubicacionesEquipos = await this.instalacionEquipoRepository.find({

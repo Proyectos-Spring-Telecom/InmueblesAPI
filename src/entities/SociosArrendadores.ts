@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { applySchema } from "src/utils/schema";
-import { Clientes } from "./Clientes";
+import { Arrendadores } from "./Arrendadores";
 
 @Index("FK_Socios_Clientes_idx", ["idCliente"], {})
 @Entity("SociosArrendadores")
@@ -56,10 +56,10 @@ export class SociosArrendadores {
   @Column("tinyint", { name: "Estatus", nullable: true, default: () => "'1'" })
   estatus: number | null;
 
-  @ManyToOne(() => Clientes, (cliente) => cliente.sociosArrendadores, {
+  @ManyToOne(() => Arrendadores, (cliente) => cliente.sociosArrendadores, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",
   })
   @JoinColumn([{ name: "IdCliente", referencedColumnName: "id" }])
-  cliente: Clientes;
+  cliente: Arrendadores;
 }

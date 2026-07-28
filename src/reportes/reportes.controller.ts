@@ -23,13 +23,15 @@ export class ReportesController {
     @Query('fechaFin') fechaFin?: string,
   ) {
     try {
-      // Obtener idCliente del token JWT
+      // Obtener idCliente y rol del token JWT
       const idCliente = req.user?.cliente ? parseInt(req.user.cliente, 10) : undefined;
+      const rol = req.user?.rol ? parseInt(req.user.rol, 10) : undefined;
 
       const pdfBuffer = await this.reportesService.generarReportePDF(
         fechaInicio,
         fechaFin,
         idCliente,
+        rol,
       );
 
       const fechaReporte = new Date().toISOString().split('T')[0];

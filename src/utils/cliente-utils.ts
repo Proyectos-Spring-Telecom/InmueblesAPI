@@ -1,81 +1,82 @@
+import { ForbiddenException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 
+export const ROL_SUPER_ADMIN = 1;
+
+export function isSuperAdmin(rol: number): boolean {
+  return Number(rol) === ROL_SUPER_ADMIN;
+}
+
 /**
- * Obtiene los IDs del cliente actual y sus hijos (excluyendo al padre del cliente actual)
- * @param clienteRepository - Repositorio de TypeORM para ejecutar queries
- * @param cliente - ID del cliente actual
- * @returns Objeto con los IDs filtrados (cliente actual + hijos, sin el padre) y placeholders para usar en queries SQL
+ * IDs de Arrendadores cuyo IdCliente coincide con el cliente del JWT.
+ * Usar para filtrar entidades ligadas a Arrendadores (inmuebles, arrendatarios, equipos, etc.).
  */
 export async function getClienteHijos(
   clienteRepository: Repository<any>,
   cliente: number,
 ): Promise<{ ids: number[]; placeholders: string }> {
-  // Primero obtener el idPadre del cliente actual para excluirlo
-  const clienteActual = await clienteRepository.query(
-    `SELECT IdPadre FROM Clientes WHERE Id = ?`,
-    [cliente],
-  );
-  
-  const idPadre = clienteActual[0]?.IdPadre ? Number(clienteActual[0].IdPadre) : null;
-
-  // Obtener el cliente y sus hijos usando el stored procedure
-  const clientesFiltrado = await clienteRepository.query(
-    `CALL spGetClientes(?);`,
+  const rows = await clienteRepository.query(
+    `SELECT Id FROM Arrendadores WHERE IdCliente = ?`,
     [cliente],
   );
 
-  const idsFiltrados = clientesFiltrado[0]; // El primer índice contiene los resultados
-  const ids = idsFiltrados
-    .map((clientesFiltrado: any) => Number(clientesFiltrado.Id))
-    .filter(id => !isNaN(id) && (idPadre === null || id !== idPadre)); // Excluir al padre si existe
-  
-  if (ids.length === 0) {
-    return { ids: [], placeholders: '' }; // No hay clientes que consultar
-  }
-
-  // Construir el query dinámico con los IDs
-  const placeholders = ids.map(() => '?').join(', ');
-  return { ids, placeholders };
-}
-
-/**
- * Obtiene los IDs del cliente actual y sus hijos (excluyendo al padre del cliente actual)
- * Útil para paginación donde solo se quiere el cliente actual y sus descendientes, sin incluir al padre
- * @param clienteRepository - Repositorio de TypeORM para ejecutar queries
- * @param cliente - ID del cliente actual
- * @returns Objeto con los IDs filtrados (cliente actual + hijos, sin el padre) y placeholders para usar en queries SQL
- */
-export async function getClienteHijosPag(
-  clienteRepository: Repository<any>,
-  cliente: number,
-): Promise<{ ids: number[]; placeholders: string }> {
-  // Primero obtener el idPadre del cliente actual para excluirlo
-  const clienteActual = await clienteRepository.query(
-    `SELECT IdPadre FROM Clientes WHERE Id = ?`,
-    [cliente],
-  );
-  
-  const idPadre = clienteActual[0]?.IdPadre ? Number(clienteActual[0].IdPadre) : null;
-
-  // Obtener el cliente y sus hijos usando el stored procedure
-  const result = await clienteRepository.query(
-    'CALL spGetClientes(?);',
-    [cliente],
-  );
-
-  let rows = result?.[0] ?? [];
-
-  // Construir ids incluyendo el cliente actual y sus hijos, pero excluyendo al padre
-  const ids = rows
+  const ids = (rows ?? [])
     .map((row: any) => Number(row.Id))
-    .filter(id => !isNaN(id) && (idPadre === null || id !== idPadre)); // Excluir al padre si existe
+    .filter((id: number) => !isNaN(id));
 
   if (ids.length === 0) {
     return { ids: [], placeholders: '' };
   }
 
   const placeholders = ids.map(() => '?').join(', ');
-
   return { ids, placeholders };
 }
 
+/** Alias de getClienteHijos (compatibilidad con listados paginados). */
+export async function getClienteHijosPag(
+  clienteRepository: Repository<any>,
+  cliente: number,
+): Promise<{ ids: number[]; placeholders: string }> {
+  return getClienteHijos(clienteRepository, cliente);
+}
+
+/**
+ * Resuelve el alcance de arrendadores según rol.
+ * - rol 1: sin restricción
+ * - rol > 1: solo arrendadores con IdCliente = cliente JWT
+ */
+export async function resolveArrendadorScope(
+  repo: Repository<any>,
+  rol: number,
+  idCliente: number,
+): Promise<
+  | { unrestricted: true }
+  | { unrestricted: false; ids: number[]; placeholders: string }
+> {
+  if (isSuperAdmin(rol)) {
+    return { unrestricted: true };
+  }
+
+  const { ids, placeholders } = await getClienteHijos(repo, idCliente);
+  return { unrestricted: false, ids, placeholders };
+}
+
+/** Lanza Forbidden si el arrendador no pertenece al cliente (rol > 1). */
+export async function assertArrendadorAccess(
+  repo: Repository<any>,
+  rol: number,
+  idCliente: number,
+  idArrendador: number,
+): Promise<void> {
+  if (isSuperAdmin(rol)) return;
+
+  const rows = await repo.query(
+    `SELECT Id FROM Arrendadores WHERE Id = ? AND IdCliente = ? LIMIT 1`,
+    [idArrendador, idCliente],
+  );
+  if (!rows?.length) {
+    throw new ForbiddenException(
+      'No tienes acceso a este arrendador o a sus recursos.',
+    );
+  }
+}

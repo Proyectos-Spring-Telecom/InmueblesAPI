@@ -13,28 +13,28 @@ import {
   Req,
   UseGuards,
   UseInterceptors,
+  UploadedFiles,
 } from "@nestjs/common";
 import { AnyFilesInterceptor } from "@nestjs/platform-express";
 import * as multer from "multer";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
+import { ArrendadoresService } from "./arrendadores.service";
+import { CreateArrendadorDto } from "./dto/create-arrendador.dto";
+import { ApiCrudResponse, ApiResponseCommon } from "src/common/ApiResponse";
+import { UpdateArrendadorEstatusDto } from "./dto/update-arrendador-estatus.dto";
+import { UpdateArrendadorDto } from "./dto/update-arrendador.dto";
 import {
   ApiBearerAuth,
-  ApiBody,
   ApiConsumes,
+  ApiBody,
   ApiOperation,
   ApiParam,
-  ApiTags,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
-import { ApiCrudResponse, ApiResponseCommon } from "src/common/ApiResponse";
 import { parseNestedFormData } from "src/inmuebles/utils/form-data-nested";
-import { ClientesService } from "./clientes.service";
-import { CreateClienteDto } from "./dto/create-cliente.dto";
-import { UpdateClienteDto } from "./dto/update-cliente.dto";
-import { UpdateClienteEstatusDto } from "./dto/update-cliente-estatus.dto";
 
-const clienteMultipartOptions = {
+const arrendadorMultipartOptions = {
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req: any, file: Express.Multer.File, cb: any) => {
@@ -51,25 +51,24 @@ const clienteMultipartOptions = {
   },
 };
 
-@ApiTags("Clientes")
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth("access-token")
-@Controller("clientes")
-export class ClientesController {
-  constructor(private readonly clientesService: ClientesService) {}
+@Controller("arrendadores")
+export class ArrendadoresController {
+  constructor(private readonly clientesService: ArrendadoresService) {}
 
   @Post()
   @HttpCode(200)
-  @UseInterceptors(AnyFilesInterceptor(clienteMultipartOptions as any))
+  @UseInterceptors(AnyFilesInterceptor(arrendadorMultipartOptions as any))
   @ApiConsumes("multipart/form-data")
   @ApiBody({
-    type: CreateClienteDto,
-    description: "Datos del cliente con archivos opcionales.",
+    type: CreateArrendadorDto,
+    description:
+      "Datos del cliente con archivos opcionales y array socios[i].*",
   })
-  @ApiOperation({ summary: "Crear cliente" })
-  async createCliente(@Req() req: any): Promise<ApiCrudResponse> {
+  async createArrendador(@Req() req: any): Promise<ApiCrudResponse> {
     const nested = parseNestedFormData(req.body, req.files);
-    const dto = plainToInstance(CreateClienteDto, nested, {
+    const dto = plainToInstance(CreateArrendadorDto, nested, {
       enableImplicitConversion: true,
     });
     const errors = await validate(dto, {
@@ -87,21 +86,21 @@ export class ClientesController {
       });
     }
     const idUser = req.user.userId;
-    return this.clientesService.createCliente(dto, idUser);
+    const cliente = Number(req.user?.cliente || 0);
+    const rol = Number(req.user?.rol || 0);
+    return this.clientesService.createArrendador(dto, idUser, cliente, rol);
   }
 
   @Get("list")
-  @ApiOperation({ summary: "Listado de clientes activos (sin paginación)" })
-  async getAllListClientes(@Req() req): Promise<ApiResponseCommon> {
+  async getAllListArrendadores(@Req() req): Promise<ApiResponseCommon> {
     const cliente = req.user.cliente;
     const idUser = req.user.userId;
     const rol = req.user.rol;
-    return this.clientesService.getAllListClientes(+idUser, +cliente, +rol);
+    return this.clientesService.getAllListArrendadores(+idUser, +cliente, +rol);
   }
 
   @Get(":page/:limit")
-  @ApiOperation({ summary: "Listado paginado de clientes" })
-  getAllClientes(
+  getAllArrendadores(
     @Param("page", ParseIntPipe) page: number,
     @Param("limit", ParseIntPipe) limit: number,
     @Req() req,
@@ -109,7 +108,7 @@ export class ClientesController {
     const cliente = req.user.cliente;
     const idUser = req.user.userId;
     const rol = req.user.rol;
-    return this.clientesService.getAllClientes(
+    return this.clientesService.getAllArrendadores(
       +idUser,
       +cliente,
       +rol,
@@ -119,38 +118,50 @@ export class ClientesController {
   }
 
   @Get(":id")
-  @ApiOperation({ summary: "Obtener cliente por ID" })
-  getOneCliente(@Param("id") id: string) {
-    return this.clientesService.getOneCliente(+id);
+  getOneArrendador(@Param("id") id: string) {
+    return this.clientesService.getOneArrendador(+id);
   }
 
   @Patch("estatus/:id")
-  @ApiOperation({ summary: "Cambiar estatus del cliente" })
-  updateEstatusCliente(
+  updateEstatusArrendadores(
     @Param("id") id: string,
     @Req() req,
-    @Body() updateClienteEstatusDto: UpdateClienteEstatusDto,
+    @Body() updateArrendadorEstatusDto: UpdateArrendadorEstatusDto,
   ): Promise<ApiCrudResponse> {
     const idUser = req.user.userId;
-    return this.clientesService.updateClienteStatus(
+    return this.clientesService.updateArrendadorStatus(
       +id,
       idUser,
-      updateClienteEstatusDto,
+      updateArrendadorEstatusDto,
     );
   }
 
   @Put(":id")
-  @UseInterceptors(AnyFilesInterceptor(clienteMultipartOptions as any))
-  @ApiOperation({ summary: "Actualizar cliente" })
-  @ApiParam({ name: "id", description: "ID del cliente", example: 1 })
+  @UseInterceptors(AnyFilesInterceptor(arrendadorMultipartOptions as any))
+  @ApiOperation({
+    summary: "Actualizar información completa del cliente",
+    description:
+      "Actualiza el cliente. socios[i].id actualiza socio existente; sin id crea uno nuevo. " +
+      "Archivos del cliente y documentos de socios se suben a S3.",
+  })
+  @ApiParam({
+    name: "id",
+    description: "ID del cliente a actualizar",
+    example: 1,
+    type: Number,
+  })
   @ApiConsumes("multipart/form-data")
-  @ApiBody({ type: UpdateClienteDto })
-  async updateCliente(
+  @ApiBody({
+    type: UpdateArrendadorDto,
+    description:
+      "Campos opcionales del cliente, archivos y socios[i].* (con id actualiza, sin id crea).",
+  })
+  async updateArrendador(
     @Param("id") id: string,
     @Req() req: any,
   ): Promise<ApiCrudResponse> {
     const nested = parseNestedFormData(req.body, req.files);
-    const dto = plainToInstance(UpdateClienteDto, nested, {
+    const dto = plainToInstance(UpdateArrendadorDto, nested, {
       enableImplicitConversion: true,
     });
     const errors = await validate(dto, {
@@ -168,16 +179,15 @@ export class ClientesController {
       });
     }
     const idUser = req.user.userId;
-    return this.clientesService.updateCliente(+id, idUser, dto);
+    return this.clientesService.updateArrendador(+id, idUser, dto);
   }
 
   @Delete(":id")
-  @ApiOperation({ summary: "Desactivar cliente (estatus 0)" })
-  async removeCliente(
+  async removeArrendadors(
     @Param("id") id: string,
     @Req() req,
   ): Promise<ApiCrudResponse> {
     const idUser = req.user.userId;
-    return this.clientesService.removeCliente(+id, idUser);
+    return await this.clientesService.removeArrendador(+id, idUser);
   }
 }

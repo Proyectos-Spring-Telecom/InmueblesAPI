@@ -8,13 +8,13 @@ import { BitacoraService } from 'src/bitacora/bitacora.service';
 import { ApiCrudResponse, ApiResponseCommon, EstatusEnumBitcora } from 'src/common/ApiResponse';
 import { log } from 'console';
 import { getClienteHijos, getClienteHijosPag } from 'src/utils/cliente-utils';
-import { Clientes } from 'src/entities/Clientes';
+import { Arrendadores } from 'src/entities/Arrendadores';
 
 @Injectable()
 export class InstalacionCentralService {
   constructor(
     @InjectRepository(InstalacionCentral) private instalacionCentralRepository: Repository<InstalacionCentral>,
-    @InjectRepository(Clientes) private clienteRepository: Repository<Clientes>,
+    @InjectRepository(Arrendadores) private clienteRepository: Repository<Arrendadores>,
     private readonly bitacoraService: BitacoraService
   ) { }
 

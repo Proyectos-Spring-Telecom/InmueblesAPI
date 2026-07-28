@@ -3,12 +3,6 @@ export const CLIENTE_ARCHIVO_FIELDS = [
   "constanciaSituacionFiscal",
   "comprobanteDomicilio",
   "actaConstitutiva",
-  "licenciaFuncionamiento",
-  "constanciaProteccionCivil",
-  "usoSuelo",
-  "planoCatastral",
-  "poderRepresentanteLegal",
-  "ineRepresentanteLegal",
 ] as const;
 
 export type ClienteArchivoField = (typeof CLIENTE_ARCHIVO_FIELDS)[number];

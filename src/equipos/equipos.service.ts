@@ -8,13 +8,13 @@ import { BitacoraService } from 'src/bitacora/bitacora.service';
 import { ApiCrudResponse, ApiResponseCommon, EstatusEnumBitcora } from 'src/common/ApiResponse';
 import { EstadoEquipoEnum } from 'src/utils/enums/EstatusEquiposEnum.enum';
 import { getClienteHijos, getClienteHijosPag } from 'src/utils/cliente-utils';
-import { Clientes } from 'src/entities/Clientes';
+import { Arrendadores } from 'src/entities/Arrendadores';
 
 @Injectable()
 export class EquiposService {
   constructor(
     @InjectRepository(Equipos) private readonly equiposRepository:Repository<Equipos>,
-    @InjectRepository(Clientes) private readonly clienteRepository:Repository<Clientes>,
+    @InjectRepository(Arrendadores) private readonly clienteRepository:Repository<Arrendadores>,
     private readonly bitacoraLogger: BitacoraService
   ){}
 

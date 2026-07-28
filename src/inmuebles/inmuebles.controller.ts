@@ -129,10 +129,13 @@ export class InmueblesController {
     summary: "Listar inmuebles paginados (con todas sus relaciones).",
   })
   findAllPaginated(
+    @Req() req: any,
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
   ) {
-    return this.inmueblesService.findAllPaginated(page, limit);
+    const cliente = Number(req.user?.cliente || 0);
+    const rol = Number(req.user?.rol || 0);
+    return this.inmueblesService.findAllPaginated(page, limit, cliente, rol);
   }
 
   @Get("dashboard/:idInmueble")
@@ -168,9 +171,16 @@ export class InmueblesController {
     summary: "Listar inmuebles por idArrendador (con todas sus relaciones).",
   })
   findByIdArrendador(
+    @Req() req: any,
     @Param("idArrendador", ParseIntPipe) idArrendador: number,
   ) {
-    return this.inmueblesService.findByIdArrendador(idArrendador);
+    const cliente = Number(req.user?.cliente || 0);
+    const rol = Number(req.user?.rol || 0);
+    return this.inmueblesService.findByIdArrendador(
+      idArrendador,
+      cliente,
+      rol,
+    );
   }
 
   @Get("servicios/:idInmueble")

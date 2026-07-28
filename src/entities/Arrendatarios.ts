@@ -8,7 +8,7 @@ import {
   PrimaryGeneratedColumn,
 } from "typeorm";
 import { applySchema } from "src/utils/schema";
-import { Clientes } from "./Clientes";
+import { Arrendadores } from "./Arrendadores";
 import { ServiciosArrendatarios } from "./ServiciosArrendatarios";
 import { ArchivosArrendatarios } from "./ArchivosArrendatarios";
 import { SociosArrendatarios } from "./SociosArrendatarios";
@@ -84,12 +84,12 @@ export class Arrendatarios {
   @Column("double", { name: "Lng", nullable: true })
   lng: number | null;
 
-  @ManyToOne(() => Clientes, {
+  @ManyToOne(() => Arrendadores, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",
   })
   @JoinColumn([{ name: "IdArrendador", referencedColumnName: "id" }])
-  arrendador: Clientes;
+  arrendador: Arrendadores;
 
   @OneToMany(() => ServiciosArrendatarios, (s) => s.arrendatario)
   servicios: ServiciosArrendatarios[];

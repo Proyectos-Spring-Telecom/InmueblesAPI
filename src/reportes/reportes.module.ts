@@ -6,7 +6,7 @@ import { InstalacionCentral } from 'src/entities/InstalacionCentral';
 import { InstalacionEquipo } from 'src/entities/InstalacionEquipo';
 import { Equipos } from 'src/entities/Equipos';
 import { Incidencia } from 'src/entities/Incidencias';
-import { Clientes } from 'src/entities/Clientes';
+import { Arrendadores } from 'src/entities/Arrendadores';
 
 @Module({
   imports: [
@@ -15,7 +15,7 @@ import { Clientes } from 'src/entities/Clientes';
       InstalacionEquipo,
       Equipos,
       Incidencia,
-      Clientes,
+      Arrendadores,
     ]),
   ],
   controllers: [ReportesController],

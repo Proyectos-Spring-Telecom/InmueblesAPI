@@ -4,10 +4,10 @@ import { InstalacionCentralController } from './instalacion-central.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { InstalacionCentral } from 'src/entities/InstalacionCentral';
 import { BitacoraModule } from 'src/bitacora/bitacora.module';
-import { Clientes } from 'src/entities/Clientes';
+import { Arrendadores } from 'src/entities/Arrendadores';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([InstalacionCentral, Clientes]),BitacoraModule],
+  imports: [TypeOrmModule.forFeature([InstalacionCentral, Arrendadores]),BitacoraModule],
   controllers: [InstalacionCentralController],
   providers: [InstalacionCentralService],
 })

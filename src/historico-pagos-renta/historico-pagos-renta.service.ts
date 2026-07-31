@@ -13,11 +13,13 @@ import {
   PAGO_MENSUAL_RELATIONS,
   parseRangoFechas,
 } from "src/common/pago-mensual.utils";
+import { Arrendadores } from "src/entities/Arrendadores";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Formulas } from "src/entities/Formulas";
 import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
 import { RentaActual } from "src/entities/RentaActual";
+import { getClienteHijos, isSuperAdmin } from "src/utils/cliente-utils";
 import { CreateHistoricoPagoRentaDto } from "./dto/create-historico-pago-renta.dto";
 import { UpdateHistoricoPagoRentaDto } from "./dto/update-historico-pago-renta.dto";
 
@@ -37,6 +39,8 @@ export class HistoricoPagosRentaService {
     private readonly rentaActualRepository: Repository<RentaActual>,
     @InjectRepository(Arrendatarios)
     private readonly arrendatariosRepository: Repository<Arrendatarios>,
+    @InjectRepository(Arrendadores)
+    private readonly arrendadoresRepository: Repository<Arrendadores>,
     @InjectRepository(ContratoArrendatarios)
     private readonly contratoRepository: Repository<ContratoArrendatarios>,
     @InjectRepository(Formulas)
@@ -200,6 +204,8 @@ export class HistoricoPagosRentaService {
     page: number,
     limit: number,
     filters: HistoricoPagosRentaFilters,
+    idCliente: number,
+    rol: number,
   ): Promise<ApiResponseCommon> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
@@ -208,6 +214,26 @@ export class HistoricoPagosRentaService {
       filters.fechaInicio,
       filters.fechaFin,
     );
+
+    // Rol > 1: solo pagos de arrendatarios de arrendadores del cliente JWT
+    let arrendadorIds: number[] | null = null;
+    if (!isSuperAdmin(rol)) {
+      const scope = await getClienteHijos(
+        this.arrendadoresRepository,
+        idCliente,
+      );
+      if (scope.ids.length === 0) {
+        return {
+          data: [],
+          paginated: {
+            total: 0,
+            page: safePage,
+            lastPage: 0,
+          },
+        };
+      }
+      arrendadorIds = scope.ids;
+    }
 
     const qb = this.historicoRepository
       .createQueryBuilder("h")
@@ -219,6 +245,12 @@ export class HistoricoPagosRentaService {
       .leftJoinAndSelect("h.formula", "formula")
       .where("h.mes >= :inicio", { inicio })
       .andWhere("h.mes <= :fin", { fin });
+
+    if (arrendadorIds) {
+      qb.andWhere("arrendatario.idArrendador IN (:...arrendadorIds)", {
+        arrendadorIds,
+      });
+    }
 
     if (filters.idArrendatario != null) {
       qb.andWhere("h.idArrendatario = :idArrendatario", {

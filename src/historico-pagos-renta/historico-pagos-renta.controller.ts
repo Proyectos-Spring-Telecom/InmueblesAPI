@@ -8,6 +8,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   UseGuards,
   BadRequestException,
 } from "@nestjs/common";
@@ -73,7 +74,8 @@ export class HistoricoPagosRentaController {
     summary: "Listar histórico de pagos de renta paginado por rango de fechas",
     description:
       "Filtra por `mes` entre fechaInicio y fechaFin (YYYY-MM-DD). " +
-      "Opcionalmente por idArrendatario e idContrato. Incluye desglose e incrementos vs. mes anterior.",
+      "Opcionalmente por idArrendatario e idContrato. " +
+      "Rol > 1: solo pagos de arrendatarios cuyos arrendadores pertenecen al cliente del JWT.",
   })
   @ApiQuery({ name: "page", required: true, type: Number, example: 1 })
   @ApiQuery({ name: "limit", required: true, type: Number, example: 10 })
@@ -82,6 +84,7 @@ export class HistoricoPagosRentaController {
   @ApiQuery({ name: "idArrendatario", required: false, type: Number })
   @ApiQuery({ name: "idContrato", required: false, type: Number })
   findAllPaginated(
+    @Req() req: any,
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
     @Query("fechaInicio") fechaInicio: string,
@@ -95,18 +98,27 @@ export class HistoricoPagosRentaController {
       );
     }
 
-    return this.historicoPagosRentaService.findAllPaginated(page, limit, {
-      fechaInicio,
-      fechaFin,
-      idArrendatario: this.historicoPagosRentaService.assertOptionalInt(
-        idArrendatario,
-        "idArrendatario",
-      ),
-      idContrato: this.historicoPagosRentaService.assertOptionalInt(
-        idContrato,
-        "idContrato",
-      ),
-    });
+    const cliente = Number(req.user?.cliente || 0);
+    const rol = Number(req.user?.rol || 0);
+
+    return this.historicoPagosRentaService.findAllPaginated(
+      page,
+      limit,
+      {
+        fechaInicio,
+        fechaFin,
+        idArrendatario: this.historicoPagosRentaService.assertOptionalInt(
+          idArrendatario,
+          "idArrendatario",
+        ),
+        idContrato: this.historicoPagosRentaService.assertOptionalInt(
+          idContrato,
+          "idContrato",
+        ),
+      },
+      cliente,
+      rol,
+    );
   }
 
   @Get(":id")

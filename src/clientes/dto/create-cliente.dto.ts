@@ -7,8 +7,15 @@ import {
   MaxLength,
   IsEmail,
   IsIn,
+  ValidateIf,
 } from "class-validator";
 import { Transform } from "class-transformer";
+
+/** FormData/JSON: permite null o "" sin fallar @IsEmail. */
+function emptyToNull({ value }: { value: unknown }) {
+  if (value === "" || value === null || value === undefined) return null;
+  return value;
+}
 
 export class CreateClienteDto {
   @IsOptional()
@@ -69,13 +76,16 @@ export class CreateClienteDto {
   telefono?: string;
 
   @IsOptional()
+  @Transform(emptyToNull)
+  @ValidateIf((_, v) => v != null && v !== "")
   @IsEmail({}, { message: "Debe ser un correo válido" })
   @ApiProperty({
     description: "Correo electrónico",
     example: "cliente@correo.com",
     required: false,
+    nullable: true,
   })
-  correo?: string;
+  correo?: string | null;
 
   @IsOptional()
   @IsString()
@@ -164,13 +174,16 @@ export class CreateClienteDto {
   telefonoEncargado?: string;
 
   @IsOptional()
+  @Transform(emptyToNull)
+  @ValidateIf((_, v) => v != null && v !== "")
   @IsEmail({}, { message: "Debe ser un correo válido" })
   @ApiProperty({
     description: "Correo del encargado",
     example: "encargado@correo.com",
     required: false,
+    nullable: true,
   })
-  correoEncargado?: string;
+  correoEncargado?: string | null;
 
   @IsOptional()
   @ApiProperty({

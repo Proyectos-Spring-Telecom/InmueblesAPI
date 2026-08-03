@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -22,12 +23,14 @@ import {
   ApiConsumes,
   ApiOkResponse,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
+import { ApiCrudResponse } from "src/common/ApiResponse";
 import { MULTIPART_FILE_OPTIONS } from "src/common/multipart-file.config";
 import { CreateInmuebleDto } from "./dto/create-inmueble.dto";
 import { UpdateInmuebleDto } from "./dto/update-inmueble.dto";
@@ -267,6 +270,46 @@ export class InmueblesController {
     return this.inmueblesService.updateLocalEstatus(idLocal, dto.estatus);
   }
 
+  @Delete("servicios/:id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Dar de baja un servicio del inmueble",
+    description: "Pone Estatus = 0 en ServiciosInmuebles.",
+  })
+  @ApiParam({ name: "id", description: "ID del servicio", example: 1 })
+  removeServicioInmueble(
+    @Param("id", ParseIntPipe) id: number,
+  ): Promise<ApiCrudResponse> {
+    return this.inmueblesService.removeServicioInmueble(id);
+  }
+
+  @Delete("zonas/:id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Dar de baja una zona del inmueble",
+    description:
+      "Pone Estatus = 0 en ZonasInmuebles y en sus LocalesZonaInmueble.",
+  })
+  @ApiParam({ name: "id", description: "ID de la zona", example: 1 })
+  removeZonaInmueble(
+    @Param("id", ParseIntPipe) id: number,
+  ): Promise<ApiCrudResponse> {
+    return this.inmueblesService.removeZonaInmueble(id);
+  }
+
+  @Delete("archivos/:id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Dar de baja un archivo del inmueble",
+    description: "Pone Estatus = 0 en ArchivosInmuebles.",
+  })
+  @ApiParam({ name: "id", description: "ID del archivo", example: 1 })
+  removeArchivoInmueble(
+    @Param("id", ParseIntPipe) id: number,
+  ): Promise<ApiCrudResponse> {
+    return this.inmueblesService.removeArchivoInmueble(id);
+  }
+
   @Patch("mapa/:id")
   @HttpCode(200)
   @ApiOperation({ summary: "Actualizar solo MapaInmueble (JSON) del inmueble." })
@@ -276,6 +319,22 @@ export class InmueblesController {
     @Body() dto: UpdateMapaInmuebleDto,
   ) {
     return this.inmueblesService.updateMapaInmueble(id, dto.mapaInmueble);
+  }
+
+  @Delete(":id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Dar de baja un inmueble (soft-delete)",
+    description:
+      "Pone Estatus = 0 en el inmueble y en dependencias con IdInmueble " +
+      "(ServiciosInmuebles, ZonasInmuebles, ArchivosInmuebles, ContratoArrendatarios, " +
+      "Estacionamientos, Pago), más locales de zona y ContratoLocales.",
+  })
+  @ApiParam({ name: "id", description: "ID del inmueble", example: 1 })
+  async removeInmueble(
+    @Param("id", ParseIntPipe) id: number,
+  ): Promise<ApiCrudResponse> {
+    return this.inmueblesService.removeInmueble(id);
   }
 
   @Get(":id")

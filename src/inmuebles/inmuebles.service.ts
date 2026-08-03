@@ -13,8 +13,10 @@ import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { ArchivosInmuebles } from "src/entities/ArchivosInmuebles";
+import { Estacionamientos } from "src/entities/Estacionamientos";
+import { Pago } from "src/entities/Pago";
 import { S3Service } from "src/s3/s3.service";
-import { ApiResponseCommon } from "src/common/ApiResponse";
+import { ApiCrudResponse, ApiResponseCommon } from "src/common/ApiResponse";
 import { LocalesEstatus } from "src/common/locales-estatus.enum";
 import { resolveEntityId } from "src/common/resolve-entity-id";
 import {
@@ -83,6 +85,8 @@ export class InmueblesService {
     private readonly contratoRepository: Repository<ContratoArrendatarios>,
     @InjectRepository(ServiciosInmuebles)
     private readonly serviciosInmueblesRepository: Repository<ServiciosInmuebles>,
+    @InjectRepository(ArchivosInmuebles)
+    private readonly archivosInmueblesRepository: Repository<ArchivosInmuebles>,
   ) {}
 
   private async arrendadorScopeWhere(
@@ -257,9 +261,98 @@ export class InmueblesService {
     );
 
     return this.inmueblesRepository.find({
-      where: { idArrendador },
+      where: { idArrendador, estatus: 1 },
       relations: FULL_RELATIONS,
       order: { id: "DESC" },
+    });
+  }
+
+  /**
+   * Baja lógica del inmueble (Estatus = 0) y de dependencias con IdInmueble
+   * (servicios, zonas, archivos, contratos, estacionamientos, pagos)
+   * más hijos indirectos: locales de zona y contrato-locales.
+   */
+  async removeInmueble(id: number): Promise<ApiCrudResponse> {
+    return this.dataSource.transaction(async (manager) => {
+      const inmueble = await manager.findOne(Inmuebles, { where: { id } });
+      if (!inmueble) {
+        throw new NotFoundException(`Inmueble con id ${id} no encontrado.`);
+      }
+      if (Number(inmueble.estatus) === 0) {
+        throw new BadRequestException(
+          `El inmueble con id ${id} ya está dado de baja.`,
+        );
+      }
+
+      await manager.update(Inmuebles, id, {
+        estatus: 0,
+        estatusInmueble: 0,
+      });
+
+      await manager.update(
+        ServiciosInmuebles,
+        { idInmueble: id },
+        { estatus: 0 },
+      );
+      await manager.update(
+        ArchivosInmuebles,
+        { idInmueble: id },
+        { estatus: 0 },
+      );
+      await manager.update(
+        ContratoArrendatarios,
+        { idInmueble: id },
+        { estatus: 0 },
+      );
+      await manager.update(
+        Estacionamientos,
+        { idInmueble: id },
+        { estatus: 0 },
+      );
+      await manager.update(Pago, { idInmueble: id }, { estatus: 0 });
+
+      const zonas = await manager.find(ZonasInmuebles, {
+        where: { idInmueble: id },
+        select: ["id"],
+      });
+      await manager.update(ZonasInmuebles, { idInmueble: id }, { estatus: 0 });
+
+      if (zonas.length > 0) {
+        const zonaIds = zonas.map((z) => Number(z.id));
+        await manager.update(
+          LocalesZonaInmueble,
+          { idZona: In(zonaIds) },
+          { estatus: LocalesEstatus.Baja },
+        );
+      }
+
+      const contratos = await manager.find(ContratoArrendatarios, {
+        where: { idInmueble: id },
+        select: ["id"],
+      });
+      if (contratos.length > 0) {
+        const contratoIds = contratos.map((c) => Number(c.id));
+        // Estatus en ContratoLocales tiene update:false en la entidad → SQL directo
+        await manager.query(
+          `UPDATE ContratoLocales
+           SET Estatus = 0, FechaBaja = CURRENT_TIMESTAMP
+           WHERE IdContrato IN (${contratoIds.map(() => "?").join(",")})`,
+          contratoIds,
+        );
+      }
+
+      this.logger.log(
+        `Inmueble ${id} dado de baja con dependencias (servicios, zonas, locales, archivos, contratos, estacionamientos, pagos).`,
+      );
+
+      return {
+        status: "success",
+        message: "Inmueble y dependencias dados de baja correctamente.",
+        data: {
+          id,
+          nombre: inmueble.inmueble ?? "",
+        },
+      };
     });
   }
 
@@ -441,6 +534,84 @@ export class InmueblesService {
     };
   }
 
+  async removeServicioInmueble(id: number): Promise<ApiCrudResponse> {
+    const row = await this.serviciosInmueblesRepository.findOne({
+      where: { id },
+    });
+    if (!row) {
+      throw new NotFoundException(
+        `Servicio de inmueble con id ${id} no encontrado.`,
+      );
+    }
+    if (Number(row.estatus) === 0) {
+      throw new BadRequestException(
+        `El servicio de inmueble con id ${id} ya está dado de baja.`,
+      );
+    }
+
+    await this.serviciosInmueblesRepository.update(id, { estatus: 0 });
+
+    return {
+      status: "success",
+      message: "Servicio de inmueble dado de baja correctamente.",
+      data: { id, nombre: row.numeroContrato ?? "" },
+    };
+  }
+
+  async removeZonaInmueble(id: number): Promise<ApiCrudResponse> {
+    return this.dataSource.transaction(async (manager) => {
+      const zona = await manager.findOne(ZonasInmuebles, { where: { id } });
+      if (!zona) {
+        throw new NotFoundException(
+          `Zona de inmueble con id ${id} no encontrada.`,
+        );
+      }
+      if (Number(zona.estatus) === 0) {
+        throw new BadRequestException(
+          `La zona de inmueble con id ${id} ya está dada de baja.`,
+        );
+      }
+
+      await manager.update(ZonasInmuebles, id, { estatus: 0 });
+      await manager.update(
+        LocalesZonaInmueble,
+        { idZona: id },
+        { estatus: LocalesEstatus.Baja },
+      );
+
+      return {
+        status: "success",
+        message:
+          "Zona de inmueble y sus locales dados de baja correctamente.",
+        data: { id, nombre: zona.zonaPrincipal ?? "" },
+      };
+    });
+  }
+
+  async removeArchivoInmueble(id: number): Promise<ApiCrudResponse> {
+    const row = await this.archivosInmueblesRepository.findOne({
+      where: { id },
+    });
+    if (!row) {
+      throw new NotFoundException(
+        `Archivo de inmueble con id ${id} no encontrado.`,
+      );
+    }
+    if (Number(row.estatus) === 0) {
+      throw new BadRequestException(
+        `El archivo de inmueble con id ${id} ya está dado de baja.`,
+      );
+    }
+
+    await this.archivosInmueblesRepository.update(id, { estatus: 0 });
+
+    return {
+      status: "success",
+      message: "Archivo de inmueble dado de baja correctamente.",
+      data: { id, nombre: row.nombre ?? "" },
+    };
+  }
+
   private async assertInmuebleExists(idInmueble: number): Promise<void> {
     const inmueble = await this.inmueblesRepository.findOne({
       where: { id: idInmueble },
@@ -523,7 +694,7 @@ export class InmueblesService {
 
     const [idRows, total] = await this.inmueblesRepository.findAndCount({
       select: ["id"],
-      where: scope,
+      where: { ...scope, estatus: 1 },
       order: { id: "DESC" },
       skip,
       take: safeLimit,

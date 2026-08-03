@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -19,12 +20,14 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiParam,
   ApiQuery,
   ApiTags,
 } from "@nestjs/swagger";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
+import { ApiCrudResponse } from "src/common/ApiResponse";
 import { MULTIPART_FILE_OPTIONS } from "src/common/multipart-file.config";
 import { parseNestedFormData } from "src/inmuebles/utils/form-data-nested";
 import { RegistrarArrendatarioFormDto } from "./dto/registrar-arrendatario-form.dto";
@@ -121,6 +124,74 @@ export class ArrendatariosController {
     return this.arrendatariosService.findServiciosByIdArrendatario(
       idArrendatario,
     );
+  }
+
+  @Delete("contratos/:id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Dar de baja un contrato de arrendatario",
+    description:
+      "Pone Estatus = 0 y FechaBaja en ContratoArrendatarios; da de baja sus ContratoLocales " +
+      "y libera locales a Disponible.",
+  })
+  @ApiParam({ name: "id", description: "ID del ContratoArrendatarios", example: 1 })
+  removeContratoArrendatario(@Param("id", ParseIntPipe) id: number) {
+    return this.arrendatariosService.removeContratoArrendatario(id);
+  }
+
+  @Delete("servicios/:id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Dar de baja un servicio de arrendatario",
+    description: "Pone Estatus = 0 en ServiciosArrendatarios.",
+  })
+  @ApiParam({ name: "id", description: "ID del servicio", example: 1 })
+  removeServicioArrendatario(
+    @Param("id", ParseIntPipe) id: number,
+  ): Promise<ApiCrudResponse> {
+    return this.arrendatariosService.removeServicioArrendatario(id);
+  }
+
+  @Delete("socios/:id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Dar de baja un socio de arrendatario",
+    description: "Pone Estatus = 0 en SociosArrendatarios.",
+  })
+  @ApiParam({ name: "id", description: "ID del socio", example: 1 })
+  removeSocioArrendatario(
+    @Param("id", ParseIntPipe) id: number,
+  ): Promise<ApiCrudResponse> {
+    return this.arrendatariosService.removeSocioArrendatario(id);
+  }
+
+  @Delete("archivos/:id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Dar de baja un archivo de arrendatario",
+    description: "Pone Estatus = 0 en ArchivosArrendatarios.",
+  })
+  @ApiParam({ name: "id", description: "ID del archivo", example: 1 })
+  removeArchivoArrendatario(
+    @Param("id", ParseIntPipe) id: number,
+  ): Promise<ApiCrudResponse> {
+    return this.arrendatariosService.removeArchivoArrendatario(id);
+  }
+
+  @Delete(":id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Dar de baja un arrendatario (soft-delete)",
+    description:
+      "Pone Estatus = 0 en Arrendatarios y en dependencias con IdArrendatario " +
+      "(ServiciosArrendatarios, SociosArrendatarios, ArchivosArrendatarios, " +
+      "ContratoArrendatarios + ContratoLocales/locales, Estacionamientos, PagosArrendatarios).",
+  })
+  @ApiParam({ name: "id", description: "ID del arrendatario", example: 1 })
+  removeArrendatario(
+    @Param("id", ParseIntPipe) id: number,
+  ): Promise<ApiCrudResponse> {
+    return this.arrendatariosService.removeArrendatario(id);
   }
 
   @Get(":id")

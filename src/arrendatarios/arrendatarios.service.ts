@@ -13,8 +13,12 @@ import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { ArchivosArrendatarios } from "src/entities/ArchivosArrendatarios";
 import { SociosArrendatarios } from "src/entities/SociosArrendatarios";
+import { Estacionamientos } from "src/entities/Estacionamientos";
+import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
 import { S3Service } from "src/s3/s3.service";
-import { ApiResponseCommon } from "src/common/ApiResponse";
+import { ContratosService } from "src/contratos/contratos.service";
+import { ApiCrudResponse, ApiResponseCommon } from "src/common/ApiResponse";
+import { ContratoEstatus } from "src/common/contrato-estatus.enum";
 import { LocalesEstatus } from "src/common/locales-estatus.enum";
 import { resolveEntityId } from "src/common/resolve-entity-id";
 import {
@@ -71,12 +75,17 @@ export class ArrendatariosService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly s3Service: S3Service,
+    private readonly contratosService: ContratosService,
     @InjectRepository(Arrendatarios)
     private readonly arrendatariosRepository: Repository<Arrendatarios>,
     @InjectRepository(Arrendadores)
     private readonly arrendadoresRepository: Repository<Arrendadores>,
     @InjectRepository(ServiciosArrendatarios)
     private readonly serviciosArrendatariosRepository: Repository<ServiciosArrendatarios>,
+    @InjectRepository(ArchivosArrendatarios)
+    private readonly archivosArrendatariosRepository: Repository<ArchivosArrendatarios>,
+    @InjectRepository(SociosArrendatarios)
+    private readonly sociosArrendatariosRepository: Repository<SociosArrendatarios>,
   ) {}
 
   private async arrendadorScopeWhere(
@@ -140,6 +149,185 @@ export class ArrendatariosService {
     });
   }
 
+  /** Baja de ContratoArrendatarios (estatus 0 + locales/contrato-locales). */
+  async removeContratoArrendatario(id: number) {
+    return this.contratosService.cancelarContrato(id);
+  }
+
+  async removeServicioArrendatario(id: number): Promise<ApiCrudResponse> {
+    const row = await this.serviciosArrendatariosRepository.findOne({
+      where: { id },
+    });
+    if (!row) {
+      throw new NotFoundException(
+        `Servicio de arrendatario con id ${id} no encontrado.`,
+      );
+    }
+    if (Number(row.estatus) === 0) {
+      throw new BadRequestException(
+        `El servicio de arrendatario con id ${id} ya está dado de baja.`,
+      );
+    }
+
+    await this.serviciosArrendatariosRepository.update(id, { estatus: 0 });
+
+    return {
+      status: "success",
+      message: "Servicio de arrendatario dado de baja correctamente.",
+      data: { id, nombre: row.numeroContrato ?? "" },
+    };
+  }
+
+  async removeSocioArrendatario(id: number): Promise<ApiCrudResponse> {
+    const row = await this.sociosArrendatariosRepository.findOne({
+      where: { id },
+    });
+    if (!row) {
+      throw new NotFoundException(
+        `Socio de arrendatario con id ${id} no encontrado.`,
+      );
+    }
+    if (Number(row.estatus) === 0) {
+      throw new BadRequestException(
+        `El socio de arrendatario con id ${id} ya está dado de baja.`,
+      );
+    }
+
+    await this.sociosArrendatariosRepository.update(id, { estatus: 0 });
+
+    return {
+      status: "success",
+      message: "Socio de arrendatario dado de baja correctamente.",
+      data: { id, nombre: row.nombre ?? "" },
+    };
+  }
+
+  async removeArchivoArrendatario(id: number): Promise<ApiCrudResponse> {
+    const row = await this.archivosArrendatariosRepository.findOne({
+      where: { id },
+    });
+    if (!row) {
+      throw new NotFoundException(
+        `Archivo de arrendatario con id ${id} no encontrado.`,
+      );
+    }
+    if (Number(row.estatus) === 0) {
+      throw new BadRequestException(
+        `El archivo de arrendatario con id ${id} ya está dado de baja.`,
+      );
+    }
+
+    await this.archivosArrendatariosRepository.update(id, { estatus: 0 });
+
+    return {
+      status: "success",
+      message: "Archivo de arrendatario dado de baja correctamente.",
+      data: { id, nombre: row.nombre ?? "" },
+    };
+  }
+
+  /**
+   * Baja lógica del arrendatario (Estatus = 0) y dependencias con IdArrendatario
+   * que tienen columna Estatus: servicios, socios, archivos, contratos (+ locales),
+   * estacionamientos y pagos.
+   */
+  async removeArrendatario(id: number): Promise<ApiCrudResponse> {
+    return this.dataSource.transaction(async (manager) => {
+      const arrendatario = await manager.findOne(Arrendatarios, {
+        where: { id },
+      });
+      if (!arrendatario) {
+        throw new NotFoundException(
+          `Arrendatario con id ${id} no encontrado.`,
+        );
+      }
+      if (Number(arrendatario.estatus) === 0) {
+        throw new BadRequestException(
+          `El arrendatario con id ${id} ya está dado de baja.`,
+        );
+      }
+
+      const fechaBaja = new Date();
+
+      await manager.update(Arrendatarios, id, { estatus: 0 });
+
+      await manager.update(
+        ServiciosArrendatarios,
+        { idArrendatario: id },
+        { estatus: 0 },
+      );
+      await manager.update(
+        SociosArrendatarios,
+        { idArrendatario: id },
+        { estatus: 0 },
+      );
+      await manager.update(
+        ArchivosArrendatarios,
+        { idArrendatario: id },
+        { estatus: 0 },
+      );
+      await manager.update(
+        Estacionamientos,
+        { idArrendatario: id },
+        { estatus: 0 },
+      );
+      await manager.update(
+        PagosArrendatarios,
+        { idArrendatario: id },
+        { estatus: 0 },
+      );
+
+      const contratos = await manager.find(ContratoArrendatarios, {
+        where: { idArrendatario: id },
+        select: ["id", "estatus"],
+      });
+
+      for (const contrato of contratos) {
+        if (Number(contrato.estatus) === ContratoEstatus.Baja) {
+          continue;
+        }
+
+        await manager.update(ContratoArrendatarios, contrato.id, {
+          estatus: ContratoEstatus.Baja,
+          fechaBaja,
+        });
+
+        const contratoLocales = await manager.find(ContratoLocales, {
+          where: { idContrato: contrato.id },
+        });
+
+        for (const contratoLocal of contratoLocales) {
+          if (
+            contratoLocal.fechaBaja != null ||
+            Number(contratoLocal.estatus) === ContratoEstatus.Baja
+          ) {
+            continue;
+          }
+
+          await manager.update(ContratoLocales, contratoLocal.id, {
+            fechaBaja,
+          });
+
+          if (contratoLocal.idLocal != null) {
+            await manager.update(LocalesZonaInmueble, contratoLocal.idLocal, {
+              estatus: LocalesEstatus.Disponible,
+            });
+          }
+        }
+      }
+
+      return {
+        status: "success",
+        message:
+          "Arrendatario y dependencias dados de baja correctamente.",
+        data: {
+          id,
+          nombre: arrendatario.arrendatario ?? "",
+        },
+      };
+    });
+  }
+
   async findAllActivos(
     idCliente: number,
     rol: number,
@@ -182,7 +370,7 @@ export class ArrendatariosService {
 
     const [idRows, total] = await this.arrendatariosRepository.findAndCount({
       select: ["id"],
-      where: scope,
+      where: { ...scope, estatus: 1 },
       order: { id: "DESC" },
       skip,
       take: safeLimit,

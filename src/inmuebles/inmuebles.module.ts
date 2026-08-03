@@ -4,6 +4,8 @@ import { ArchivosInmuebles } from "src/entities/ArchivosInmuebles";
 import { Arrendadores } from "src/entities/Arrendadores";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
+import { ContratoLocales } from "src/entities/ContratoLocales";
+import { Estacionamientos } from "src/entities/Estacionamientos";
 import { Inmuebles } from "src/entities/Inmuebles";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { Pago } from "src/entities/Pago";
@@ -25,8 +27,10 @@ import { InmueblesService } from "./inmuebles.service";
       ZonasInmuebles,
       LocalesZonaInmueble,
       ContratoArrendatarios,
+      ContratoLocales,
       ArchivosInmuebles,
       Arrendatarios,
+      Estacionamientos,
       RentaActual,
       PagosArrendatarios,
       Pago,

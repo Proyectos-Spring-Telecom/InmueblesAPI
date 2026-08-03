@@ -234,7 +234,7 @@ export class ArrendadoresService {
 
     const ids = clientes.map((c) => c.id);
     const socios = await this.sociosArrendadoresRepository.find({
-      where: { idCliente: In(ids) },
+      where: { idCliente: In(ids), estatus: 1 },
       order: { id: 'ASC' },
     });
 
@@ -600,6 +600,9 @@ ORDER BY Id ASC;
           `El cliente con ID: ${id} no fue encontrado.`,
         );
       }
+      cliente.sociosArrendadores = (cliente.sociosArrendadores ?? []).filter(
+        (s) => Number(s.estatus) === 1,
+      );
       return { data: cliente };
     } catch (error) {
       if (error instanceof HttpException) {
@@ -661,6 +664,11 @@ ORDER BY Id ASC;
         where: { id: id },
         relations: ['sociosArrendadores'],
       });
+      if (clientefind?.sociosArrendadores) {
+        clientefind.sociosArrendadores = clientefind.sociosArrendadores.filter(
+          (s) => Number(s.estatus) === 1,
+        );
+      }
       //Api response
       const result: ApiCrudResponse = {
         status: 'success',
@@ -816,6 +824,71 @@ ORDER BY Id ASC;
       }
       throw new InternalServerErrorException({
         message: `Error al eliminar el cliente con ID: ${id}.`,
+        error: error.message,
+      });
+    }
+  }
+
+  /** Soft-delete de SocioArrendador: estatus = 0. */
+  async removeSocioArrendador(
+    idSocioArrendador: number,
+    idUser: number,
+  ): Promise<ApiCrudResponse> {
+    try {
+      const socio = await this.sociosArrendadoresRepository.findOne({
+        where: { id: idSocioArrendador },
+      });
+      if (!socio) {
+        throw new NotFoundException(
+          `El socio arrendador con ID: ${idSocioArrendador} no fue encontrado.`,
+        );
+      }
+      if (Number(socio.estatus) === 0) {
+        throw new BadRequestException(
+          `El socio arrendador con ID: ${idSocioArrendador} ya está inactivo.`,
+        );
+      }
+
+      await this.sociosArrendadoresRepository.update(idSocioArrendador, {
+        estatus: 0,
+      });
+
+      const querylogger = { idSocioArrendador, estatus: 0 };
+      await this.bitacoraLogger.logToBitacora(
+        'SociosArrendadores',
+        `Se desactivó el socio arrendador con ID: ${idSocioArrendador}.`,
+        'UPDATE',
+        querylogger,
+        Number(idUser),
+        1,
+        EstatusEnumBitcora.SUCCESS,
+      );
+
+      return {
+        status: 'success',
+        message: 'El socio arrendador fue eliminado correctamente.',
+        data: {
+          id: idSocioArrendador,
+          nombre: socio.nombre ?? '',
+        },
+      };
+    } catch (error) {
+      const querylogger = { idSocioArrendador, estatus: 0 };
+      await this.bitacoraLogger.logToBitacora(
+        'SociosArrendadores',
+        `Error al desactivar el socio arrendador con ID: ${idSocioArrendador}.`,
+        'UPDATE',
+        querylogger,
+        Number(idUser),
+        1,
+        EstatusEnumBitcora.ERROR,
+        error.message,
+      );
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new InternalServerErrorException({
+        message: `Error al eliminar el socio arrendador con ID: ${idSocioArrendador}.`,
         error: error.message,
       });
     }

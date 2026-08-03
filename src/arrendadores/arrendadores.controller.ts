@@ -182,6 +182,25 @@ export class ArrendadoresController {
     return this.clientesService.updateArrendador(+id, idUser, dto);
   }
 
+  @Delete("socios/:idSocioArrendador")
+  @ApiOperation({
+    summary: "Eliminar (desactivar) socio arrendador",
+    description: "Pone Estatus = 0 en SociosArrendadores por idSocioArrendador.",
+  })
+  @ApiParam({
+    name: "idSocioArrendador",
+    description: "ID del socio arrendador",
+    example: 1,
+    type: Number,
+  })
+  async removeSocioArrendador(
+    @Param("idSocioArrendador", ParseIntPipe) idSocioArrendador: number,
+    @Req() req,
+  ): Promise<ApiCrudResponse> {
+    const idUser = req.user.userId;
+    return this.clientesService.removeSocioArrendador(idSocioArrendador, idUser);
+  }
+
   @Delete(":id")
   async removeArrendadors(
     @Param("id") id: string,

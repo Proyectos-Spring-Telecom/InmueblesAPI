@@ -332,11 +332,11 @@ export class InmueblesService {
       });
       if (contratos.length > 0) {
         const contratoIds = contratos.map((c) => Number(c.id));
-        // Estatus en ContratoLocales tiene update:false en la entidad → SQL directo
         await manager.query(
           `UPDATE ContratoLocales
            SET Estatus = 0, FechaBaja = CURRENT_TIMESTAMP
-           WHERE IdContrato IN (${contratoIds.map(() => "?").join(",")})`,
+           WHERE IdContrato IN (${contratoIds.map(() => "?").join(",")})
+             AND FechaBaja IS NULL`,
           contratoIds,
         );
       }

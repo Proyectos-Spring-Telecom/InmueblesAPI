@@ -306,6 +306,7 @@ export class ArrendatariosService {
 
           await manager.update(ContratoLocales, contratoLocal.id, {
             fechaBaja,
+            estatus: ContratoEstatus.Baja,
           });
 
           if (contratoLocal.idLocal != null) {

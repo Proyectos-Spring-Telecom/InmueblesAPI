@@ -59,6 +59,7 @@ export class ContratosService {
 
       await manager.update(ContratoLocales, idContratoLocal, {
         fechaBaja,
+        estatus: ContratoEstatus.Baja,
       });
 
       if (row.idLocal != null) {
@@ -115,6 +116,7 @@ export class ContratosService {
 
         await manager.update(ContratoLocales, contratoLocal.id, {
           fechaBaja,
+          estatus: ContratoEstatus.Baja,
         });
 
         if (contratoLocal.idLocal != null) {

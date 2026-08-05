@@ -328,7 +328,7 @@ export class InmueblesController {
     description:
       "Pone Estatus = 0 en el inmueble y en dependencias con IdInmueble " +
       "(ServiciosInmuebles, ZonasInmuebles, ArchivosInmuebles, ContratoArrendatarios, " +
-      "Estacionamientos, Pago), más locales de zona y ContratoLocales.",
+      "Estacionamientos, Pago), más locales de zona y ContratoLocales (Estatus = 0 + FechaBaja).",
   })
   @ApiParam({ name: "id", description: "ID del inmueble", example: 1 })
   async removeInmueble(

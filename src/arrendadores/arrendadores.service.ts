@@ -11,6 +11,11 @@ import { UpdateArrendadorDto } from './dto/update-arrendador.dto';
 import { UpdateArrendadorEstatusDto } from './dto/update-arrendador-estatus.dto';
 import { isSuperAdmin } from 'src/utils/cliente-utils';
 import {
+  canSeeInactive,
+  filterByEstatusRol,
+  estatusWhereForRol,
+} from 'src/utils/estatus-utils';
+import {
   ARRENDADOR_ARCHIVO_FIELDS,
   ArrendadorArchivoField,
 } from './arrendador-archivos.constants';
@@ -229,12 +234,13 @@ export class ArrendadoresService {
 
   private async attachSociosArrendadores<T extends { id: number }>(
     clientes: T[],
+    rol = 1,
   ): Promise<(T & { sociosArrendadores: SociosArrendadores[] })[]> {
     if (clientes.length === 0) return [];
 
     const ids = clientes.map((c) => c.id);
     const socios = await this.sociosArrendadoresRepository.find({
-      where: { idCliente: In(ids), estatus: 1 },
+      where: { idCliente: In(ids), ...estatusWhereForRol(rol) },
       order: { id: 'ASC' },
     });
 
@@ -444,7 +450,7 @@ FROM Arrendadores
           break;
 
         default:
-          // Rol > 1: solo arrendadores del cliente logueado
+          // Rol > 1: solo arrendadores activos del cliente logueado
           clientes = await this.clienteRepository.query(
             `
 SELECT
@@ -475,6 +481,7 @@ SELECT
   
 FROM Arrendadores
 WHERE IdCliente = ?
+  AND Estatus = 1
 ORDER BY Id ASC
   LIMIT ? OFFSET ?;
             `,
@@ -486,6 +493,7 @@ ORDER BY Id ASC
   SELECT COUNT(*) AS total
 FROM Arrendadores
 WHERE IdCliente = ?
+  AND Estatus = 1
   `,
             [cliente],
           );
@@ -497,6 +505,7 @@ WHERE IdCliente = ?
           ...item,
           id: Number(item.id),
         })),
+        rol,
       );
 
       const total = Number(totalResult[0]?.total || 0);
@@ -532,7 +541,7 @@ WHERE IdCliente = ?
       let clientes;
       switch (rol) {
         case 1:
-          // Usuario SuperAdministrador - obtiene todas las regiones
+          // Usuario SuperAdministrador - todos los estatus
           clientes = await this.clienteRepository.query(
             `
 SELECT
@@ -542,14 +551,13 @@ SELECT
   ApellidoMaterno AS apellidoMaterno,
   Logotipo AS logotipo
 FROM Arrendadores
-WHERE Estatus = 1
 ORDER BY Id ASC;
             `,
           );
           break;
 
         default:
-          // Rol > 1: solo arrendadores del cliente logueado
+          // Rol > 1: solo arrendadores activos del cliente logueado
           clientes = await this.clienteRepository.query(
             `
 SELECT
@@ -589,10 +597,15 @@ ORDER BY Id ASC;
   }
 
   //Obtener el cliente por ID
-  async getOneArrendador(id: number) {
+  async getOneArrendador(id: number, rol = 1) {
     try {
+      const where: { id: number; estatus?: number } = { id };
+      if (!canSeeInactive(rol)) {
+        where.estatus = 1;
+      }
+
       const cliente = await this.clienteRepository.findOne({
-        where: { id: id },
+        where,
         relations: ['sociosArrendadores'],
       });
       if (!cliente) {
@@ -600,8 +613,9 @@ ORDER BY Id ASC;
           `El cliente con ID: ${id} no fue encontrado.`,
         );
       }
-      cliente.sociosArrendadores = (cliente.sociosArrendadores ?? []).filter(
-        (s) => Number(s.estatus) === 1,
+      cliente.sociosArrendadores = filterByEstatusRol(
+        cliente.sociosArrendadores,
+        rol,
       );
       return { data: cliente };
     } catch (error) {

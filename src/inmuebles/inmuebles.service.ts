@@ -24,6 +24,10 @@ import {
   getClienteHijos,
   isSuperAdmin,
 } from "src/utils/cliente-utils";
+import {
+  estatusWhereForRol,
+  filterInmuebleRelations,
+} from "src/utils/estatus-utils";
 import { CreateInmuebleDto } from "./dto/create-inmueble.dto";
 import { UpdateInmuebleDto } from "./dto/update-inmueble.dto";
 import { CreateZonaInmuebleDto } from "./dto/create-zona-inmueble.dto";
@@ -215,15 +219,15 @@ export class InmueblesService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, rol = 1) {
     const data = await this.inmueblesRepository.findOne({
-      where: { id },
+      where: { id, ...estatusWhereForRol(rol) },
       relations: FULL_RELATIONS,
     });
     if (!data) {
       throw new NotFoundException(`Inmueble con id ${id} no encontrado.`);
     }
-    return data;
+    return filterInmuebleRelations(data, rol);
   }
 
   async updateMapaInmueble(
@@ -260,11 +264,13 @@ export class InmueblesService {
       idArrendador,
     );
 
-    return this.inmueblesRepository.find({
-      where: { idArrendador, estatus: 1 },
+    const data = await this.inmueblesRepository.find({
+      where: { idArrendador, ...estatusWhereForRol(rol) },
       relations: FULL_RELATIONS,
       order: { id: "DESC" },
     });
+
+    return data.map((item) => filterInmuebleRelations(item, rol));
   }
 
   /**
@@ -356,18 +362,18 @@ export class InmueblesService {
     });
   }
 
-  async findServiciosByIdInmueble(idInmueble: number) {
+  async findServiciosByIdInmueble(idInmueble: number, rol = 1) {
     await this.assertInmuebleExists(idInmueble);
     return this.serviciosInmueblesRepository.find({
-      where: { idInmueble },
+      where: { idInmueble, ...estatusWhereForRol(rol) },
       relations: ["tipoServicio"],
       order: { id: "ASC" },
     });
   }
 
-  async findZonasByIdInmueble(idInmueble: number) {
+  async findZonasByIdInmueble(idInmueble: number, rol = 1) {
     return this.zonasRepository.find({
-      where: { idInmueble },
+      where: { idInmueble, ...estatusWhereForRol(rol) },
       relations: ["locales"],
       order: {
         numeroZona: "ASC",
@@ -694,7 +700,7 @@ export class InmueblesService {
 
     const [idRows, total] = await this.inmueblesRepository.findAndCount({
       select: ["id"],
-      where: { ...scope, estatus: 1 },
+      where: { ...scope, ...estatusWhereForRol(rol) },
       order: { id: "DESC" },
       skip,
       take: safeLimit,
@@ -719,7 +725,7 @@ export class InmueblesService {
     });
 
     return {
-      data,
+      data: data.map((item) => filterInmuebleRelations(item, rol)),
       paginated: {
         total,
         page: safePage,

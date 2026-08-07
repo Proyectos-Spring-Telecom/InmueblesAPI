@@ -118,8 +118,9 @@ export class ArrendadoresController {
   }
 
   @Get(":id")
-  getOneArrendador(@Param("id") id: string) {
-    return this.clientesService.getOneArrendador(+id);
+  getOneArrendador(@Param("id") id: string, @Req() req) {
+    const rol = Number(req.user?.rol || 0);
+    return this.clientesService.getOneArrendador(+id, rol);
   }
 
   @Patch("estatus/:id")

@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Req,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -80,9 +81,11 @@ export class EstacionamientosController {
     summary: "Listar estacionamientos por idInmueble.",
   })
   findByIdInmueble(
+    @Req() req: any,
     @Param("idInmueble", ParseIntPipe) idInmueble: number,
   ) {
-    return this.estacionamientosService.findByIdInmueble(idInmueble);
+    const rol = Number(req.user?.rol || 0);
+    return this.estacionamientosService.findByIdInmueble(idInmueble, rol);
   }
 
   @Get("arrendatario/:idArrendatario")
@@ -90,14 +93,20 @@ export class EstacionamientosController {
     summary: "Listar estacionamientos por idArrendatario.",
   })
   findByIdArrendatario(
+    @Req() req: any,
     @Param("idArrendatario", ParseIntPipe) idArrendatario: number,
   ) {
-    return this.estacionamientosService.findByIdArrendatario(idArrendatario);
+    const rol = Number(req.user?.rol || 0);
+    return this.estacionamientosService.findByIdArrendatario(
+      idArrendatario,
+      rol,
+    );
   }
 
   @Get(":id")
   @ApiOperation({ summary: "Obtener estacionamiento por ID." })
-  findOne(@Param("id", ParseIntPipe) id: number) {
-    return this.estacionamientosService.findOne(id);
+  findOne(@Req() req: any, @Param("id", ParseIntPipe) id: number) {
+    const rol = Number(req.user?.rol || 0);
+    return this.estacionamientosService.findOne(id, rol);
   }
 }

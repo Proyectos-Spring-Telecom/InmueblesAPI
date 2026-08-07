@@ -8,6 +8,7 @@ import { EstacionamientoEstatus } from "src/common/estacionamiento-estatus.enum"
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { Estacionamientos } from "src/entities/Estacionamientos";
 import { Inmuebles } from "src/entities/Inmuebles";
+import { estatusWhereForRol } from "src/utils/estatus-utils";
 import { Repository } from "typeorm";
 import { CreateEstacionamientoDto } from "./dto/create-estacionamiento.dto";
 import { UpdateEstacionamientoDto } from "./dto/update-estacionamiento.dto";
@@ -95,10 +96,13 @@ export class EstacionamientosService {
     return this.updateEstatus(id, EstacionamientoEstatus.Activo);
   }
 
-  async findByIdInmueble(idInmueble: number): Promise<Estacionamientos[]> {
+  async findByIdInmueble(
+    idInmueble: number,
+    rol = 1,
+  ): Promise<Estacionamientos[]> {
     await this.assertInmuebleExists(idInmueble);
     return this.estacionamientosRepository.find({
-      where: { idInmueble },
+      where: { idInmueble, ...estatusWhereForRol(rol) },
       relations: LIST_RELATIONS,
       order: { id: "DESC" },
     });
@@ -106,18 +110,19 @@ export class EstacionamientosService {
 
   async findByIdArrendatario(
     idArrendatario: number,
+    rol = 1,
   ): Promise<Estacionamientos[]> {
     await this.assertArrendatarioExists(idArrendatario);
     return this.estacionamientosRepository.find({
-      where: { idArrendatario },
+      where: { idArrendatario, ...estatusWhereForRol(rol) },
       relations: LIST_RELATIONS,
       order: { id: "DESC" },
     });
   }
 
-  async findOne(id: number): Promise<Estacionamientos> {
+  async findOne(id: number, rol = 1): Promise<Estacionamientos> {
     const row = await this.estacionamientosRepository.findOne({
-      where: { id },
+      where: { id, ...estatusWhereForRol(rol) },
       relations: LIST_RELATIONS,
     });
     if (!row) {

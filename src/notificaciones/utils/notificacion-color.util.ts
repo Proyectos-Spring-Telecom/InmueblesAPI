@@ -1,34 +1,65 @@
 export type ColorAlerta = "verde" | "naranja" | "amarillo" | "rojo";
 
-function truncarDia(fecha: Date): Date {
-  return new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
-}
-
-/** Días calendario desde hoy hasta la fecha objetivo (negativo si ya venció). */
+/**
+ * Días calendario desde hoy (calendario local) hasta la fecha objetivo (día UTC de la fecha DB).
+ * Negativo si ya venció.
+ */
 export function diasFaltantesHasta(
   fechaObjetivo: Date,
   referencia = new Date(),
 ): number {
-  const ref = truncarDia(referencia);
-  const obj = truncarDia(fechaObjetivo);
-  return Math.round((obj.getTime() - ref.getTime()) / 86400000);
+  const refMs = Date.UTC(
+    referencia.getFullYear(),
+    referencia.getMonth(),
+    referencia.getDate(),
+  );
+  const objMs = Date.UTC(
+    fechaObjetivo.getUTCFullYear(),
+    fechaObjetivo.getUTCMonth(),
+    fechaObjetivo.getUTCDate(),
+  );
+  return Math.round((objMs - refMs) / 86400000);
+}
+
+/** Proyecta el día de la entidad a un mes/año concretos (UTC). */
+export function fechaPagoEnMes(
+  fechaPagoBase: Date,
+  anio: number,
+  mesIndex: number,
+): Date {
+  const diaBase = fechaPagoBase.getUTCDate();
+  const ultimoDiaMes = new Date(Date.UTC(anio, mesIndex + 1, 0)).getUTCDate();
+  const dia = Math.min(diaBase, ultimoDiaMes);
+  return new Date(Date.UTC(anio, mesIndex, dia));
 }
 
 /**
- * Proyecta el día de `fechaPagoBase` al mes/año de `referencia`
- * (ej. 15/08/2026 → 15/09/2026 si referencia es septiembre).
- * Si el día no existe en el mes destino (ej. 31 en feb), usa el último día del mes.
+ * Fecha de pago para la notificación:
+ * - Por defecto: día de la entidad en el mes actual.
+ * - Si esa fecha ya pasó y ya hay pago del mes → avanza al mes siguiente.
  */
-export function fechaPagoEnMesActual(
+export function fechaPagoParaNotificacion(
   fechaPagoBase: Date,
-  referencia = new Date(),
+  referencia: Date,
+  tienePagoDelMes: boolean,
 ): Date {
   const anio = referencia.getFullYear();
   const mes = referencia.getMonth();
-  const diaBase = fechaPagoBase.getDate();
-  const ultimoDiaMes = new Date(anio, mes + 1, 0).getDate();
-  const dia = Math.min(diaBase, ultimoDiaMes);
-  return new Date(anio, mes, dia);
+  const fechaMesActual = fechaPagoEnMes(fechaPagoBase, anio, mes);
+
+  if (
+    tienePagoDelMes &&
+    diasFaltantesHasta(fechaMesActual, referencia) < 0
+  ) {
+    const siguiente = new Date(anio, mes + 1, 1);
+    return fechaPagoEnMes(
+      fechaPagoBase,
+      siguiente.getFullYear(),
+      siguiente.getMonth(),
+    );
+  }
+
+  return fechaMesActual;
 }
 
 /**

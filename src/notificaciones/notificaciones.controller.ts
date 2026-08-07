@@ -17,7 +17,8 @@ export class NotificacionesController {
     description:
       "Rol 1: ve todo. Rol > 1: solo datos de arrendadores del IdCliente del JWT. " +
       "pagoServiciosInmuebles / pagosSeguimiento se forman con ServiciosInmuebles / ServiciosArrendatarios; " +
-      "FechaPago se proyecta al mes actual; se ocultan si ya hay Pago / PagosArrendatarios Pagado en ese mes.",
+      "FechaPago (día de la entidad) se proyecta al mes actual; si ya venció y hay pago del mes, " +
+      "avanza al mes siguiente. estatusPago: Pendiente=2, Pagado=1, null si no aplica al mes mostrado.",
   })
   obtenerNotificaciones(@Req() req: any) {
     const cliente = Number(req.user?.cliente || 0);

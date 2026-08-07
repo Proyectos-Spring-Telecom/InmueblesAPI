@@ -36,7 +36,8 @@ export function fechaPagoEnMes(
 /**
  * Fecha de pago para la notificación:
  * - Por defecto: día de la entidad en el mes actual.
- * - Si esa fecha ya pasó y ya hay pago del mes → avanza al mes siguiente.
+ * - Si ya hay pago del mes (Pendiente o Pagado) → avanza al mes siguiente,
+ *   aunque la fecha del mes actual aún no haya llegado.
  */
 export function fechaPagoParaNotificacion(
   fechaPagoBase: Date,
@@ -45,12 +46,8 @@ export function fechaPagoParaNotificacion(
 ): Date {
   const anio = referencia.getFullYear();
   const mes = referencia.getMonth();
-  const fechaMesActual = fechaPagoEnMes(fechaPagoBase, anio, mes);
 
-  if (
-    tienePagoDelMes &&
-    diasFaltantesHasta(fechaMesActual, referencia) < 0
-  ) {
+  if (tienePagoDelMes) {
     const siguiente = new Date(anio, mes + 1, 1);
     return fechaPagoEnMes(
       fechaPagoBase,
@@ -59,7 +56,7 @@ export function fechaPagoParaNotificacion(
     );
   }
 
-  return fechaMesActual;
+  return fechaPagoEnMes(fechaPagoBase, anio, mes);
 }
 
 /**

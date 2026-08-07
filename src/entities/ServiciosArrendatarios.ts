@@ -9,9 +9,11 @@ import {
 import { applySchema } from "src/utils/schema";
 import { Arrendatarios } from "./Arrendatarios";
 import { CatServicios } from "./CatServicios";
+import { ContratoArrendatarios } from "./ContratoArrendatarios";
 
 @Index("FK_Servicio_Arrendatario_idx", ["idArrendatario"], {})
 @Index("FK_Servicio_CatServicio_idx", ["idTipoServicio"], {})
+@Index("FK_ServicioArrendatario_Contrato_idx", ["idContrato"], {})
 @Entity("ServiciosArrendatarios")
 @applySchema
 export class ServiciosArrendatarios {
@@ -46,6 +48,9 @@ export class ServiciosArrendatarios {
   @Column("tinyint", { name: "Estatus", nullable: true, default: () => "'1'" })
   estatus: number | null;
 
+  @Column("bigint", { name: "IdContrato", nullable: true })
+  idContrato: number | null;
+
   @ManyToOne(() => Arrendatarios, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",
@@ -59,4 +64,11 @@ export class ServiciosArrendatarios {
   })
   @JoinColumn([{ name: "IdTipoServicio", referencedColumnName: "id" }])
   tipoServicio: CatServicios;
+
+  @ManyToOne(() => ContratoArrendatarios, {
+    onDelete: "NO ACTION",
+    onUpdate: "NO ACTION",
+  })
+  @JoinColumn([{ name: "IdContrato", referencedColumnName: "id" }])
+  contrato: ContratoArrendatarios;
 }

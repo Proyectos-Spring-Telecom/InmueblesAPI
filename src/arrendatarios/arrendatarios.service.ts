@@ -446,6 +446,7 @@ export class ArrendatariosService {
         dto.servicios ?? [],
         idArrendatario,
         idUser,
+        contratosOut.map((c) => c.id),
       );
       const archivosOut = await this.guardarArchivosLista(
         manager,
@@ -513,6 +514,8 @@ export class ArrendatariosService {
         dto.servicios ?? [],
         id,
         idUser,
+        true,
+        contratosOut.map((c) => c.id),
       );
       const archivosOut = await this.upsertArchivosLista(
         manager,
@@ -791,6 +794,9 @@ export class ArrendatariosService {
     if (s.idTipoServicio !== undefined) {
       patch.idTipoServicio = s.idTipoServicio;
     }
+    if (s.idContrato !== undefined) {
+      patch.idContrato = s.idContrato ?? null;
+    }
     if (s.numeroContrato !== undefined) {
       patch.numeroContrato = s.numeroContrato ?? null;
     }
@@ -803,18 +809,42 @@ export class ArrendatariosService {
     return patch;
   }
 
+  /**
+   * Resuelve IdContrato del servicio:
+   * - Si viene idContrato en el DTO, se usa.
+   * - Si no, se empareja por índice con el array de contratos guardados.
+   */
+  private resolveIdContratoServicio(
+    s: UpdateServicioArrendatarioItemDto,
+    index: number,
+    contratoIdsOrdered: number[],
+  ): number | null {
+    if (s.idContrato != null && !Number.isNaN(Number(s.idContrato))) {
+      return Number(s.idContrato);
+    }
+    if (contratoIdsOrdered.length === 0) return null;
+    // Un solo contrato en el payload: todos los servicios sin idContrato van a él.
+    if (contratoIdsOrdered.length === 1) return contratoIdsOrdered[0];
+    if (index < contratoIdsOrdered.length) {
+      return contratoIdsOrdered[index];
+    }
+    return null;
+  }
+
   private async appendServicios(
     manager: import("typeorm").EntityManager,
     items: RegistrarArrendatarioFormDto["servicios"],
     idArrendatario: number,
     idUser: number,
-  ): Promise<{ id: number; idTipoServicio: number }[]> {
+    contratoIdsOrdered: number[] = [],
+  ): Promise<{ id: number; idTipoServicio: number; idContrato: number | null }[]> {
     return this.upsertServicios(
       manager,
       (items ?? []) as UpdateServicioArrendatarioItemDto[],
       idArrendatario,
       idUser,
       false,
+      contratoIdsOrdered,
     );
   }
 
@@ -824,9 +854,12 @@ export class ArrendatariosService {
     idArrendatario: number,
     idUser: number,
     upsert = true,
-  ): Promise<{ id: number; idTipoServicio: number }[]> {
-    const out: { id: number; idTipoServicio: number }[] = [];
-    for (const s of items) {
+    contratoIdsOrdered: number[] = [],
+  ): Promise<{ id: number; idTipoServicio: number; idContrato: number | null }[]> {
+    const out: { id: number; idTipoServicio: number; idContrato: number | null }[] =
+      [];
+    for (let i = 0; i < items.length; i++) {
+      const s = items[i];
       const file = s.archivo as Express.Multer.File | undefined;
       const entityId = upsert ? resolveEntityId(s.id) : undefined;
 
@@ -861,6 +894,12 @@ export class ArrendatariosService {
           idTipoServicio: Number(
             updated?.idTipoServicio ?? existing.idTipoServicio,
           ),
+          idContrato:
+            updated?.idContrato != null
+              ? Number(updated.idContrato)
+              : existing.idContrato != null
+                ? Number(existing.idContrato)
+                : null,
         });
         continue;
       }
@@ -870,6 +909,11 @@ export class ArrendatariosService {
           "Para crear un servicio nuevo se requiere idTipoServicio.",
         );
       }
+      const idContrato = this.resolveIdContratoServicio(
+        s,
+        i,
+        contratoIdsOrdered,
+      );
       let url: string | null = null;
       if (file) {
         url = (
@@ -884,6 +928,7 @@ export class ArrendatariosService {
       const row = manager.create(ServiciosArrendatarios, {
         idArrendatario,
         idTipoServicio: s.idTipoServicio,
+        idContrato,
         numeroContrato: s.numeroContrato ?? null,
         fechaPago: s.fechaPago ? new Date(s.fechaPago) : null,
         ultimoDiaPago: s.ultimoDiaPago ? new Date(s.ultimoDiaPago) : null,
@@ -893,6 +938,7 @@ export class ArrendatariosService {
       out.push({
         id: Number(saved.id),
         idTipoServicio: s.idTipoServicio,
+        idContrato,
       });
     }
     return out;

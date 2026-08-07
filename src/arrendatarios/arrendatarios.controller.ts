@@ -219,9 +219,15 @@ export class ArrendatariosController {
     summary:
       "Actualizar arrendatario completo (mismo FormData que registro).",
     description:
-      "Opcional `arrendatario` (JSON) para campos del arrendatario. " +
-      "`contratos[i]` con `id` actualiza; sin `id` crea contrato nuevo. " +
-      "servicios[i].id actualiza; sin id crea. archivos[i].id e imagenes[i].id actualizan; sin id crean. socios[i].id actualiza; sin id crea.",
+      "Opcional `arrendatario` (JSON) para campos del arrendatario.\n\n" +
+      "**Contratos:** `contratos[i]` con `id` actualiza; sin `id` crea contrato nuevo.\n\n" +
+      "**Servicios y IdContrato:**\n" +
+      "- `servicios[i].id` actualiza el servicio; sin `id` crea uno nuevo.\n" +
+      "- `servicios[i].idContrato` liga el servicio a un `ContratoArrendatarios` existente (recomendado en edición).\n" +
+      "- Si creas un servicio nuevo **sin** `idContrato`: se empareja por índice con `contratos[i]` del mismo payload; " +
+      "si solo hay un contrato en el payload, todos los servicios nuevos sin `idContrato` van a ese.\n" +
+      "- Tipos 3 y 4 (renta/mantenimiento) deben tener `idContrato` para que las notificaciones usen `RentaActual`.\n\n" +
+      "archivos[i].id / imagenes[i].id / socios[i].id: con id actualizan; sin id crean.",
   })
   async actualizar(
     @Param("id", ParseIntPipe) id: number,
@@ -265,9 +271,15 @@ export class ArrendatariosController {
     summary:
       "Registrar arrendatario completo (FormData: JSON arrendatario/contrato + arrays con archivos).",
     description:
-      "Campos texto: `arrendatario` (JSON con lat, lng, etc.) y opcional `contratos` como JSON array. " +
-      "Arrays: `servicios[i].*`, `servicios[i].archivo`, `archivos[i].nombre`, `archivos[i].archivo`, " +
-      "`imagenes[i].*`, `socios[i].nombre`, `socios[i].rfc`, `socios[i].constanciaFiscalArchivo`, etc.",
+      "Campos texto: `arrendatario` (JSON) y opcional `contratos` (JSON array o `contratos[i].*`).\n\n" +
+      "**Servicios y IdContrato:**\n" +
+      "- Cada `servicios[i]` se guarda en `ServiciosArrendatarios` con `IdContrato`.\n" +
+      "- En registro los contratos aún no tienen id: si **no** envías `servicios[i].idContrato`, " +
+      "se hace match por **posición** con `contratos[i]` (mismo índice).\n" +
+      "- Si el payload trae **un solo** contrato, todos los servicios sin `idContrato` se ligan a ese contrato " +
+      "(útil cuando hay varios tipos, p. ej. renta=3 y mantenimiento=4, sobre el mismo contrato).\n" +
+      "- Si envías `servicios[i].idContrato`, se respeta ese valor (solo aplica si el contrato ya existe).\n\n" +
+      "Otros arrays: `servicios[i].archivo`, `archivos[i].*`, `imagenes[i].*`, `socios[i].*`.",
   })
   async registrar(
     @Req() req: any,

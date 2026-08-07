@@ -13,12 +13,18 @@ export class NotificacionesController {
   @Get()
   @ApiOperation({
     summary:
-      "Alertas por vencimiento de contratos, pagos de servicios de inmuebles y de arrendatarios",
+      "Alertas: vencimiento de contratos, pagos de servicios de inmuebles y de arrendatarios",
     description:
-      "Rol 1: ve todo. Rol > 1: solo datos de arrendadores del IdCliente del JWT. " +
-      "pagoServiciosInmuebles / pagosSeguimiento se forman con ServiciosInmuebles / ServiciosArrendatarios; " +
-      "FechaPago (día de la entidad) se proyecta al mes actual; si ya venció y hay pago del mes, " +
-      "avanza al mes siguiente. estatusPago: Pendiente=2, Pagado=1, null si no aplica al mes mostrado.",
+      "**Alcance:** rol 1 ve todo; rol > 1 solo arrendadores del IdCliente del JWT.\n\n" +
+      "**vencimientosRenovacionesContrato:** contratos activos con FechaTerminoContrato.\n\n" +
+      "**pagoServiciosInmuebles:** base `ServiciosInmuebles` (día de FechaPago proyectado al mes). " +
+      "Si hay `Pago` Pagado del mes → fechaPago al mes siguiente. `estatusPago`: 1 Pagado, 2 Pendiente, null si no aplica.\n\n" +
+      "**pagosSeguimiento:** base `ServiciosArrendatarios`.\n" +
+      "- **idTipoServicio 3 y 4 (renta/mantenimiento):** el pago del mes se toma de `RentaActual` " +
+      "cruzando `ServiciosArrendatarios.IdContrato` = `RentaActual.IdContrato` del mes actual. " +
+      "Si `Pagada = 1` → se considera pagado y `fechaPago` avanza al mes siguiente.\n" +
+      "- **Otros tipos:** usan `PagosArrendatarios` (Pendiente/Pagado) por IdServicioArrendatario.\n" +
+      "- Incluye `idContrato` en cada item cuando aplica.",
   })
   obtenerNotificaciones(@Req() req: any) {
     const cliente = Number(req.user?.cliente || 0);

@@ -216,6 +216,20 @@ export class CreateServicioArrendatarioItemDto {
   @IsInt()
   idTipoServicio: number;
 
+  @ApiPropertyOptional({
+    example: 10,
+    description:
+      "FK a ContratoArrendatarios.Id (columna IdContrato).\n" +
+      "- **Edición:** envíalo para ligar/actualizar el servicio a un contrato existente.\n" +
+      "- **Registro (contratos nuevos sin id):** omítelo; el backend empareja por índice con contratos[i].\n" +
+      "- Si hay un solo contrato en el payload y no mandas idContrato, todos los servicios van a ese contrato.\n" +
+      "- Obligatorio en la práctica para idTipoServicio 3 y 4 (renta/mantenimiento) para notificaciones vs RentaActual.",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  idContrato?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
@@ -310,7 +324,13 @@ export class RegistrarArrendatarioFormDto {
   @Type(() => ContratoArrendatarioJsonDto)
   contratos?: ContratoArrendatarioJsonDto[];
 
-  @ApiPropertyOptional({ type: [CreateServicioArrendatarioItemDto] })
+  @ApiPropertyOptional({
+    type: [CreateServicioArrendatarioItemDto],
+    description:
+      "Servicios del arrendatario (`servicios[i].*`). Cada uno persiste `IdContrato`. " +
+      "Sin `idContrato`: match por índice con `contratos[i]`; un solo contrato → todos a ese. " +
+      "Con `idContrato`: se usa ese id (edición / contratos ya existentes).",
+  })
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })

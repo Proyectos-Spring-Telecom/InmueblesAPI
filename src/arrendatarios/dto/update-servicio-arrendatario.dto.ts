@@ -8,7 +8,8 @@ export class UpdateServicioArrendatarioItemDto extends PartialType(
 ) {
   @ApiPropertyOptional({
     description:
-      "Id del servicio existente (ServiciosArrendatarios). Si se envía, actualiza; si no, crea uno nuevo.",
+      "Id del servicio existente (ServiciosArrendatarios). Si se envía, actualiza; si no, crea uno nuevo. " +
+      "En creación, usa `idContrato` o el emparejamiento por índice con `contratos[i]`.",
   })
   @IsOptional()
   @Type(() => Number)

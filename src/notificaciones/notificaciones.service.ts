@@ -6,6 +6,7 @@ import { Arrendadores } from "src/entities/Arrendadores";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Pago } from "src/entities/Pago";
 import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
+import { RentaActual } from "src/entities/RentaActual";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { ServiciosInmuebles } from "src/entities/ServiciosInmuebles";
 import {
@@ -18,6 +19,9 @@ import {
   diasFaltantesHasta,
   fechaPagoParaNotificacion,
 } from "./utils/notificacion-color.util";
+
+/** Renta / mantenimiento: el pago del mes se evalúa en RentaActual por IdContrato. */
+const TIPOS_SERVICIO_RENTA_ACTUAL = new Set([3, 4]);
 
 export interface NotificacionVencimientoContrato {
   id: number;
@@ -38,7 +42,7 @@ export interface NotificacionPagoServicioInmueble {
   fechaPago: Date;
   inmueble: string | null;
   tipoServicio: string | null;
-  /** Estatus del Pago del mes: 2 Pendiente, 1 Pagado; null si no hay pago. */
+  /** Estatus del Pago del mes: 2 Pendiente, 1 Pagado; null si no hay / no aplica. */
   estatusPago: number | null;
   diasFaltantes: number;
   color: ColorAlerta;
@@ -47,12 +51,13 @@ export interface NotificacionPagoServicioInmueble {
 export interface NotificacionPagoSeguimiento {
   id: number;
   idArrendatario: number | null;
+  idContrato: number | null;
   idTipoServicio: number | null;
   numeroContrato: string | null;
   fechaPago: Date;
   arrendatario: string | null;
   tipoServicio: string | null;
-  /** Estatus del PagosArrendatarios del mes: 2 Pendiente, 1 Pagado; null si no hay pago. */
+  /** 2 Pendiente, 1 Pagado; null si no hay / no aplica al mes mostrado. */
   estatusPago: number | null;
   diasFaltantes: number;
   color: ColorAlerta;
@@ -77,6 +82,8 @@ export class NotificacionesService {
     private readonly pagoRepo: Repository<Pago>,
     @InjectRepository(PagosArrendatarios)
     private readonly pagosArrendatariosRepo: Repository<PagosArrendatarios>,
+    @InjectRepository(RentaActual)
+    private readonly rentaActualRepo: Repository<RentaActual>,
     @InjectRepository(Arrendadores)
     private readonly arrendadoresRepo: Repository<Arrendadores>,
   ) {}
@@ -106,15 +113,23 @@ export class NotificacionesService {
       ]);
 
     const idsServiciosInmueble = serviciosInmueble.map((s) => s.id);
-    const idsServiciosArrendatario = serviciosArrendatario.map((s) => s.id);
-
-    const [estatusInmueble, estatusArrendatario] = await Promise.all([
-      this.findEstatusPagoInmuebleMes(idsServiciosInmueble, anio, mes),
-      this.findEstatusPagoArrendatarioMes(
-        idsServiciosArrendatario,
-        anio,
-        mes,
+    const serviciosOtros = serviciosArrendatario.filter(
+      (s) => !TIPOS_SERVICIO_RENTA_ACTUAL.has(Number(s.idTipoServicio)),
+    );
+    const idsServiciosOtros = serviciosOtros.map((s) => s.id);
+    const idsContratoRenta = [
+      ...new Set(
+        serviciosArrendatario
+          .filter((s) => TIPOS_SERVICIO_RENTA_ACTUAL.has(Number(s.idTipoServicio)))
+          .map((s) => Number(s.idContrato))
+          .filter((id) => !Number.isNaN(id) && id > 0),
       ),
+    ];
+
+    const [estatusInmueble, estatusOtros, estatusRenta] = await Promise.all([
+      this.findEstatusPagoInmuebleMes(idsServiciosInmueble, anio, mes),
+      this.findEstatusPagoArrendatarioMes(idsServiciosOtros, anio, mes),
+      this.findEstatusRentaActualMes(idsContratoRenta, anio, mes),
     ]);
 
     const vencimientosRenovacionesContrato = contratos
@@ -132,13 +147,18 @@ export class NotificacionesService {
       .sort((a, b) => a.diasFaltantes - b.diasFaltantes);
 
     const pagosSeguimiento = serviciosArrendatario
-      .map((s) =>
-        this.mapServicioArrendatario(
-          s,
-          hoy,
-          estatusArrendatario.get(Number(s.id)) ?? null,
-        ),
-      )
+      .map((s) => {
+        const tipo = Number(s.idTipoServicio);
+        let estatus: number | null = null;
+        if (TIPOS_SERVICIO_RENTA_ACTUAL.has(tipo)) {
+          const idContrato = s.idContrato != null ? Number(s.idContrato) : null;
+          estatus =
+            idContrato != null ? (estatusRenta.get(idContrato) ?? null) : null;
+        } else {
+          estatus = estatusOtros.get(Number(s.id)) ?? null;
+        }
+        return this.mapServicioArrendatario(s, hoy, estatus);
+      })
       .sort((a, b) => a.diasFaltantes - b.diasFaltantes);
 
     return {
@@ -148,7 +168,6 @@ export class NotificacionesService {
     };
   }
 
-  /** null = sin restricción (rol 1); array = IDs de arrendadores del cliente. */
   private async resolveArrendadorIds(
     rol: number,
     idCliente: number,
@@ -208,10 +227,6 @@ export class NotificacionesService {
     return qb.getMany();
   }
 
-  /**
-   * Estatus del pago del mes por servicio (Pendiente o Pagado).
-   * Si hay varios, prioriza Pagado.
-   */
   private async findEstatusPagoInmuebleMes(
     idsServicio: number[],
     anio: number,
@@ -256,6 +271,39 @@ export class NotificacionesService {
     return this.mergeEstatusPago(rows);
   }
 
+  /**
+   * Estatus por IdContrato desde RentaActual del mes:
+   * Pagada=1 → Pagado, Pagada=0 → Pendiente.
+   */
+  private async findEstatusRentaActualMes(
+    idsContrato: number[],
+    anio: number,
+    mes: number,
+  ): Promise<Map<number, number>> {
+    if (idsContrato.length === 0) return new Map();
+
+    const rows = await this.rentaActualRepo
+      .createQueryBuilder("r")
+      .select("r.idContrato", "idContrato")
+      .addSelect("r.pagada", "pagada")
+      .where("r.idContrato IN (:...ids)", { ids: idsContrato })
+      .andWhere("YEAR(r.mes) = :anio", { anio })
+      .andWhere("MONTH(r.mes) = :mes", { mes })
+      .getRawMany<{ idContrato: string; pagada: string }>();
+
+    const map = new Map<number, number>();
+    for (const row of rows) {
+      const idContrato = Number(row.idContrato);
+      const pagada = Number(row.pagada) === 1;
+      const estatus = pagada ? PagoEstatus.Pagado : PagoEstatus.Pendiente;
+      const actual = map.get(idContrato);
+      if (actual === undefined || estatus === PagoEstatus.Pagado) {
+        map.set(idContrato, estatus);
+      }
+    }
+    return map;
+  }
+
   private mergeEstatusPago(
     rows: Array<{ idServicio: string; estatus: string }>,
   ): Map<number, number> {
@@ -293,15 +341,14 @@ export class NotificacionesService {
     hoy: Date,
     estatusPago: number | null,
   ): NotificacionPagoServicioInmueble {
-    const tienePagoDelMes = estatusPago != null;
+    const tienePagoPagado = estatusPago === PagoEstatus.Pagado;
     const fechaPago = fechaPagoParaNotificacion(
       s.fechaPago!,
       hoy,
-      tienePagoDelMes,
+      tienePagoPagado,
     );
-    // Si avanzó al mes siguiente, el pago del mes actual ya no aplica.
     const avanzoMesSiguiente =
-      tienePagoDelMes &&
+      tienePagoPagado &&
       (fechaPago.getUTCMonth() !== hoy.getMonth() ||
         fechaPago.getUTCFullYear() !== hoy.getFullYear());
     const estatusMostrado = avanzoMesSiguiente ? null : estatusPago;
@@ -325,14 +372,14 @@ export class NotificacionesService {
     hoy: Date,
     estatusPago: number | null,
   ): NotificacionPagoSeguimiento {
-    const tienePagoDelMes = estatusPago != null;
+    const tienePagoPagado = estatusPago === PagoEstatus.Pagado;
     const fechaPago = fechaPagoParaNotificacion(
       s.fechaPago!,
       hoy,
-      tienePagoDelMes,
+      tienePagoPagado,
     );
     const avanzoMesSiguiente =
-      tienePagoDelMes &&
+      tienePagoPagado &&
       (fechaPago.getUTCMonth() !== hoy.getMonth() ||
         fechaPago.getUTCFullYear() !== hoy.getFullYear());
     const estatusMostrado = avanzoMesSiguiente ? null : estatusPago;
@@ -340,6 +387,7 @@ export class NotificacionesService {
     return {
       id: s.id,
       idArrendatario: s.idArrendatario,
+      idContrato: s.idContrato != null ? Number(s.idContrato) : null,
       idTipoServicio: s.idTipoServicio,
       numeroContrato: s.numeroContrato,
       fechaPago,

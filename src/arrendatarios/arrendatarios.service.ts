@@ -25,6 +25,10 @@ import {
   getClienteHijos,
   isSuperAdmin,
 } from "src/utils/cliente-utils";
+import {
+  estatusWhereForRol,
+  filterArrendatarioRelations,
+} from "src/utils/estatus-utils";
 import { UpdateSocioArrendatarioDto } from "./dto/update-socio-arrendatario.dto";
 import {
   RegistrarArrendatarioFormDto,
@@ -98,40 +102,49 @@ export class ArrendatariosService {
     return { idArrendador: In(ids) };
   }
 
-  async findByIdInmueble(idInmueble: number): Promise<Arrendatarios[]> {
-    const idRows = await this.arrendatariosRepository
+  async findByIdInmueble(
+    idInmueble: number,
+    rol = 1,
+  ): Promise<Arrendatarios[]> {
+    const qb = this.arrendatariosRepository
       .createQueryBuilder("a")
       .select("a.id", "id")
       .distinct(true)
       .innerJoin("a.contratos", "contrato")
-      .where("contrato.idInmueble = :idInmueble", { idInmueble })
-      .orderBy("a.id", "DESC")
-      .getRawMany<{ id: string }>();
+      .where("contrato.idInmueble = :idInmueble", { idInmueble });
+
+    if (!isSuperAdmin(rol)) {
+      qb.andWhere("a.estatus = 1");
+    }
+
+    const idRows = await qb.orderBy("a.id", "DESC").getRawMany<{ id: string }>();
 
     if (idRows.length === 0) {
       return [];
     }
 
     const ids = idRows.map((r) => Number(r.id));
-    return this.arrendatariosRepository.find({
+    const data = await this.arrendatariosRepository.find({
       where: { id: In(ids) },
       relations: [...FULL_RELATIONS],
       order: { id: "DESC" },
     });
+
+    return data.map((item) => filterArrendatarioRelations(item, rol));
   }
 
-  async findOne(id: number): Promise<Arrendatarios> {
+  async findOne(id: number, rol = 1): Promise<Arrendatarios> {
     const row = await this.arrendatariosRepository.findOne({
-      where: { id },
+      where: { id, ...estatusWhereForRol(rol) },
       relations: [...FULL_RELATIONS],
     });
     if (!row) {
       throw new NotFoundException(`Arrendatario con id ${id} no encontrado.`);
     }
-    return row;
+    return filterArrendatarioRelations(row, rol);
   }
 
-  async findServiciosByIdArrendatario(idArrendatario: number) {
+  async findServiciosByIdArrendatario(idArrendatario: number, rol = 1) {
     const arrendatario = await this.arrendatariosRepository.findOne({
       where: { id: idArrendatario },
       select: ["id"],
@@ -143,7 +156,7 @@ export class ArrendatariosService {
     }
 
     return this.serviciosArrendatariosRepository.find({
-      where: { idArrendatario },
+      where: { idArrendatario, ...estatusWhereForRol(rol) },
       relations: ["tipoServicio"],
       order: { id: "ASC" },
     });
@@ -339,12 +352,14 @@ export class ArrendatariosService {
     }
 
     const data = await this.arrendatariosRepository.find({
-      where: { estatus: 1, ...scope },
+      where: { ...estatusWhereForRol(rol), ...scope },
       relations: [...FULL_RELATIONS],
       order: { id: "DESC" },
     });
 
-    return { data };
+    return {
+      data: data.map((item) => filterArrendatarioRelations(item, rol)),
+    };
   }
 
   async findAllPaginated(
@@ -371,7 +386,7 @@ export class ArrendatariosService {
 
     const [idRows, total] = await this.arrendatariosRepository.findAndCount({
       select: ["id"],
-      where: { ...scope, estatus: 1 },
+      where: { ...scope, ...estatusWhereForRol(rol) },
       order: { id: "DESC" },
       skip,
       take: safeLimit,
@@ -396,7 +411,7 @@ export class ArrendatariosService {
     });
 
     return {
-      data,
+      data: data.map((item) => filterArrendatarioRelations(item, rol)),
       paginated: {
         total,
         page: safePage,

@@ -120,8 +120,9 @@ export class ClientesController {
 
   @Get(":id")
   @ApiOperation({ summary: "Obtener cliente por ID" })
-  getOneCliente(@Param("id") id: string) {
-    return this.clientesService.getOneCliente(+id);
+  getOneCliente(@Param("id") id: string, @Req() req) {
+    const rol = Number(req.user?.rol || 0);
+    return this.clientesService.getOneCliente(+id, rol);
   }
 
   @Patch("estatus/:id")

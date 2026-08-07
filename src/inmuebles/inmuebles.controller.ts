@@ -192,9 +192,11 @@ export class InmueblesController {
       "Listar servicios (ServiciosInmuebles) de un inmueble por idInmueble.",
   })
   findServiciosByIdInmueble(
+    @Req() req: any,
     @Param("idInmueble", ParseIntPipe) idInmueble: number,
   ) {
-    return this.inmueblesService.findServiciosByIdInmueble(idInmueble);
+    const rol = Number(req.user?.rol || 0);
+    return this.inmueblesService.findServiciosByIdInmueble(idInmueble, rol);
   }
 
   @Get("zonas/:idInmueble")
@@ -202,9 +204,11 @@ export class InmueblesController {
     summary: "Listar zonas de un inmueble por idInmueble (con locales).",
   })
   findZonasByIdInmueble(
+    @Req() req: any,
     @Param("idInmueble", ParseIntPipe) idInmueble: number,
   ) {
-    return this.inmueblesService.findZonasByIdInmueble(idInmueble);
+    const rol = Number(req.user?.rol || 0);
+    return this.inmueblesService.findZonasByIdInmueble(idInmueble, rol);
   }
 
   @Get("locales-libres/:idInmueble")
@@ -341,7 +345,8 @@ export class InmueblesController {
   @ApiOperation({
     summary: "Obtener inmueble por ID (con todas sus relaciones).",
   })
-  findOne(@Param("id", ParseIntPipe) id: number) {
-    return this.inmueblesService.findOne(id);
+  findOne(@Req() req: any, @Param("id", ParseIntPipe) id: number) {
+    const rol = Number(req.user?.rol || 0);
+    return this.inmueblesService.findOne(id, rol);
   }
 }

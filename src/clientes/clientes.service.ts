@@ -17,6 +17,10 @@ import {
 } from "src/common/ApiResponse";
 import { isSuperAdmin } from "src/utils/cliente-utils";
 import {
+  canSeeInactive,
+  filterByEstatusRol,
+} from "src/utils/estatus-utils";
+import {
   CLIENTE_ARCHIVO_FIELDS,
   ClienteArchivoField,
 } from "./cliente-archivos.constants";
@@ -213,12 +217,13 @@ LIMIT ? OFFSET ?;
           `SELECT COUNT(*) AS total FROM Clientes`,
         );
       } else {
-        // Rol > 1: solo su propio cliente (y hijos por IdPadre)
+        // Rol > 1: solo su propio cliente (y hijos por IdPadre) activos
         rows = await this.clientesRepository.query(
           `
 SELECT ${SELECT_CLIENTE_LIST}
 FROM Clientes
-WHERE Id = ? OR IdPadre = ?
+WHERE (Id = ? OR IdPadre = ?)
+  AND Estatus = 1
 ORDER BY Id ASC
 LIMIT ? OFFSET ?;
           `,
@@ -228,7 +233,8 @@ LIMIT ? OFFSET ?;
           `
 SELECT COUNT(*) AS total
 FROM Clientes
-WHERE Id = ? OR IdPadre = ?
+WHERE (Id = ? OR IdPadre = ?)
+  AND Estatus = 1
           `,
           [cliente, cliente],
         );
@@ -275,7 +281,6 @@ SELECT
   ApellidoMaterno AS apellidoMaterno,
   Logotipo AS logotipo
 FROM Clientes
-WHERE Estatus = 1
 ORDER BY Id ASC;
           `,
         );
@@ -311,10 +316,15 @@ ORDER BY Id ASC;
     }
   }
 
-  async getOneCliente(id: number) {
+  async getOneCliente(id: number, rol = 1) {
     try {
+      const where: { id: number; estatus?: number } = { id };
+      if (!canSeeInactive(rol)) {
+        where.estatus = 1;
+      }
+
       const cliente = await this.clientesRepository.findOne({
-        where: { id },
+        where,
         relations: ["arrendadores"],
       });
       if (!cliente) {
@@ -322,6 +332,8 @@ ORDER BY Id ASC;
           `El cliente con ID: ${id} no fue encontrado.`,
         );
       }
+
+      cliente.arrendadores = filterByEstatusRol(cliente.arrendadores, rol);
       return { data: cliente };
     } catch (error) {
       if (error instanceof HttpException) throw error;

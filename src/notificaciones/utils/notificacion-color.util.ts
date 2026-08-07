@@ -15,6 +15,23 @@ export function diasFaltantesHasta(
 }
 
 /**
+ * Proyecta el día de `fechaPagoBase` al mes/año de `referencia`
+ * (ej. 15/08/2026 → 15/09/2026 si referencia es septiembre).
+ * Si el día no existe en el mes destino (ej. 31 en feb), usa el último día del mes.
+ */
+export function fechaPagoEnMesActual(
+  fechaPagoBase: Date,
+  referencia = new Date(),
+): Date {
+  const anio = referencia.getFullYear();
+  const mes = referencia.getMonth();
+  const diaBase = fechaPagoBase.getDate();
+  const ultimoDiaMes = new Date(anio, mes + 1, 0).getDate();
+  const dia = Math.min(diaBase, ultimoDiaMes);
+  return new Date(anio, mes, dia);
+}
+
+/**
  * > 30 días: verde | 16–30: naranja | 4–15: amarillo | ≤ 3: rojo
  * (vencidos cuentan como ≤ 3 → rojo)
  */

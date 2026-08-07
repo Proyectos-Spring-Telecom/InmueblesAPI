@@ -48,9 +48,9 @@ export class ArrendatariosController {
 
   @Get("listado")
   @ApiOperation({
-    summary: "Listar arrendatarios activos (estatus 1) sin paginación",
+    summary: "Listar arrendatarios (sin paginación)",
     description:
-      "Devuelve todos los arrendatarios con estatus = 1 y sus relaciones (contratos, servicios, etc.).",
+      "Rol 1: todos los estatus. Rol > 1: solo estatus = 1, con relaciones.",
   })
   findAllActivos(@Req() req: any) {
     const cliente = Number(req.user?.cliente || 0);
@@ -109,8 +109,12 @@ export class ArrendatariosController {
     summary:
       "Listar arrendatarios por idInmueble (vía ContratoArrendatarios).",
   })
-  findByIdInmueble(@Param("idInmueble", ParseIntPipe) idInmueble: number) {
-    return this.arrendatariosService.findByIdInmueble(idInmueble);
+  findByIdInmueble(
+    @Req() req: any,
+    @Param("idInmueble", ParseIntPipe) idInmueble: number,
+  ) {
+    const rol = Number(req.user?.rol || 0);
+    return this.arrendatariosService.findByIdInmueble(idInmueble, rol);
   }
 
   @Get("servicios/:idArrendatario")
@@ -119,10 +123,13 @@ export class ArrendatariosController {
       "Listar servicios (ServiciosArrendatarios) de un arrendatario por idArrendatario.",
   })
   findServiciosByIdArrendatario(
+    @Req() req: any,
     @Param("idArrendatario", ParseIntPipe) idArrendatario: number,
   ) {
+    const rol = Number(req.user?.rol || 0);
     return this.arrendatariosService.findServiciosByIdArrendatario(
       idArrendatario,
+      rol,
     );
   }
 
@@ -198,8 +205,9 @@ export class ArrendatariosController {
   @ApiOperation({
     summary: "Obtener arrendatario por ID (con relaciones).",
   })
-  findOne(@Param("id", ParseIntPipe) id: number) {
-    return this.arrendatariosService.findOne(id);
+  findOne(@Req() req: any, @Param("id", ParseIntPipe) id: number) {
+    const rol = Number(req.user?.rol || 0);
+    return this.arrendatariosService.findOne(id, rol);
   }
 
   @Put(":id")

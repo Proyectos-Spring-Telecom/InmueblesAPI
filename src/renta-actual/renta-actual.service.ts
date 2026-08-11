@@ -21,6 +21,7 @@ import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Formulas } from "src/entities/Formulas";
 import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
 import { RentaActual } from "src/entities/RentaActual";
+import { getClienteHijos, isSuperAdmin } from "src/utils/cliente-utils";
 import { CreateRentaActualDto } from "./dto/create-renta-actual.dto";
 import { UpdateRentaActualDto } from "./dto/update-renta-actual.dto";
 
@@ -266,17 +267,50 @@ export class RentaActualService {
   async findAllPaginated(
     page: number,
     limit: number,
+    idCliente: number,
+    rol: number,
   ): Promise<ApiResponseCommon> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const skip = (safePage - 1) * safeLimit;
 
-    const [idRows, total] = await this.rentaActualRepository.findAndCount({
-      select: ["id"],
-      order: { id: "DESC" },
-      skip,
-      take: safeLimit,
-    });
+    let arrendadorIds: number[] | null = null;
+    if (!isSuperAdmin(rol)) {
+      const scope = await getClienteHijos(
+        this.arrendatariosRepository,
+        idCliente,
+      );
+      if (scope.ids.length === 0) {
+        return {
+          data: [],
+          paginated: {
+            total: 0,
+            page: safePage,
+            lastPage: 0,
+          },
+        };
+      }
+      arrendadorIds = scope.ids;
+    }
+
+    const qb = this.rentaActualRepository
+      .createQueryBuilder("r")
+      .leftJoin("r.arrendatario", "arrendatario");
+
+    if (arrendadorIds) {
+      qb.where("arrendatario.idArrendador IN (:...arrendadorIds)", {
+        arrendadorIds,
+      });
+    }
+
+    const total = await qb.getCount();
+
+    const idRows = await qb
+      .select("r.id", "id")
+      .orderBy("r.id", "DESC")
+      .skip(skip)
+      .take(safeLimit)
+      .getRawMany<{ id: string }>();
 
     if (idRows.length === 0) {
       return {
@@ -289,7 +323,7 @@ export class RentaActualService {
       };
     }
 
-    const ids = idRows.map((r) => r.id);
+    const ids = idRows.map((r) => Number(r.id));
     const data = await this.rentaActualRepository.find({
       where: { id: In(ids) },
       relations: [...PAGO_MENSUAL_RELATIONS],

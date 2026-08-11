@@ -13,6 +13,7 @@ import { ServiciosInmuebles } from "src/entities/ServiciosInmuebles";
 import { S3Service } from "src/s3/s3.service";
 import { Repository } from "typeorm";
 import { PagoEstatus } from "src/common/pago-estatus.enum";
+import { getClienteHijos, isSuperAdmin } from "src/utils/cliente-utils";
 import { CreatePagoDto } from "./dto/create-pago.dto";
 
 const FOLDER_COMPROBANTE = "ComprobantesPagoInmuebles";
@@ -202,6 +203,8 @@ export class PagoService {
     page: number,
     limit: number,
     filters: PagoFilters,
+    idCliente: number,
+    rol: number,
   ): Promise<ApiResponseCommon> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
@@ -211,6 +214,22 @@ export class PagoService {
       filters.fechaFin,
     );
 
+    let arrendadorIds: number[] | null = null;
+    if (!isSuperAdmin(rol)) {
+      const scope = await getClienteHijos(this.inmueblesRepository, idCliente);
+      if (scope.ids.length === 0) {
+        return {
+          data: [],
+          paginated: {
+            total: 0,
+            page: safePage,
+            lastPage: 0,
+          },
+        };
+      }
+      arrendadorIds = scope.ids;
+    }
+
     const qb = this.pagoRepository
       .createQueryBuilder("p")
       .leftJoinAndSelect("p.inmueble", "inmueble")
@@ -219,6 +238,12 @@ export class PagoService {
       .leftJoinAndSelect("p.metodoPago", "metodoPago")
       .where("p.fechaPago >= :inicio", { inicio })
       .andWhere("p.fechaPago <= :fin", { fin });
+
+    if (arrendadorIds) {
+      qb.andWhere("inmueble.idArrendador IN (:...arrendadorIds)", {
+        arrendadorIds,
+      });
+    }
 
     if (filters.idInmueble != null) {
       qb.andWhere("p.idInmueble = :idInmueble", {

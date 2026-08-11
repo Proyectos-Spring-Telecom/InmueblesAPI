@@ -112,7 +112,8 @@ export class PagosArrendatariosController {
     summary: "Listar pagos de arrendatarios paginado por rango de fechas",
     description:
       "Filtra por `fechaPago` entre fechaInicio y fechaFin (YYYY-MM-DD). " +
-      "Opcionalmente por idArrendatario.",
+      "Opcionalmente por idArrendatario. " +
+      "Rol 1: todos. Rol > 1: solo pagos de arrendatarios cuyos arrendadores pertenecen al IdCliente del JWT.",
   })
   @ApiQuery({ name: "page", required: true, type: Number, example: 1 })
   @ApiQuery({ name: "limit", required: true, type: Number, example: 10 })
@@ -120,6 +121,7 @@ export class PagosArrendatariosController {
   @ApiQuery({ name: "fechaFin", required: true, example: "2026-12-31" })
   @ApiQuery({ name: "idArrendatario", required: false, type: Number })
   findAllPaginated(
+    @Req() req: any,
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
     @Query("fechaInicio") fechaInicio: string,
@@ -132,14 +134,23 @@ export class PagosArrendatariosController {
       );
     }
 
-    return this.pagosArrendatariosService.findAllPaginated(page, limit, {
-      fechaInicio,
-      fechaFin,
-      idArrendatario: this.pagosArrendatariosService.assertOptionalInt(
-        idArrendatario,
-        "idArrendatario",
-      ),
-    });
+    const cliente = Number(req.user?.cliente || 0);
+    const rol = Number(req.user?.rol || 0);
+
+    return this.pagosArrendatariosService.findAllPaginated(
+      page,
+      limit,
+      {
+        fechaInicio,
+        fechaFin,
+        idArrendatario: this.pagosArrendatariosService.assertOptionalInt(
+          idArrendatario,
+          "idArrendatario",
+        ),
+      },
+      cliente,
+      rol,
+    );
   }
 
   @Patch(":id/estatus")

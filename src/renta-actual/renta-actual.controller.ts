@@ -9,6 +9,7 @@ import {
   Post,
   Put,
   Query,
+  Req,
   UseGuards,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
@@ -110,12 +111,24 @@ export class RentaActualController {
   }
 
   @Get("paginated")
-  @ApiOperation({ summary: "Listar rentas actuales paginado" })
+  @ApiOperation({
+    summary: "Listar rentas actuales paginado",
+    description:
+      "Rol 1: todas. Rol > 1: solo rentas de arrendatarios cuyos arrendadores pertenecen al IdCliente del JWT.",
+  })
   findAllPaginated(
+    @Req() req: any,
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
   ) {
-    return this.rentaActualService.findAllPaginated(page, limit);
+    const cliente = Number(req.user?.cliente || 0);
+    const rol = Number(req.user?.rol || 0);
+    return this.rentaActualService.findAllPaginated(
+      page,
+      limit,
+      cliente,
+      rol,
+    );
   }
 
   @Get(":id")

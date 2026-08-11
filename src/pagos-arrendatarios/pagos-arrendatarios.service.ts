@@ -15,6 +15,7 @@ import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { S3Service } from "src/s3/s3.service";
 import { Repository } from "typeorm";
+import { getClienteHijos, isSuperAdmin } from "src/utils/cliente-utils";
 import { CreatePagosArrendatarioDto } from "./dto/create-pagos-arrendatario.dto";
 
 const FOLDER_COMPROBANTE = "ComprobantesPagoArrendatarios";
@@ -158,6 +159,8 @@ export class PagosArrendatariosService {
     page: number,
     limit: number,
     filters: PagosArrendatariosFilters,
+    idCliente: number,
+    rol: number,
   ): Promise<ApiResponseCommon> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
@@ -167,6 +170,25 @@ export class PagosArrendatariosService {
       filters.fechaFin,
     );
 
+    let arrendadorIds: number[] | null = null;
+    if (!isSuperAdmin(rol)) {
+      const scope = await getClienteHijos(
+        this.arrendatariosRepository,
+        idCliente,
+      );
+      if (scope.ids.length === 0) {
+        return {
+          data: [],
+          paginated: {
+            total: 0,
+            page: safePage,
+            lastPage: 0,
+          },
+        };
+      }
+      arrendadorIds = scope.ids;
+    }
+
     const qb = this.pagosArrendatariosRepository
       .createQueryBuilder("p")
       .leftJoinAndSelect("p.arrendatario", "arrendatario")
@@ -175,6 +197,12 @@ export class PagosArrendatariosService {
       .leftJoinAndSelect("p.metodoPago", "metodoPago")
       .where("p.fechaPago >= :inicio", { inicio })
       .andWhere("p.fechaPago <= :fin", { fin });
+
+    if (arrendadorIds) {
+      qb.andWhere("arrendatario.idArrendador IN (:...arrendadorIds)", {
+        arrendadorIds,
+      });
+    }
 
     if (filters.idArrendatario != null) {
       qb.andWhere("p.idArrendatario = :idArrendatario", {

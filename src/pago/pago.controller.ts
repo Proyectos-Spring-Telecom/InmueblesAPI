@@ -109,7 +109,8 @@ export class PagoController {
     summary: "Listar pagos de inmuebles paginado por rango de fechas",
     description:
       "Filtra por `fechaPago` entre fechaInicio y fechaFin (YYYY-MM-DD). " +
-      "Opcionalmente por idInmueble.",
+      "Opcionalmente por idInmueble. " +
+      "Rol 1: todos. Rol > 1: solo pagos de inmuebles de arrendadores del IdCliente del JWT.",
   })
   @ApiQuery({ name: "page", required: true, type: Number, example: 1 })
   @ApiQuery({ name: "limit", required: true, type: Number, example: 10 })
@@ -117,6 +118,7 @@ export class PagoController {
   @ApiQuery({ name: "fechaFin", required: true, example: "2026-12-31" })
   @ApiQuery({ name: "idInmueble", required: false, type: Number })
   findAllPaginated(
+    @Req() req: any,
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
     @Query("fechaInicio") fechaInicio: string,
@@ -129,11 +131,23 @@ export class PagoController {
       );
     }
 
-    return this.pagoService.findAllPaginated(page, limit, {
-      fechaInicio,
-      fechaFin,
-      idInmueble: this.pagoService.assertOptionalInt(idInmueble, "idInmueble"),
-    });
+    const cliente = Number(req.user?.cliente || 0);
+    const rol = Number(req.user?.rol || 0);
+
+    return this.pagoService.findAllPaginated(
+      page,
+      limit,
+      {
+        fechaInicio,
+        fechaFin,
+        idInmueble: this.pagoService.assertOptionalInt(
+          idInmueble,
+          "idInmueble",
+        ),
+      },
+      cliente,
+      rol,
+    );
   }
 
   @Get("inmueble/:idInmueble/tipo-servicio/:idTipoServicio/paginated")

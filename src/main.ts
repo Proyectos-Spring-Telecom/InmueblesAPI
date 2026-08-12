@@ -1,10 +1,20 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import { json, urlencoded, Response as ExpressResponse } from 'express';
+
+/** Alineado con el mayor límite Multer (PDF OCR 25 MB). Por defecto Express usa ~100 KB → 413. */
+const BODY_LIMIT = '25mb';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+  });
+
+  app.use(json({ limit: BODY_LIMIT }));
+  app.use(urlencoded({ extended: true, limit: BODY_LIMIT }));
 
   app.enableCors({
     origin: '*', // Permitir todas las URLs; puedes poner un array de URLs específicas
@@ -22,12 +32,6 @@ async function bootstrap() {
       },
     }),
   );
-
-  app.getHttpAdapter().get('/api/docs-json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(document);
-});
-
 
   const config = new DocumentBuilder()
     .setTitle('Inmuebles Spring')
@@ -47,6 +51,11 @@ async function bootstrap() {
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
+
+  app.getHttpAdapter().get('/api/docs-json', (_req, res: ExpressResponse) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(document);
+  });
 
   SwaggerModule.setup('api/docs', app, document, {
     swaggerOptions: {

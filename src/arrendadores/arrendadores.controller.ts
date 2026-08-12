@@ -30,6 +30,7 @@ import {
   ApiBody,
   ApiOperation,
   ApiParam,
+  ApiTags,
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
 import { parseNestedFormData } from "src/inmuebles/utils/form-data-nested";
@@ -53,6 +54,7 @@ const arrendadorMultipartOptions = {
 
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth("access-token")
+@ApiTags("Arrendadores")
 @Controller("arrendadores")
 export class ArrendadoresController {
   constructor(private readonly clientesService: ArrendadoresService) {}
@@ -60,11 +62,20 @@ export class ArrendadoresController {
   @Post()
   @HttpCode(200)
   @UseInterceptors(AnyFilesInterceptor(arrendadorMultipartOptions as any))
+  @ApiOperation({
+    summary: "Registrar arrendador",
+    description:
+      "FormData multipart. Archivos opcionales (PNG/JPG/JPEG/PDF, máx. 10MB): " +
+      "logotipo, constanciaSituacionFiscal, comprobanteDomicilio, actaConstitutiva, " +
+      "licenciaFuncionamiento, constanciaProteccionCivil, usoSuelo, planoCatastral, " +
+      "poderRepresentanteLegal, ineRepresentanteLegal. " +
+      "Socios: socios[i].nombre, socios[i].rfc y archivos socios[i].*Archivo.",
+  })
   @ApiConsumes("multipart/form-data")
   @ApiBody({
     type: CreateArrendadorDto,
     description:
-      "Datos del cliente con archivos opcionales y array socios[i].*",
+      "Datos del arrendador con archivos opcionales y array socios[i].*",
   })
   async createArrendador(@Req() req: any): Promise<ApiCrudResponse> {
     const nested = parseNestedFormData(req.body, req.files);
@@ -140,10 +151,13 @@ export class ArrendadoresController {
   @Put(":id")
   @UseInterceptors(AnyFilesInterceptor(arrendadorMultipartOptions as any))
   @ApiOperation({
-    summary: "Actualizar información completa del cliente",
+    summary: "Actualizar información completa del arrendador",
     description:
-      "Actualiza el cliente. socios[i].id actualiza socio existente; sin id crea uno nuevo. " +
-      "Archivos del cliente y documentos de socios se suben a S3.",
+      "Actualiza el arrendador. Archivos opcionales (mismo set que en create): " +
+      "logotipo, constanciaSituacionFiscal, comprobanteDomicilio, actaConstitutiva, " +
+      "licenciaFuncionamiento, constanciaProteccionCivil, usoSuelo, planoCatastral, " +
+      "poderRepresentanteLegal, ineRepresentanteLegal. " +
+      "socios[i].id actualiza socio existente; sin id crea uno nuevo.",
   })
   @ApiParam({
     name: "id",

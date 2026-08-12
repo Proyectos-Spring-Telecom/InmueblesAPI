@@ -430,6 +430,12 @@ SELECT
   ComprobanteDomicilio AS comprobanteDomicilio,
   ActaConstitutiva AS actaConstitutiva,
   Logotipo AS logotipo,
+  LicenciaFuncionamiento AS licenciaFuncionamiento,
+  ConstanciaProteccionCivil AS constanciaProteccionCivil,
+  UsoSuelo AS usoSuelo,
+  PlanoCatastral AS planoCatastral,
+  PoderRepresentanteLegal AS poderRepresentanteLegal,
+  IneRepresentanteLegal AS ineRepresentanteLegal,
   Estatus AS estatus
   
 FROM Arrendadores
@@ -477,6 +483,12 @@ SELECT
   ComprobanteDomicilio AS comprobanteDomicilio,
   ActaConstitutiva AS actaConstitutiva,
   Logotipo AS logotipo,
+  LicenciaFuncionamiento AS licenciaFuncionamiento,
+  ConstanciaProteccionCivil AS constanciaProteccionCivil,
+  UsoSuelo AS usoSuelo,
+  PlanoCatastral AS planoCatastral,
+  PoderRepresentanteLegal AS poderRepresentanteLegal,
+  IneRepresentanteLegal AS ineRepresentanteLegal,
   Estatus AS estatus
   
 FROM Arrendadores

@@ -139,42 +139,104 @@ export class CreateArrendadorDto {
   @ApiProperty({ description: "Correo electrónico del encargado", example: "encargado@correo.com", required: false })
   correoEncargado?: string;
 
-  // ⚡ Documentos - Campos de archivo para Swagger (estos campos son solo para documentación, los archivos se reciben por @UploadedFiles)
+  // ⚡ Documentos (varchar 500 = URL S3; en FormData se suben como archivo)
   @IsOptional()
-  @ApiProperty({ 
-    description: "Logotipo del cliente (PNG, JPG, JPEG o PDF, máximo 10MB). Se subirá automáticamente a S3.", 
-    type: 'string',
-    format: 'binary',
-    required: false 
+  @ApiProperty({
+    description:
+      "Logotipo del arrendador (PNG, JPG, JPEG o PDF, máximo 10MB). Se sube a S3.",
+    type: "string",
+    format: "binary",
+    required: false,
   })
   logotipo?: any;
 
   @IsOptional()
-  @ApiProperty({ 
-    description: "Constancia de situación fiscal (PNG, JPG, JPEG o PDF, máximo 10MB). Se subirá automáticamente a S3.", 
-    type: 'string',
-    format: 'binary',
-    required: false 
+  @ApiProperty({
+    description:
+      "Constancia de situación fiscal (PNG, JPG, JPEG o PDF, máximo 10MB).",
+    type: "string",
+    format: "binary",
+    required: false,
   })
   constanciaSituacionFiscal?: any;
 
   @IsOptional()
-  @ApiProperty({ 
-    description: "Comprobante de domicilio (PNG, JPG, JPEG o PDF, máximo 10MB). Se subirá automáticamente a S3.", 
-    type: 'string',
-    format: 'binary',
-    required: false 
+  @ApiProperty({
+    description:
+      "Comprobante de domicilio (PNG, JPG, JPEG o PDF, máximo 10MB).",
+    type: "string",
+    format: "binary",
+    required: false,
   })
   comprobanteDomicilio?: any;
 
   @IsOptional()
-  @ApiProperty({ 
-    description: "Acta constitutiva - solo para personas morales (PNG, JPG, JPEG o PDF, máximo 10MB). Se subirá automáticamente a S3.", 
-    type: 'string',
-    format: 'binary',
-    required: false 
+  @ApiProperty({
+    description:
+      "Acta constitutiva - personas morales (PNG, JPG, JPEG o PDF, máximo 10MB).",
+    type: "string",
+    format: "binary",
+    required: false,
   })
   actaConstitutiva?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description:
+      "Licencia de funcionamiento (PNG, JPG, JPEG o PDF, máximo 10MB).",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  licenciaFuncionamiento?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description:
+      "Constancia de protección civil (PNG, JPG, JPEG o PDF, máximo 10MB).",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  constanciaProteccionCivil?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description: "Uso de suelo (PNG, JPG, JPEG o PDF, máximo 10MB).",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  usoSuelo?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description: "Plano catastral (PNG, JPG, JPEG o PDF, máximo 10MB).",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  planoCatastral?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description:
+      "Poder del representante legal (PNG, JPG, JPEG o PDF, máximo 10MB).",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  poderRepresentanteLegal?: any;
+
+  @IsOptional()
+  @ApiProperty({
+    description:
+      "INE del representante legal (PNG, JPG, JPEG o PDF, máximo 10MB).",
+    type: "string",
+    format: "binary",
+    required: false,
+  })
+  ineRepresentanteLegal?: any;
 
   @IsOptional()
   @IsArray()

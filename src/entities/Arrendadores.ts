@@ -105,6 +105,40 @@ export class Arrendadores {
   @Column("varchar", { name: "Logotipo", nullable: true, length: 500 })
   logotipo: string | null;
 
+  @Column("varchar", {
+    name: "LicenciaFuncionamiento",
+    nullable: true,
+    length: 500,
+  })
+  licenciaFuncionamiento: string | null;
+
+  @Column("varchar", {
+    name: "ConstanciaProteccionCivil",
+    nullable: true,
+    length: 500,
+  })
+  constanciaProteccionCivil: string | null;
+
+  @Column("varchar", { name: "UsoSuelo", nullable: true, length: 500 })
+  usoSuelo: string | null;
+
+  @Column("varchar", { name: "PlanoCatastral", nullable: true, length: 500 })
+  planoCatastral: string | null;
+
+  @Column("varchar", {
+    name: "PoderRepresentanteLegal",
+    nullable: true,
+    length: 500,
+  })
+  poderRepresentanteLegal: string | null;
+
+  @Column("varchar", {
+    name: "IneRepresentanteLegal",
+    nullable: true,
+    length: 500,
+  })
+  ineRepresentanteLegal: string | null;
+
   @Column("datetime", {
     name: "FechaCreacion",
     default: () => "CURRENT_TIMESTAMP",

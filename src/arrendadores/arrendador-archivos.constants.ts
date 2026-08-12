@@ -3,6 +3,12 @@ export const ARRENDADOR_ARCHIVO_FIELDS = [
   "constanciaSituacionFiscal",
   "comprobanteDomicilio",
   "actaConstitutiva",
+  "licenciaFuncionamiento",
+  "constanciaProteccionCivil",
+  "usoSuelo",
+  "planoCatastral",
+  "poderRepresentanteLegal",
+  "ineRepresentanteLegal",
 ] as const;
 
 export type ArrendadorArchivoField = (typeof ARRENDADOR_ARCHIVO_FIELDS)[number];

@@ -45,6 +45,11 @@ export class RentaActualService {
     await this.assertFormula(dto.idFormula);
     await this.assertNoRegistroActivo(dto.idArrendatario, dto.idContrato);
 
+    const fechaFin =
+      dto.fechaFin != null && String(dto.fechaFin).trim() !== ""
+        ? new Date(dto.fechaFin)
+        : null;
+
     const row = this.rentaActualRepository.create({
       idArrendatario: dto.idArrendatario,
       idContrato: dto.idContrato,
@@ -54,6 +59,9 @@ export class RentaActualService {
       montoFinal: decStr(dto.montoFinal),
       totalMantenimiento: decStr(dto.totalMantenimiento),
       montoFinalMantenimiento: decStr(dto.montoFinalMantenimiento),
+      fechaFin,
+      usaFormula: dto.usaFormula ?? null,
+      esPeriodo: fechaFin != null ? 1 : 0,
       factorVariable: decStr(dto.factorVariable),
       ocupoFormula: dto.ocupoFormula ?? null,
       pagada: 0,
@@ -71,6 +79,11 @@ export class RentaActualService {
     const source = await this.rentaActualRepository.findOne({ where: { id } });
     if (!source) {
       throw new NotFoundException(`Renta actual con id ${id} no encontrada.`);
+    }
+    if (Number(source.esPeriodo) === 1) {
+      throw new BadRequestException(
+        `La renta actual con id ${id} es de periodo (EsPeriodo=1) y no se puede duplicar al mes siguiente.`,
+      );
     }
     if (!source.mes) {
       throw new BadRequestException(
@@ -104,6 +117,9 @@ export class RentaActualService {
       montoFinal: source.montoFinal,
       totalMantenimiento: source.totalMantenimiento,
       montoFinalMantenimiento: source.montoFinalMantenimiento,
+      fechaFin: source.fechaFin,
+      usaFormula: source.usaFormula,
+      esPeriodo: source.esPeriodo,
       factorVariable: source.factorVariable,
       ocupoFormula: source.ocupoFormula,
       pagada: source.pagada,
@@ -150,6 +166,17 @@ export class RentaActualService {
       }),
       ...(dto.montoFinalMantenimiento !== undefined && {
         montoFinalMantenimiento: decStr(dto.montoFinalMantenimiento),
+      }),
+      ...(dto.fechaFin !== undefined && {
+        fechaFin:
+          dto.fechaFin != null && String(dto.fechaFin).trim() !== ""
+            ? new Date(dto.fechaFin)
+            : null,
+        esPeriodo:
+          dto.fechaFin != null && String(dto.fechaFin).trim() !== "" ? 1 : 0,
+      }),
+      ...(dto.usaFormula !== undefined && {
+        usaFormula: dto.usaFormula ?? null,
       }),
       ...(dto.factorVariable !== undefined && {
         factorVariable: decStr(dto.factorVariable),
@@ -435,6 +462,9 @@ export class RentaActualService {
       montoFinal: row.montoFinal,
       totalMantenimiento: row.totalMantenimiento,
       montoFinalMantenimiento: row.montoFinalMantenimiento,
+      fechaFin: row.fechaFin,
+      usaFormula: row.usaFormula,
+      esPeriodo: row.esPeriodo,
       factorVariable: row.factorVariable,
       ocupoFormula: row.ocupoFormula,
       pagada: 1,

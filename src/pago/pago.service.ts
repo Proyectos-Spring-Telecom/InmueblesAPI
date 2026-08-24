@@ -98,6 +98,11 @@ export class PagoService {
       ID_MODULE,
     );
 
+    const fechaPagoFinal =
+      dto.fechaPagoFinal != null && String(dto.fechaPagoFinal).trim() !== ""
+        ? new Date(dto.fechaPagoFinal)
+        : null;
+
     const row = this.pagoRepository.create({
       idInmueble: dto.idInmueble,
       idServicioInmueble: dto.idServicioInmueble ?? null,
@@ -107,6 +112,8 @@ export class PagoService {
       idMetodoPago: dto.idMetodoPago ?? null,
       estatus: dto.estatus ?? PagoEstatus.Pagado,
       comprobantePago: upload.url,
+      fechaPagoFinal,
+      esPagoPeriodo: fechaPagoFinal != null ? 1 : 0,
     });
 
     const saved = await this.pagoRepository.save(row);

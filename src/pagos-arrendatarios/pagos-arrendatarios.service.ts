@@ -107,6 +107,11 @@ export class PagosArrendatariosService {
       ID_MODULE,
     );
 
+    const fechaPagoFinal =
+      dto.fechaPagoFinal != null && String(dto.fechaPagoFinal).trim() !== ""
+        ? new Date(dto.fechaPagoFinal)
+        : null;
+
     const row = this.pagosArrendatariosRepository.create({
       idArrendatario: dto.idArrendatario,
       idServicioArrendatario: dto.idServicioArrendatario ?? null,
@@ -116,6 +121,8 @@ export class PagosArrendatariosService {
       idMetodoPago: dto.idMetodoPago ?? null,
       estatus: dto.estatus ?? PagoEstatus.Pagado,
       comprobantePago: upload.url,
+      fechaPagoFinal,
+      esPeriodo: fechaPagoFinal != null ? 1 : 0,
     });
 
     const saved = await this.pagosArrendatariosRepository.save(row);

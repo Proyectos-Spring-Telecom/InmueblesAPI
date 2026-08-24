@@ -33,6 +33,15 @@ export class CreatePagosArrendatarioDto {
   @IsDateString()
   fechaPago: string;
 
+  @ApiPropertyOptional({
+    example: "2026-06-15T12:00:00.000Z",
+    description:
+      "Si se envía, el pago es de periodo (EsPeriodo=1). Si es null/omitido, EsPeriodo=0.",
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaPagoFinal?: string | null;
+
   @ApiProperty({ example: 15000.5 })
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })

@@ -78,6 +78,13 @@ export class PagoController {
           format: "date-time",
           example: "2026-05-15T12:00:00.000Z",
         },
+        fechaPagoFinal: {
+          type: "string",
+          format: "date-time",
+          example: "2026-06-15T12:00:00.000Z",
+          description:
+            "Opcional. Si se envía → EsPagoPeriodo=1; si se omite → EsPagoPeriodo=0",
+        },
         monto: { type: "number", example: 15000.5 },
         idMetodoPago: { type: "integer", example: 1 },
         estatus: {

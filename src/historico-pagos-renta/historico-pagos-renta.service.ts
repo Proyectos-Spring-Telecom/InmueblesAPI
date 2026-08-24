@@ -52,6 +52,11 @@ export class HistoricoPagosRentaService {
     await this.assertContrato(dto.idContrato, dto.idArrendatario);
     await this.assertFormula(dto.idFormula);
 
+    const fechaFin =
+      dto.fechaFin != null && String(dto.fechaFin).trim() !== ""
+        ? new Date(dto.fechaFin)
+        : null;
+
     const row = this.historicoRepository.create({
       idArrendatario: dto.idArrendatario,
       idContrato: dto.idContrato,
@@ -61,6 +66,9 @@ export class HistoricoPagosRentaService {
       montoFinal: decStr(dto.montoFinal),
       totalMantenimiento: decStr(dto.totalMantenimiento),
       montoFinalMantenimiento: decStr(dto.montoFinalMantenimiento),
+      fechaFin,
+      usaFormula: dto.usaFormula ?? null,
+      esPeriodo: fechaFin != null ? 1 : 0,
       factorVariable: decStr(dto.factorVariable),
       ocupoFormula: dto.ocupoFormula ?? null,
       pagada: dto.pagada ?? 1,
@@ -117,6 +125,17 @@ export class HistoricoPagosRentaService {
       }),
       ...(dto.montoFinalMantenimiento !== undefined && {
         montoFinalMantenimiento: decStr(dto.montoFinalMantenimiento),
+      }),
+      ...(dto.fechaFin !== undefined && {
+        fechaFin:
+          dto.fechaFin != null && String(dto.fechaFin).trim() !== ""
+            ? new Date(dto.fechaFin)
+            : null,
+        esPeriodo:
+          dto.fechaFin != null && String(dto.fechaFin).trim() !== "" ? 1 : 0,
+      }),
+      ...(dto.usaFormula !== undefined && {
+        usaFormula: dto.usaFormula ?? null,
       }),
       ...(dto.factorVariable !== undefined && {
         factorVariable: decStr(dto.factorVariable),

@@ -67,6 +67,15 @@ export class RentaActual {
   })
   montoFinalMantenimiento: string | null;
 
+  @Column("datetime", { name: "FechaFin", nullable: true })
+  fechaFin: Date | null;
+
+  @Column("tinyint", { name: "UsaFormula", nullable: true })
+  usaFormula: number | null;
+
+  @Column("tinyint", { name: "EsPeriodo", nullable: true })
+  esPeriodo: number | null;
+
   @Column("decimal", {
     name: "FactorVariable",
     nullable: true,

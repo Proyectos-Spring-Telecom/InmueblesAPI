@@ -80,6 +80,13 @@ export class PagosArrendatariosController {
           format: "date-time",
           example: "2026-05-15T12:00:00.000Z",
         },
+        fechaPagoFinal: {
+          type: "string",
+          format: "date-time",
+          example: "2026-06-15T12:00:00.000Z",
+          description:
+            "Opcional. Si se envía → EsPeriodo=1; si se omite → EsPeriodo=0",
+        },
         monto: { type: "number", example: 15000.5 },
         idMetodoPago: { type: "integer", example: 1 },
         estatus: {

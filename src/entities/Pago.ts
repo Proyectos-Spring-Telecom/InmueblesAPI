@@ -61,6 +61,12 @@ export class Pago {
   })
   comprobantePago: string | null;
 
+  @Column("datetime", { name: "FechaPagoFinal", nullable: true })
+  fechaPagoFinal: Date | null;
+
+  @Column("tinyint", { name: "EsPagoPeriodo", nullable: true })
+  esPagoPeriodo: number | null;
+
   @ManyToOne(() => Inmuebles, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",

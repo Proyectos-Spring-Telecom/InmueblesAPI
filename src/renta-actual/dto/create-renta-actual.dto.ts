@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import {
+  IsDateString,
   IsInt,
   IsNumber,
   IsOptional,
@@ -55,6 +56,26 @@ export class CreateRentaActualDto {
   @Type(() => Number)
   @IsNumber({ maxDecimalPlaces: 2 })
   montoFinalMantenimiento?: number;
+
+  @ApiPropertyOptional({
+    example: "2026-09-30T00:00:00.000Z",
+    description:
+      "Si se envía, el registro es de periodo (EsPeriodo=1). Si es null/omitido, EsPeriodo=0.",
+  })
+  @IsOptional()
+  @IsDateString()
+  fechaFin?: string | null;
+
+  @ApiPropertyOptional({
+    example: 1,
+    description: "Indica si usa fórmula (1 = sí, 0 = no). Lo envía el front.",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1)
+  usaFormula?: number;
 
   @ApiPropertyOptional({
     example: 1.05,

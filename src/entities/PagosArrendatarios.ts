@@ -61,6 +61,12 @@ export class PagosArrendatarios {
   })
   comprobantePago: string | null;
 
+  @Column("datetime", { name: "FechaPagoFinal", nullable: true })
+  fechaPagoFinal: Date | null;
+
+  @Column("tinyint", { name: "EsPeriodo", nullable: true })
+  esPeriodo: number | null;
+
   @ManyToOne(() => Arrendatarios, {
     onDelete: "NO ACTION",
     onUpdate: "NO ACTION",

@@ -62,6 +62,7 @@ export class RentaActualController {
     description:
       "Crea un nuevo registro idéntico al indicado, con Mes avanzado un mes " +
       "(ej. 2026-07-01 06:00:00 → 2026-08-01 06:00:00). " +
+      "No permite duplicar si EsPeriodo=1. " +
       "Falla si ya existe renta para ese arrendatario + contrato en el mes destino.",
   })
   duplicarSiguienteMes(@Param("id", ParseIntPipe) id: number) {

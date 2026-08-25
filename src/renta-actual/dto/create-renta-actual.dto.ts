@@ -24,6 +24,13 @@ export class CreateRentaActualDto {
   @IsInt()
   idContrato: number;
 
+  @ApiProperty({
+    example: "2026-08-01T00:00:00.000Z",
+    description: "Fecha de inicio del periodo/mes de la renta (se guarda en Mes). Lo envía el front.",
+  })
+  @IsDateString()
+  fechaInicio: string;
+
   @ApiPropertyOptional({ example: 15000.5, description: "Total renta" })
   @IsOptional()
   @Type(() => Number)

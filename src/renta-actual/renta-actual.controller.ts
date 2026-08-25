@@ -28,9 +28,9 @@ export class RentaActualController {
   @Post()
   @HttpCode(200)
   @ApiOperation({
-    summary: "Registrar renta actual del mes en curso",
+    summary: "Registrar renta actual",
     description:
-      "Asigna automáticamente el mes-año actual. Solo un registro activo por idArrendatario + idContrato.",
+      "El front envía `fechaInicio` (se guarda en Mes). Solo un registro por idArrendatario + idContrato + mes (año/mes).",
   })
   @ApiBody({
     type: CreateRentaActualDto,
@@ -40,6 +40,7 @@ export class RentaActualController {
         value: {
           idArrendatario: 1,
           idContrato: 5,
+          fechaInicio: "2026-08-01T00:00:00.000Z",
           total: 15000,
           montoFinal: 15500,
           totalMantenimiento: 3500,

@@ -43,7 +43,9 @@ export class RentaActualService {
     await this.assertArrendatario(dto.idArrendatario);
     await this.assertContrato(dto.idContrato, dto.idArrendatario);
     await this.assertFormula(dto.idFormula);
-    await this.assertNoRegistroActivo(dto.idArrendatario, dto.idContrato);
+
+    const mes = new Date(dto.fechaInicio);
+    await this.assertNoRegistroEnMes(dto.idArrendatario, dto.idContrato, mes);
 
     const fechaFin =
       dto.fechaFin != null && String(dto.fechaFin).trim() !== ""
@@ -53,7 +55,7 @@ export class RentaActualService {
     const row = this.rentaActualRepository.create({
       idArrendatario: dto.idArrendatario,
       idContrato: dto.idContrato,
-      mes: getMesActual(),
+      mes,
       total: decStr(dto.total),
       idFormula: dto.idFormula ?? null,
       montoFinal: decStr(dto.montoFinal),
@@ -365,18 +367,6 @@ export class RentaActualService {
         lastPage: Math.ceil(total / safeLimit),
       },
     };
-  }
-
-  private async assertNoRegistroActivo(
-    idArrendatario: number,
-    idContrato: number,
-  ) {
-    await this.assertNoRegistroEnMes(
-      idArrendatario,
-      idContrato,
-      getMesActual(),
-      `Ya existe una renta actual para el mes en curso (arrendatario ${idArrendatario}, contrato ${idContrato}).`,
-    );
   }
 
   private async assertNoRegistroEnMes(

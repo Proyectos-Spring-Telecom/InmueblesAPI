@@ -30,7 +30,9 @@ export class RentaActualController {
   @ApiOperation({
     summary: "Registrar renta actual",
     description:
-      "El front envía `fechaInicio` (se guarda en Mes). Solo un registro por idArrendatario + idContrato + mes (año/mes).",
+      "El front envía `fechaInicio` (se guarda en Mes). " +
+      "Rechaza mes duplicado o solapamiento con otro periodo/mes del mismo año " +
+      "para el mismo arrendatario + contrato (incluye histórico).",
   })
   @ApiBody({
     type: CreateRentaActualDto,

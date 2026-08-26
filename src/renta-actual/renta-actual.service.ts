@@ -31,6 +31,8 @@ export class RentaActualService {
     private readonly dataSource: DataSource,
     @InjectRepository(RentaActual)
     private readonly rentaActualRepository: Repository<RentaActual>,
+    @InjectRepository(HistoricoPagosRenta)
+    private readonly historicoRepository: Repository<HistoricoPagosRenta>,
     @InjectRepository(Arrendatarios)
     private readonly arrendatariosRepository: Repository<Arrendatarios>,
     @InjectRepository(ContratoArrendatarios)
@@ -45,12 +47,18 @@ export class RentaActualService {
     await this.assertFormula(dto.idFormula);
 
     const mes = new Date(dto.fechaInicio);
-    await this.assertNoRegistroEnMes(dto.idArrendatario, dto.idContrato, mes);
-
     const fechaFin =
       dto.fechaFin != null && String(dto.fechaFin).trim() !== ""
         ? new Date(dto.fechaFin)
         : null;
+
+    this.assertRangoFechasValido(mes, fechaFin);
+    await this.assertSinSolapamientoRenta(
+      dto.idArrendatario,
+      dto.idContrato,
+      mes,
+      fechaFin,
+    );
 
     const row = this.rentaActualRepository.create({
       idArrendatario: dto.idArrendatario,
@@ -104,10 +112,11 @@ export class RentaActualService {
     );
 
     const mesSiguiente = addOneMonth(source.mes);
-    await this.assertNoRegistroEnMes(
+    await this.assertSinSolapamientoRenta(
       Number(source.idArrendatario),
       Number(source.idContrato),
       mesSiguiente,
+      null,
     );
 
     const row = this.rentaActualRepository.create({
@@ -153,6 +162,21 @@ export class RentaActualService {
 
     if (dto.idFormula !== undefined) {
       await this.assertFormula(dto.idFormula);
+    }
+
+    if (dto.fechaFin !== undefined && current.mes != null) {
+      const fechaFin =
+        dto.fechaFin != null && String(dto.fechaFin).trim() !== ""
+          ? new Date(dto.fechaFin)
+          : null;
+      this.assertRangoFechasValido(current.mes, fechaFin);
+      await this.assertSinSolapamientoRenta(
+        Number(current.idArrendatario),
+        Number(current.idContrato),
+        current.mes,
+        fechaFin,
+        id,
+      );
     }
 
     await this.rentaActualRepository.update(id, {
@@ -369,27 +393,108 @@ export class RentaActualService {
     };
   }
 
-  private async assertNoRegistroEnMes(
+  /**
+   * Rechaza mes duplicado y solapamiento con otro periodo/mes del mismo
+   * arrendatario+contrato (incluye histórico). Comparación por año-mes.
+   */
+  private async assertSinSolapamientoRenta(
     idArrendatario: number,
     idContrato: number,
-    mes: Date,
-    message?: string,
+    fechaInicio: Date,
+    fechaFin: Date | null,
+    excludeId?: number,
   ) {
-    const existing = await this.rentaActualRepository
-      .createQueryBuilder("r")
-      .where("r.idArrendatario = :idArrendatario", { idArrendatario })
-      .andWhere("r.idContrato = :idContrato", { idContrato })
-      .andWhere("YEAR(r.mes) = :anio", { anio: mes.getFullYear() })
-      .andWhere("MONTH(r.mes) = :mesNum", { mesNum: mes.getMonth() + 1 })
-      .select(["r.id"])
-      .getOne();
+    const nuevoInicio = this.toYearMonthKey(fechaInicio);
+    const nuevoFin = this.toYearMonthKey(fechaFin ?? fechaInicio);
+    const aniosNuevos = this.aniosEnRango(nuevoInicio, nuevoFin);
 
-    if (existing) {
-      throw new ConflictException(
-        message ??
-          `Ya existe una renta actual para el mes ${mes.getFullYear()}-${String(mes.getMonth() + 1).padStart(2, "0")} (arrendatario ${idArrendatario}, contrato ${idContrato}).`,
+    const [rentas, historicos] = await Promise.all([
+      this.rentaActualRepository.find({
+        where: { idArrendatario, idContrato },
+        select: ["id", "mes", "fechaFin"],
+      }),
+      this.historicoRepository.find({
+        where: { idArrendatario, idContrato },
+        select: ["id", "mes", "fechaFin"],
+      }),
+    ]);
+
+    const candidatos: Array<{
+      origen: "RentaActual" | "HistoricoPagosRenta";
+      id: number;
+      mes: Date | null;
+      fechaFin: Date | null;
+    }> = [
+      ...rentas
+        .filter((r) => excludeId == null || Number(r.id) !== Number(excludeId))
+        .map((r) => ({
+          origen: "RentaActual" as const,
+          id: Number(r.id),
+          mes: r.mes,
+          fechaFin: r.fechaFin,
+        })),
+      ...historicos.map((h) => ({
+        origen: "HistoricoPagosRenta" as const,
+        id: Number(h.id),
+        mes: h.mes,
+        fechaFin: h.fechaFin,
+      })),
+    ];
+
+    for (const row of candidatos) {
+      if (!row.mes) continue;
+
+      const existenteInicio = this.toYearMonthKey(row.mes);
+      const existenteFin = this.toYearMonthKey(row.fechaFin ?? row.mes);
+      const aniosExistente = this.aniosEnRango(existenteInicio, existenteFin);
+
+      const mismoAnio = aniosNuevos.some((a) => aniosExistente.includes(a));
+      if (!mismoAnio) continue;
+
+      if (nuevoInicio <= existenteFin && existenteInicio <= nuevoFin) {
+        const mesFmt = this.formatYearMonth(fechaInicio);
+        const rangoExistente = row.fechaFin
+          ? `${this.formatYearMonth(row.mes)} a ${this.formatYearMonth(row.fechaFin)}`
+          : this.formatYearMonth(row.mes);
+
+        throw new ConflictException(
+          `Ya existe un registro que cubre el mes ${mesFmt} (o se solapa con el periodo) ` +
+            `para arrendatario ${idArrendatario}, contrato ${idContrato}. ` +
+            `Conflicto con ${row.origen} id=${row.id} (${rangoExistente}).`,
+        );
+      }
+    }
+  }
+
+  private assertRangoFechasValido(fechaInicio: Date, fechaFin: Date | null) {
+    if (Number.isNaN(fechaInicio.getTime())) {
+      throw new BadRequestException("fechaInicio no es una fecha válida.");
+    }
+    if (fechaFin != null && Number.isNaN(fechaFin.getTime())) {
+      throw new BadRequestException("fechaFin no es una fecha válida.");
+    }
+    if (fechaFin != null && fechaFin < fechaInicio) {
+      throw new BadRequestException(
+        "fechaFin no puede ser anterior a fechaInicio.",
       );
     }
+  }
+
+  /** Clave comparable año-mes: anio*12 + mes(0-11). */
+  private toYearMonthKey(fecha: Date): number {
+    return fecha.getFullYear() * 12 + fecha.getMonth();
+  }
+
+  private aniosEnRango(inicioKey: number, finKey: number): number[] {
+    const anioIni = Math.floor(inicioKey / 12);
+    const anioFin = Math.floor(finKey / 12);
+    const anios: number[] = [];
+    for (let a = anioIni; a <= anioFin; a++) anios.push(a);
+    return anios;
+  }
+
+  private formatYearMonth(fecha: Date): string {
+    return `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}`;
   }
 
   private async assertArrendatario(idArrendatario: number) {

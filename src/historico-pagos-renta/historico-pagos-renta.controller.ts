@@ -73,7 +73,7 @@ export class HistoricoPagosRentaController {
   @ApiOperation({
     summary: "Listar histórico de pagos de renta paginado por rango de fechas",
     description:
-      "Filtra por `mes` entre fechaInicio y fechaFin (YYYY-MM-DD). " +
+      "Filtra por mes calendario de `Mes` entre fechaInicio y fechaFin (YYYY-MM-DD). " +
       "Opcionalmente por idArrendatario e idContrato. " +
       "Rol > 1: solo pagos de arrendatarios cuyos arrendadores pertenecen al cliente del JWT.",
   })

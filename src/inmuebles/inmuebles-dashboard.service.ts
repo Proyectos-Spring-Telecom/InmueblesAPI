@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
-import { parseRangoFechas } from "src/common/pago-mensual.utils";
+import { parseRangoFechas, parseRangoMeses, sqlMesEnRango } from "src/common/pago-mensual.utils";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Inmuebles } from "src/entities/Inmuebles";
@@ -36,6 +36,7 @@ export class InmueblesDashboardService {
     fechaFin: string,
   ) {
     const { inicio, fin } = parseRangoFechas(fechaInicio, fechaFin);
+    const { mesKeyInicio, mesKeyFin } = parseRangoMeses(fechaInicio, fechaFin);
 
     const inmueble = await this.inmueblesRepository.findOne({
       where: { id: idInmueble },
@@ -88,8 +89,7 @@ export class InmueblesDashboardService {
               .createQueryBuilder("r")
               .leftJoinAndSelect("r.formula", "formula")
               .where("r.idContrato IN (:...idContratos)", { idContratos })
-              .andWhere("r.mes >= :inicio", { inicio })
-              .andWhere("r.mes <= :fin", { fin })
+              .andWhere(sqlMesEnRango("r.mes"), { mesKeyInicio, mesKeyFin })
               .orderBy("r.mes", "DESC")
               .addOrderBy("r.id", "DESC")
               .getMany()

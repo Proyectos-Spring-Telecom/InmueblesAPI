@@ -83,6 +83,63 @@ export function parseRangoFechas(
   return { inicio, fin };
 }
 
+/** Parsea YYYY-MM-DD sin depender de zona horaria del servidor. */
+export function parseYmd(fecha: string): { anio: number; mes: number; dia: number } {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(fecha).trim());
+  if (!match) {
+    throw new BadRequestException(
+      "La fecha debe tener formato YYYY-MM-DD.",
+    );
+  }
+
+  const anio = Number(match[1]);
+  const mes = Number(match[2]);
+  const dia = Number(match[3]);
+  const probe = new Date(anio, mes - 1, dia);
+  if (
+    probe.getFullYear() !== anio ||
+    probe.getMonth() !== mes - 1 ||
+    probe.getDate() !== dia
+  ) {
+    throw new BadRequestException("La fecha no es válida (YYYY-MM-DD).");
+  }
+
+  return { anio, mes, dia };
+}
+
+/**
+ * Rango de meses calendario (inclusive) para filtrar columnas Mes.
+ * Evita desfases por hora/zona al comparar datetime.
+ */
+export function parseRangoMeses(
+  fechaInicio: string | undefined,
+  fechaFin: string | undefined,
+): { mesKeyInicio: number; mesKeyFin: number } {
+  if (!fechaInicio || !fechaFin) {
+    throw new BadRequestException(
+      "Se requieren fechaInicio y fechaFin (formato YYYY-MM-DD).",
+    );
+  }
+
+  const ini = parseYmd(fechaInicio);
+  const fin = parseYmd(fechaFin);
+  const mesKeyInicio = ini.anio * 12 + ini.mes;
+  const mesKeyFin = fin.anio * 12 + fin.mes;
+
+  if (mesKeyInicio > mesKeyFin) {
+    throw new BadRequestException(
+      "fechaInicio no puede ser posterior a fechaFin.",
+    );
+  }
+
+  return { mesKeyInicio, mesKeyFin };
+}
+
+/** Condición SQL: columna Mes cae en el rango de meses calendario. */
+export function sqlMesEnRango(column: string): string {
+  return `(YEAR(${column}) * 12 + MONTH(${column})) >= :mesKeyInicio AND (YEAR(${column}) * 12 + MONTH(${column})) <= :mesKeyFin`;
+}
+
 export const PAGO_MENSUAL_RELATIONS = [
   "arrendatario",
   "contrato",

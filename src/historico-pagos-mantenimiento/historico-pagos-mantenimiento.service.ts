@@ -8,7 +8,8 @@ import { Repository } from "typeorm";
 import { ApiResponseCommon } from "src/common/ApiResponse";
 import {
   PAGO_MENSUAL_RELATIONS,
-  parseRangoFechas,
+  parseRangoMeses,
+  sqlMesEnRango,
 } from "src/common/pago-mensual.utils";
 import { HistoricoPagosMantenimiento } from "src/entities/HistoricoPagosMantenimiento";
 
@@ -47,7 +48,7 @@ export class HistoricoPagosMantenimientoService {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const skip = (safePage - 1) * safeLimit;
-    const { inicio, fin } = parseRangoFechas(
+    const { mesKeyInicio, mesKeyFin } = parseRangoMeses(
       filters.fechaInicio,
       filters.fechaFin,
     );
@@ -60,8 +61,7 @@ export class HistoricoPagosMantenimientoService {
       .leftJoinAndSelect("contrato.contratoLocales", "contratoLocales")
       .leftJoinAndSelect("contratoLocales.local", "local")
       .leftJoinAndSelect("h.formula", "formula")
-      .where("h.mes >= :inicio", { inicio })
-      .andWhere("h.mes <= :fin", { fin });
+      .where(sqlMesEnRango("h.mes"), { mesKeyInicio, mesKeyFin });
 
     if (filters.idArrendatario != null) {
       qb.andWhere("h.idArrendatario = :idArrendatario", {

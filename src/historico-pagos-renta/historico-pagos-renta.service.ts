@@ -11,7 +11,8 @@ import {
   mapHistoricoPagoRentaResponse,
   mapPagoRentaDesglose,
   PAGO_MENSUAL_RELATIONS,
-  parseRangoFechas,
+  parseRangoMeses,
+  sqlMesEnRango,
 } from "src/common/pago-mensual.utils";
 import { Arrendadores } from "src/entities/Arrendadores";
 import { Arrendatarios } from "src/entities/Arrendatarios";
@@ -229,7 +230,7 @@ export class HistoricoPagosRentaService {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const skip = (safePage - 1) * safeLimit;
-    const { inicio, fin } = parseRangoFechas(
+    const { mesKeyInicio, mesKeyFin } = parseRangoMeses(
       filters.fechaInicio,
       filters.fechaFin,
     );
@@ -262,8 +263,7 @@ export class HistoricoPagosRentaService {
       .leftJoinAndSelect("contrato.contratoLocales", "contratoLocales")
       .leftJoinAndSelect("contratoLocales.local", "local")
       .leftJoinAndSelect("h.formula", "formula")
-      .where("h.mes >= :inicio", { inicio })
-      .andWhere("h.mes <= :fin", { fin });
+      .where(sqlMesEnRango("h.mes"), { mesKeyInicio, mesKeyFin });
 
     if (arrendadorIds) {
       qb.andWhere("arrendatario.idArrendador IN (:...arrendadorIds)", {

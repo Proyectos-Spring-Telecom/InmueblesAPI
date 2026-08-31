@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { In, Repository } from "typeorm";
 import { assembleArrendatarioPanel } from "src/common/arrendatario-dashboard.utils";
-import { parseRangoFechas } from "src/common/pago-mensual.utils";
+import { parseRangoFechas, parseRangoMeses, sqlMesEnRango } from "src/common/pago-mensual.utils";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
@@ -36,6 +36,7 @@ export class ArrendatariosDashboardService {
     fechaFin: string,
   ) {
     const { inicio, fin } = parseRangoFechas(fechaInicio, fechaFin);
+    const { mesKeyInicio, mesKeyFin } = parseRangoMeses(fechaInicio, fechaFin);
 
     const arrendatario = await this.arrendatariosRepository.findOne({
       where: { id: idArrendatario },
@@ -47,7 +48,14 @@ export class ArrendatariosDashboardService {
       );
     }
 
-    const panel = await this.buildArrendatarioPanel(idArrendatario, inicio, fin, arrendatario);
+    const panel = await this.buildArrendatarioPanel(
+      idArrendatario,
+      inicio,
+      fin,
+      mesKeyInicio,
+      mesKeyFin,
+      arrendatario,
+    );
 
     return {
       filtros: {
@@ -63,6 +71,8 @@ export class ArrendatariosDashboardService {
     idArrendatario: number,
     inicio: Date,
     fin: Date,
+    mesKeyInicio: number,
+    mesKeyFin: number,
     arrendatario: Arrendatarios,
   ) {
     const contratos = await this.contratoRepository
@@ -118,8 +128,7 @@ export class ArrendatariosDashboardService {
           .leftJoinAndSelect("contrato.inmueble", "inmueble")
           .leftJoinAndSelect("h.formula", "formula")
           .where("h.idArrendatario = :idArrendatario", { idArrendatario })
-          .andWhere("h.mes >= :inicio", { inicio })
-          .andWhere("h.mes <= :fin", { fin })
+          .andWhere(sqlMesEnRango("h.mes"), { mesKeyInicio, mesKeyFin })
           .orderBy("h.mes", "DESC")
           .addOrderBy("h.id", "DESC")
           .getMany(),
@@ -129,8 +138,7 @@ export class ArrendatariosDashboardService {
           .leftJoinAndSelect("contrato.inmueble", "inmueble")
           .leftJoinAndSelect("r.formula", "formula")
           .where("r.idArrendatario = :idArrendatario", { idArrendatario })
-          .andWhere("r.mes >= :inicio", { inicio })
-          .andWhere("r.mes <= :fin", { fin })
+          .andWhere(sqlMesEnRango("r.mes"), { mesKeyInicio, mesKeyFin })
           .orderBy("r.mes", "DESC")
           .addOrderBy("r.id", "DESC")
           .getMany(),

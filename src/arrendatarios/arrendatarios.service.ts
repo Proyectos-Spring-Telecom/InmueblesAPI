@@ -43,6 +43,7 @@ import {
 } from "./dto/actualizar-arrendatario-form.dto";
 import { UpdateArchivoArrendatarioDto } from "./dto/update-archivo-arrendatario.dto";
 import { UpdateServicioArrendatarioItemDto } from "./dto/update-servicio-arrendatario.dto";
+import { ReactivarArrendatarioDto } from "./dto/reactivar-arrendatario.dto";
 
 const FOLDER_SERVICIOS = "Servicios Arrendatarios";
 const FOLDER_DOC = "Documentación Arrendatario";
@@ -337,6 +338,113 @@ export class ArrendatariosService {
         data: {
           id,
           nombre: arrendatario.arrendatario ?? "",
+        },
+      };
+    });
+  }
+
+  /**
+   * Reactiva un arrendatario dado de baja.
+   * conDependientes=false → solo Arrendatarios.Estatus=1.
+   * conDependientes=true → también dependencias a Estatus=1 (contratos/locales Activo,
+   * limpia FechaBaja y marca locales como Ocupado).
+   */
+  async reactivarArrendatario(
+    id: number,
+    dto: ReactivarArrendatarioDto,
+  ): Promise<ApiCrudResponse> {
+    return this.dataSource.transaction(async (manager) => {
+      const arrendatario = await manager.findOne(Arrendatarios, {
+        where: { id },
+      });
+      if (!arrendatario) {
+        throw new NotFoundException(
+          `Arrendatario con id ${id} no encontrado.`,
+        );
+      }
+      if (Number(arrendatario.estatus) === 1) {
+        throw new BadRequestException(
+          `El arrendatario con id ${id} ya está activo.`,
+        );
+      }
+
+      await manager.update(Arrendatarios, id, { estatus: 1 });
+
+      if (!dto.conDependientes) {
+        return {
+          status: "success",
+          message: "Arrendatario reactivado correctamente (sin dependencias).",
+          data: {
+            id,
+            nombre: arrendatario.arrendatario ?? "",
+            conDependientes: false,
+          },
+        };
+      }
+
+      await manager.update(
+        ServiciosArrendatarios,
+        { idArrendatario: id },
+        { estatus: 1 },
+      );
+      await manager.update(
+        SociosArrendatarios,
+        { idArrendatario: id },
+        { estatus: 1 },
+      );
+      await manager.update(
+        ArchivosArrendatarios,
+        { idArrendatario: id },
+        { estatus: 1 },
+      );
+      await manager.update(
+        Estacionamientos,
+        { idArrendatario: id },
+        { estatus: 1 },
+      );
+      await manager.update(
+        PagosArrendatarios,
+        { idArrendatario: id },
+        { estatus: 1 },
+      );
+
+      const contratos = await manager.find(ContratoArrendatarios, {
+        where: { idArrendatario: id },
+        select: ["id"],
+      });
+
+      for (const contrato of contratos) {
+        await manager.update(ContratoArrendatarios, contrato.id, {
+          estatus: ContratoEstatus.Activo,
+          fechaBaja: null,
+        });
+
+        const contratoLocales = await manager.find(ContratoLocales, {
+          where: { idContrato: contrato.id },
+        });
+
+        for (const contratoLocal of contratoLocales) {
+          await manager.update(ContratoLocales, contratoLocal.id, {
+            fechaBaja: null,
+            estatus: ContratoEstatus.Activo,
+          });
+
+          if (contratoLocal.idLocal != null) {
+            await manager.update(LocalesZonaInmueble, contratoLocal.idLocal, {
+              estatus: LocalesEstatus.Ocupado,
+            });
+          }
+        }
+      }
+
+      return {
+        status: "success",
+        message:
+          "Arrendatario y dependencias reactivados correctamente.",
+        data: {
+          id,
+          nombre: arrendatario.arrendatario ?? "",
+          conDependientes: true,
         },
       };
     });

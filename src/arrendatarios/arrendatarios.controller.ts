@@ -1,11 +1,13 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Put,
   Query,
@@ -34,6 +36,7 @@ import { RegistrarArrendatarioFormDto } from "./dto/registrar-arrendatario-form.
 import { ActualizarArrendatarioFormDto } from "./dto/actualizar-arrendatario-form.dto";
 import { ArrendatariosDashboardService } from "./arrendatarios-dashboard.service";
 import { ArrendatariosService } from "./arrendatarios.service";
+import { ReactivarArrendatarioDto } from "./dto/reactivar-arrendatario.dto";
 import { parseTopLevelJsonStrings } from "./utils/parse-top-level-json";
 
 @ApiTags("Arrendatarios")
@@ -199,6 +202,25 @@ export class ArrendatariosController {
     @Param("id", ParseIntPipe) id: number,
   ): Promise<ApiCrudResponse> {
     return this.arrendatariosService.removeArrendatario(id);
+  }
+
+  @Patch(":id/alta")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Reactivar un arrendatario dado de baja",
+    description:
+      "`conDependientes=true`: Estatus=1 en arrendatario y dependencias " +
+      "(servicios, socios, archivos, estacionamientos, pagos, contratos y contrato-locales; " +
+      "limpia FechaBaja y marca locales como Ocupado).\n\n" +
+      "`conDependientes=false`: solo Arrendatarios.Estatus=1.",
+  })
+  @ApiParam({ name: "id", description: "ID del arrendatario", example: 1 })
+  @ApiBody({ type: ReactivarArrendatarioDto })
+  reactivarArrendatario(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: ReactivarArrendatarioDto,
+  ): Promise<ApiCrudResponse> {
+    return this.arrendatariosService.reactivarArrendatario(id, dto);
   }
 
   @Get(":id")

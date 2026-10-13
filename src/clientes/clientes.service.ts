@@ -31,6 +31,7 @@ import { EmbudoVentasService } from "src/embudo-ventas/embudo-ventas.service";
 
 const ID_MODULE = 1;
 const S3_FOLDER = "Clientes";
+const ROL_VENDEDOR = 8;
 
 const SELECT_CLIENTE_LIST = `
   Id AS id,
@@ -261,19 +262,69 @@ export class ClientesService {
 
   async getAllProspectos(
     idUser: number,
-    cliente: number,
+    _cliente: number,
     rol: number,
     page: number,
     limit: number,
   ): Promise<ApiResponseCommon> {
-    return this.findClientesPaginados(
-      cliente,
-      rol,
-      page,
-      limit,
-      true,
-      "Ocurrió un error al obtener prospectos paginados.",
-    );
+    try {
+      const offset = (page - 1) * limit;
+      const esVendedor = Number(rol) === ROL_VENDEDOR;
+      const filtroVendedor = esVendedor
+        ? `AND EXISTS (
+            SELECT 1
+            FROM EmbudoVentas e
+            WHERE e.IdCliente = Clientes.Id
+              AND e.IdUsuario = ?
+          )`
+        : "";
+      const paramsLista = esVendedor
+        ? [1, idUser, limit, offset]
+        : [1, limit, offset];
+      const paramsTotal = esVendedor ? [1, idUser] : [1];
+
+      const rows = await this.clientesRepository.query(
+        `
+SELECT ${SELECT_CLIENTE_LIST}
+FROM Clientes
+WHERE EsProspecto = ?
+${filtroVendedor}
+ORDER BY Id ASC
+LIMIT ? OFFSET ?;
+        `,
+        paramsLista,
+      );
+      const totalResult = await this.clientesRepository.query(
+        `
+SELECT COUNT(*) AS total
+FROM Clientes
+WHERE EsProspecto = ?
+${filtroVendedor}
+        `,
+        paramsTotal,
+      );
+
+      const data = rows.map((item) => ({
+        ...item,
+        id: Number(item.id),
+        idPadre: item.idPadre != null ? Number(item.idPadre) : null,
+        esProspecto: Number(item.esProspecto) === 1,
+      }));
+      const total = Number(totalResult[0]?.total || 0);
+      return {
+        data,
+        paginated: {
+          total,
+          page,
+          lastPage: Math.ceil(total / limit) || 0,
+        },
+      };
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      throw new BadRequestException({
+        message: "Ocurrió un error al obtener prospectos paginados.",
+      });
+    }
   }
 
   private async findClientesPaginados(
@@ -408,7 +459,7 @@ ORDER BY Id ASC;
     }
   }
 
-  async getOneCliente(id: number, rol = 1) {
+  async getOneCliente(id: number, rol = 1, idUser = 0) {
     try {
       const where: { id: number; estatus?: number } = { id };
       if (!canSeeInactive(rol)) {
@@ -423,6 +474,24 @@ ORDER BY Id ASC;
         throw new NotFoundException(
           `El cliente con ID: ${id} no fue encontrado.`,
         );
+      }
+
+      if (Number(rol) === ROL_VENDEDOR && cliente.esProspecto) {
+        const propios = await this.clientesRepository.query(
+          `
+SELECT e.Id
+FROM EmbudoVentas e
+WHERE e.IdCliente = ?
+  AND e.IdUsuario = ?
+LIMIT 1
+          `,
+          [id, idUser],
+        );
+        if (!propios.length) {
+          throw new NotFoundException(
+            `El cliente con ID: ${id} no fue encontrado.`,
+          );
+        }
       }
 
       cliente.arrendadores = filterByEstatusRol(cliente.arrendadores, rol);

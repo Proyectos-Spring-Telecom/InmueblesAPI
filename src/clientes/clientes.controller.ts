@@ -92,7 +92,8 @@ export class ClientesController {
 
   @Get("prospectos/:page/:limit")
   @ApiOperation({
-    summary: "Listado paginado de prospectos (EsProspecto = true)",
+    summary:
+      "Listado paginado de prospectos. El vendedor (rol 8) ve solo los suyos; el rol 7 y los demás ven todos.",
   })
   getAllProspectos(
     @Param("page", ParseIntPipe) page: number,
@@ -145,7 +146,8 @@ export class ClientesController {
   @ApiOperation({ summary: "Obtener cliente por ID" })
   getOneCliente(@Param("id") id: string, @Req() req) {
     const rol = Number(req.user?.rol || 0);
-    return this.clientesService.getOneCliente(+id, rol);
+    const idUser = Number(req.user?.userId || 0);
+    return this.clientesService.getOneCliente(+id, rol, idUser);
   }
 
   @Patch("prospecto/:id")

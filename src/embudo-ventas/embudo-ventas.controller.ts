@@ -19,6 +19,7 @@ import {
 } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
 import { ApiCrudResponse, ApiResponseCommon } from "src/common/ApiResponse";
+import { EmbudoVentasCronService } from "./embudo-ventas-cron.service";
 import { EmbudoVentasService } from "./embudo-ventas.service";
 import { CreateEventoEmbudoVentasDto } from "./dto/create-evento-embudo-ventas.dto";
 import { UpdateEmbudoEstatusDto } from "./dto/update-embudo-estatus.dto";
@@ -30,7 +31,20 @@ import { UpdateEventoEstatusDto } from "./dto/update-evento-estatus.dto";
 @ApiBearerAuth("access-token")
 @Controller("embudo-ventas")
 export class EmbudoVentasController {
-  constructor(private readonly embudoVentasService: EmbudoVentasService) {}
+  constructor(
+    private readonly embudoVentasService: EmbudoVentasService,
+    private readonly embudoVentasCronService: EmbudoVentasCronService,
+  ) {}
+
+  @Post("correo-prueba")
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      "Envía un correo de prueba del resumen diario a luisnm93@gmail.com",
+  })
+  correoPrueba() {
+    return this.embudoVentasCronService.enviarCorreoPrueba();
+  }
 
   @Patch("estatus/:id")
   @HttpCode(200)

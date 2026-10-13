@@ -11,6 +11,7 @@ import {
 import { Usuarios } from "./Usuarios";
 import { applySchema } from "src/utils/schema";
 import { Arrendadores } from "./Arrendadores";
+import { EmbudoVentas } from "./EmbudoVentas";
 
 
 @Index("UQ_Clientes_RFC", ["rfc"], { unique: true })
@@ -116,6 +117,9 @@ export class Clientes {
   @Column("tinyint", { name: "Estatus", default: () => "'1'" })
   estatus: number;
 
+  @Column("tinyint", { name: "EsProspecto", width: 1, default: () => "'0'" })
+  esProspecto: boolean;
+
   @Column("varchar", {
     name: "LicenciaFuncionamiento",
     nullable: true,
@@ -165,4 +169,7 @@ export class Clientes {
 
   @OneToMany(() => Arrendadores, (arrendador) => arrendador.cliente)
   arrendadores: Arrendadores[];
+
+  @OneToMany(() => EmbudoVentas, (embudo) => embudo.cliente)
+  embudosVentas: EmbudoVentas[];
 }

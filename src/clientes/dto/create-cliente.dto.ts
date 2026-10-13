@@ -7,6 +7,7 @@ import {
   MaxLength,
   IsEmail,
   IsIn,
+  IsBoolean,
   ValidateIf,
 } from "class-validator";
 import { Transform } from "class-transformer";
@@ -237,4 +238,26 @@ export class CreateClienteDto {
     type: Number,
   })
   estatus?: number = 1;
+
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === "") return false;
+    if (value === true || value === "true" || value === 1 || value === "1") {
+      return true;
+    }
+    if (value === false || value === "false" || value === 0 || value === "0") {
+      return false;
+    }
+    return value;
+  })
+  @IsBoolean({ message: "EsProspecto debe ser true o false" })
+  @ApiProperty({
+    description:
+      "Indica si el cliente es prospecto. Si no se envía, se registra como false.",
+    example: false,
+    default: false,
+    required: false,
+    type: Boolean,
+  })
+  esProspecto?: boolean = false;
 }

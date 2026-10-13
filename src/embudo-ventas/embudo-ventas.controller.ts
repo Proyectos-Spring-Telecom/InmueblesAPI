@@ -23,6 +23,7 @@ import { EmbudoVentasService } from "./embudo-ventas.service";
 import { CreateEventoEmbudoVentasDto } from "./dto/create-evento-embudo-ventas.dto";
 import { UpdateEmbudoEstatusDto } from "./dto/update-embudo-estatus.dto";
 import { UpdateEventoEmbudoVentasDto } from "./dto/update-evento-embudo-ventas.dto";
+import { UpdateEventoEstatusDto } from "./dto/update-evento-estatus.dto";
 
 @ApiTags("Embudo de ventas")
 @UseGuards(JwtAuthGuard)
@@ -52,11 +53,32 @@ export class EmbudoVentasController {
     );
   }
 
+  @Patch("eventos/estatus/:id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      "Actualizar el estatus de un evento del embudo. Solo el usuario dueño puede hacerlo.",
+  })
+  @ApiParam({ name: "id", description: "ID del evento", example: 1 })
+  @ApiBody({ type: UpdateEventoEstatusDto })
+  updateEstatusEvento(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: UpdateEventoEstatusDto,
+    @Req() req,
+  ): Promise<ApiCrudResponse> {
+    const idUser = Number(req.user.userId);
+    return this.embudoVentasService.updateEstatusEvento(
+      id,
+      dto.estatus,
+      idUser,
+    );
+  }
+
   @Patch("eventos/:id")
   @HttpCode(200)
   @ApiOperation({
     summary:
-      "Registrar la conclusión de un evento del embudo. Solo el usuario dueño puede hacerlo.",
+      "Registrar la conclusión de un evento del embudo. El evento pasa a estatus realizada. Solo el usuario dueño puede hacerlo.",
   })
   @ApiParam({ name: "id", description: "ID del evento", example: 1 })
   @ApiBody({ type: UpdateEventoEmbudoVentasDto })
@@ -108,7 +130,7 @@ export class EmbudoVentasController {
   @Get()
   @ApiOperation({
     summary:
-      "Listado de embudos cuyo cliente sigue siendo prospecto, con su historial de eventos",
+      "Listado de embudos de ventas, con su historial de eventos",
   })
   getAllEmbudos(@Req() req): Promise<ApiResponseCommon> {
     const idUsuario = Number(req.user.userId);

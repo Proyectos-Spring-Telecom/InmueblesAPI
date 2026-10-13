@@ -20,6 +20,7 @@ async function bootstrap() {
     origin: '*', // Permitir todas las URLs; puedes poner un array de URLs específicas
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
+    exposedHeaders: ['Content-Disposition'],
   });
 
   app.useGlobalPipes(

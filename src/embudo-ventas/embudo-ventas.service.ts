@@ -167,9 +167,11 @@ export class EmbudoVentasService {
         );
       }
 
+      const estatusRealizada = 1;
       await this.dataSource.transaction(async (manager) => {
         await manager.update(EventosEmbudoVentas, idEvento, {
           conclusionEvento,
+          estatus: estatusRealizada,
         });
         await manager.update(EmbudoVentas, embudo.id, {
           fhUpdate: new Date(),
@@ -178,13 +180,15 @@ export class EmbudoVentasService {
 
       await this.bitacoraLogger.logToBitacora(
         "EmbudoVentas",
-        `Conclusión registrada en el evento ${idEvento} del embudo ${Number(embudo.id)}.`,
+        `Conclusión registrada en el evento ${idEvento} del embudo ${Number(embudo.id)}. El evento quedó como realizada.`,
         "UPDATE",
         {
           idEvento,
           idEmbudoVentas: Number(embudo.id),
           idUsuario: idUser,
           conclusionEvento,
+          estatusAnterior: Number(evento.estatus),
+          estatus: estatusRealizada,
         },
         idUser,
         ID_MODULE,
@@ -193,7 +197,8 @@ export class EmbudoVentasService {
 
       return {
         status: "success",
-        message: "La conclusión del evento se registró correctamente.",
+        message: "La conclusión del evento se registró y el evento quedó como realizada.",
+        estatus: { estatus: estatusRealizada },
         data: {
           id: idEvento,
           nombre: MEDIO_COMUNICACION[Number(evento.medioComunicacion)] ?? "Evento",
@@ -213,6 +218,88 @@ export class EmbudoVentasService {
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException({
         message: `Error al actualizar el evento con ID: ${idEvento}.`,
+        error: error.message,
+      });
+    }
+  }
+
+  async updateEstatusEvento(
+    idEvento: number,
+    estatus: number,
+    idUser: number,
+  ): Promise<ApiCrudResponse> {
+    try {
+      const evento = await this.eventosRepository.findOne({
+        where: { id: idEvento },
+      });
+      if (!evento) {
+        throw new NotFoundException(
+          `El evento con ID: ${idEvento} no fue encontrado.`,
+        );
+      }
+
+      const embudo = await this.embudoRepository.findOne({
+        where: { id: evento.idEmbudoVentas },
+      });
+      if (!embudo) {
+        throw new NotFoundException(
+          `El embudo de ventas del evento ${idEvento} no fue encontrado.`,
+        );
+      }
+
+      if (Number(embudo.idUsuario) !== Number(idUser)) {
+        throw new ForbiddenException(
+          "Solo el usuario asignado al embudo puede actualizar el estatus del evento.",
+        );
+      }
+
+      const estatusAnterior = Number(evento.estatus);
+      await this.dataSource.transaction(async (manager) => {
+        await manager.update(EventosEmbudoVentas, idEvento, { estatus });
+        await manager.update(EmbudoVentas, embudo.id, {
+          fhUpdate: new Date(),
+        });
+      });
+
+      await this.bitacoraLogger.logToBitacora(
+        "EmbudoVentas",
+        `Estatus del evento ${idEvento} del embudo ${Number(embudo.id)} actualizado de ${estatusAnterior} a ${estatus}.`,
+        "UPDATE",
+        {
+          idEvento,
+          idEmbudoVentas: Number(embudo.id),
+          idUsuario: idUser,
+          estatusAnterior,
+          estatus,
+        },
+        idUser,
+        ID_MODULE,
+        EstatusEnumBitcora.SUCCESS,
+      );
+
+      return {
+        status: "success",
+        message: "El estatus del evento se actualizó correctamente.",
+        estatus: { estatus },
+        data: {
+          id: idEvento,
+          nombre: MEDIO_COMUNICACION[Number(evento.medioComunicacion)] ?? "Evento",
+        },
+      };
+    } catch (error) {
+      await this.bitacoraLogger.logToBitacora(
+        "EmbudoVentas",
+        `Error al actualizar el estatus del evento ${idEvento}.`,
+        "UPDATE",
+        { idEvento, idUsuario: idUser, estatus },
+        idUser,
+        ID_MODULE,
+        EstatusEnumBitcora.ERROR,
+        error.message,
+      );
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException({
+        message: `Error al actualizar el estatus del evento con ID: ${idEvento}.`,
         error: error.message,
       });
     }
@@ -300,10 +387,10 @@ export class EmbudoVentasService {
       let filtroRol = "";
 
       if (this.esVendedor(rol)) {
-        filtroRol = "AND e.IdUsuario = ?";
+        filtroRol = "WHERE e.IdUsuario = ?";
         params.push(idUsuario);
       } else if (!isSuperAdmin(rol)) {
-        filtroRol = "AND (c.Id = ? OR c.IdPadre = ?)";
+        filtroRol = "WHERE (c.Id = ? OR c.IdPadre = ?)";
         params.push(cliente, cliente);
       }
 
@@ -318,8 +405,7 @@ SELECT
   e.Estatus AS estatus
 FROM EmbudoVentas e
 INNER JOIN Clientes c ON c.Id = e.IdCliente
-WHERE c.EsProspecto = 1
-  ${filtroRol}
+${filtroRol}
 ORDER BY e.Id DESC;
         `,
         params,

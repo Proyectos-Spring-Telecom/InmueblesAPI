@@ -10,6 +10,12 @@ import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { ContratoLocales } from "src/entities/ContratoLocales";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { DataSource, Repository } from "typeorm";
+import {
+  PLANTILLA_SUBARRENDAMIENTO,
+  plantillaSubarrendamientoEjemplo,
+} from "./plantilla-subarrendamiento";
+import { VistaPreviaPlantillaDto } from "./dto/vista-previa-plantilla.dto";
+import { generarPdfSubarrendamiento } from "./vista-previa-subarrendamiento.pdf";
 
 const CONTRATO_RELATIONS = [
   "arrendatario",
@@ -29,6 +35,26 @@ export class ContratosService {
     @InjectRepository(ContratoLocales)
     private readonly contratoLocalesRepository: Repository<ContratoLocales>,
   ) {}
+
+  obtenerPlantillaSubarrendamiento() {
+    return PLANTILLA_SUBARRENDAMIENTO;
+  }
+
+  obtenerPlantillaSubarrendamientoEjemplo() {
+    return plantillaSubarrendamientoEjemplo();
+  }
+
+  generarVistaPreviaEjemploSubarrendamiento(): Promise<Buffer> {
+    return generarPdfSubarrendamiento(
+      plantillaSubarrendamientoEjemplo().secciones,
+    );
+  }
+
+  generarVistaPreviaSubarrendamiento(
+    dto: VistaPreviaPlantillaDto,
+  ): Promise<Buffer> {
+    return generarPdfSubarrendamiento(dto.secciones ?? []);
+  }
 
   async cancelarContratoLocal(idContratoLocal: number) {
     return this.dataSource.transaction(async (manager) => {

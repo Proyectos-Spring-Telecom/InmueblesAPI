@@ -130,7 +130,7 @@ export class EmbudoVentasController {
   @Get()
   @ApiOperation({
     summary:
-      "Listado de embudos de ventas, con su historial de eventos",
+      "Listado de embudos para el tablero, con prospecto, usuario asignado y eventos",
   })
   getAllEmbudos(@Req() req): Promise<ApiResponseCommon> {
     const idUsuario = Number(req.user.userId);

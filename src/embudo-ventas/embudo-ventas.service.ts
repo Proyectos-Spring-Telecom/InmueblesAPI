@@ -31,6 +31,48 @@ const MEDIO_COMUNICACION: Record<number, string> = {
   3: "Visita",
 };
 
+const SELECT_EMBUDO = `
+SELECT
+  e.Id AS id,
+  e.IdUsuario AS idUsuario,
+  e.IdCliente AS idCliente,
+  e.FHRegistro AS fhRegistro,
+  e.FHUpdate AS fhUpdate,
+  e.Estatus AS estatus,
+  c.Nombre AS nombreCliente,
+  c.ApellidoPaterno AS apellidoPaternoCliente,
+  c.ApellidoMaterno AS apellidoMaternoCliente,
+  c.Telefono AS telefono,
+  c.Correo AS correo,
+  c.RFC AS rfc,
+  c.EsProspecto AS esProspecto,
+  u.Nombre AS nombreUsuario,
+  u.ApellidoPaterno AS apellidoPaternoUsuario,
+  u.ApellidoMaterno AS apellidoMaternoUsuario
+FROM EmbudoVentas e
+INNER JOIN Clientes c ON c.Id = e.IdCliente
+LEFT JOIN Usuarios u ON u.Id = e.IdUsuario
+`;
+
+type EmbudoTableroRow = {
+  id: number;
+  idUsuario: number;
+  idCliente: number;
+  fhRegistro: Date;
+  fhUpdate: Date;
+  estatus: number;
+  nombreCliente: string | null;
+  apellidoPaternoCliente: string | null;
+  apellidoMaternoCliente: string | null;
+  telefono: string | null;
+  correo: string | null;
+  rfc: string | null;
+  esProspecto: number | boolean | null;
+  nombreUsuario: string | null;
+  apellidoPaternoUsuario: string | null;
+  apellidoMaternoUsuario: string | null;
+};
+
 @Injectable()
 export class EmbudoVentasService {
   constructor(
@@ -394,20 +436,10 @@ export class EmbudoVentasService {
         params.push(cliente, cliente);
       }
 
-      const rows: EmbudoVentas[] = await this.embudoRepository.query(
-        `
-SELECT
-  e.Id AS id,
-  e.IdUsuario AS idUsuario,
-  e.IdCliente AS idCliente,
-  e.FHRegistro AS fhRegistro,
-  e.FHUpdate AS fhUpdate,
-  e.Estatus AS estatus
-FROM EmbudoVentas e
-INNER JOIN Clientes c ON c.Id = e.IdCliente
+      const rows: EmbudoTableroRow[] = await this.embudoRepository.query(
+        `${SELECT_EMBUDO}
 ${filtroRol}
-ORDER BY e.Id DESC;
-        `,
+ORDER BY e.Id DESC;`,
         params,
       );
 
@@ -454,7 +486,12 @@ ORDER BY e.Id DESC;
         where: { idEmbudoVentas: id },
         order: { id: "ASC" },
       });
-      return { data: this.mapEmbudo(embudo, eventos) };
+      const rows: EmbudoTableroRow[] = await this.embudoRepository.query(
+        `${SELECT_EMBUDO}
+WHERE e.Id = ?`,
+        [id],
+      );
+      return { data: this.mapEmbudo(rows[0] ?? embudo, eventos) };
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new BadRequestException({
@@ -510,25 +547,77 @@ WHERE Id = ?
   }
 
   private mapEmbudo(
-    embudo: EmbudoVentas,
+    embudo: EmbudoTableroRow | EmbudoVentas,
     eventos: EventosEmbudoVentas[],
   ) {
+    const fila = embudo as EmbudoTableroRow;
+    const eventosMapeados = eventos.map((evento) => this.mapEvento(evento));
+    const pendientes = eventosMapeados.filter((evento) => evento.estatus === 0);
+    const ahora = Date.now();
+    const proximo =
+      pendientes
+        .filter((evento) => new Date(evento.fhProximoEvento).getTime() >= ahora)
+        .sort(
+          (a, b) =>
+            new Date(a.fhProximoEvento).getTime() -
+            new Date(b.fhProximoEvento).getTime(),
+        )[0] ??
+      [...pendientes].sort(
+        (a, b) =>
+          new Date(b.fhProximoEvento).getTime() -
+          new Date(a.fhProximoEvento).getTime(),
+      )[0] ??
+      null;
+
     return {
       id: Number(embudo.id),
       idUsuario: Number(embudo.idUsuario),
+      nombreUsuario: nombreCompleto(
+        fila.nombreUsuario,
+        fila.apellidoPaternoUsuario,
+        fila.apellidoMaternoUsuario,
+      ),
       idCliente: Number(embudo.idCliente),
+      nombreProspecto: nombreCompleto(
+        fila.nombreCliente,
+        fila.apellidoPaternoCliente,
+        fila.apellidoMaternoCliente,
+      ),
+      telefono: fila.telefono ?? null,
+      correo: fila.correo ?? null,
+      rfc: fila.rfc ?? null,
+      esProspecto: Number(fila.esProspecto) === 1,
       fhRegistro: embudo.fhRegistro,
       fhUpdate: embudo.fhUpdate,
       estatus: Number(embudo.estatus),
-      eventos: eventos.map((evento) => ({
-        id: Number(evento.id),
-        idEmbudoVentas: Number(evento.idEmbudoVentas),
-        fhProximoEvento: evento.fhProximoEvento,
-        medioComunicacion: Number(evento.medioComunicacion),
-        estatus: Number(evento.estatus),
-        comentario: evento.comentario ?? null,
-        conclusionEvento: evento.conclusionEvento ?? null,
-      })),
+      eventosPendientes: pendientes.length,
+      eventosRealizados: eventosMapeados.length - pendientes.length,
+      proximoEvento: proximo,
+      eventos: eventosMapeados,
     };
   }
+
+  private mapEvento(evento: EventosEmbudoVentas) {
+    const medioComunicacion = Number(evento.medioComunicacion);
+    return {
+      id: Number(evento.id),
+      idEmbudoVentas: Number(evento.idEmbudoVentas),
+      fhProximoEvento: evento.fhProximoEvento,
+      medioComunicacion,
+      medioComunicacionNombre: MEDIO_COMUNICACION[medioComunicacion] ?? null,
+      estatus: Number(evento.estatus),
+      comentario: evento.comentario ?? null,
+      conclusionEvento: evento.conclusionEvento ?? null,
+    };
+  }
+}
+
+function nombreCompleto(
+  ...partes: Array<string | null | undefined>
+): string | null {
+  const nombre = partes
+    .map((parte) => (parte ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+  return nombre || null;
 }

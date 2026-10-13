@@ -14,6 +14,7 @@ import { Clientes } from "./Clientes";
 import { Roles } from "./Roles";
 import { UsuariosPermisos } from "./UsuariosPermisos";
 import { Bitacora } from "./Bitacora";
+import { ContratosGenerados } from "./ContratosGenerados";
 import { EmbudoVentas } from "./EmbudoVentas";
 
 @Index("UQ_Usuarios_IdCliente_UserName", ["userName", "idCliente"], {
@@ -111,6 +112,9 @@ export class Usuarios {
 
   @OneToMany(() => EmbudoVentas, (embudo) => embudo.usuario)
   embudosVentas: EmbudoVentas[];
+
+  @OneToMany(() => ContratosGenerados, (contrato) => contrato.usuario)
+  contratosGenerados: ContratosGenerados[];
 
   @ManyToOne(() => Roles, (roles) => roles.usuarios, {
     onDelete: "NO ACTION",

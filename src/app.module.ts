@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsuariosModule } from './usuarios/usuarios.module';
 import { ArrendadoresModule } from './arrendadores/arrendadores.module';
 import { ClientesModule } from './clientes/clientes.module';
+import { EmbudoVentasModule } from './embudo-ventas/embudo-ventas.module';
 import { RolesModule } from './roles/roles.module';
 import { ModulosModule } from './modulos/modulos.module';
 import { PermisosModule } from './permisos/permisos.module';
@@ -95,6 +96,8 @@ import { join } from 'path';
     UsuariosModule,
 
     ClientesModule,
+
+    EmbudoVentasModule,
 
     ArrendadoresModule,
 

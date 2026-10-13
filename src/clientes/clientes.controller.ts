@@ -90,6 +90,27 @@ export class ClientesController {
     return this.clientesService.createCliente(dto, idUser);
   }
 
+  @Get("prospectos/:page/:limit")
+  @ApiOperation({
+    summary: "Listado paginado de prospectos (EsProspecto = true)",
+  })
+  getAllProspectos(
+    @Param("page", ParseIntPipe) page: number,
+    @Param("limit", ParseIntPipe) limit: number,
+    @Req() req,
+  ): Promise<ApiResponseCommon> {
+    const cliente = req.user.cliente;
+    const idUser = req.user.userId;
+    const rol = req.user.rol;
+    return this.clientesService.getAllProspectos(
+      +idUser,
+      +cliente,
+      +rol,
+      page,
+      limit,
+    );
+  }
+
   @Get("list")
   @ApiOperation({ summary: "Listado de clientes activos (sin paginación)" })
   async getAllListClientes(@Req() req): Promise<ApiResponseCommon> {
@@ -100,7 +121,9 @@ export class ClientesController {
   }
 
   @Get(":page/:limit")
-  @ApiOperation({ summary: "Listado paginado de clientes" })
+  @ApiOperation({
+    summary: "Listado paginado de clientes (EsProspecto = false)",
+  })
   getAllClientes(
     @Param("page", ParseIntPipe) page: number,
     @Param("limit", ParseIntPipe) limit: number,
@@ -123,6 +146,19 @@ export class ClientesController {
   getOneCliente(@Param("id") id: string, @Req() req) {
     const rol = Number(req.user?.rol || 0);
     return this.clientesService.getOneCliente(+id, rol);
+  }
+
+  @Patch("prospecto/:id")
+  @ApiOperation({
+    summary: "Cambiar EsProspecto de true a false",
+  })
+  @ApiParam({ name: "id", description: "ID del cliente prospecto", example: 1 })
+  convertirProspectoACliente(
+    @Param("id") id: string,
+    @Req() req,
+  ): Promise<ApiCrudResponse> {
+    const idUser = req.user.userId;
+    return this.clientesService.convertirProspectoACliente(+id, idUser);
   }
 
   @Patch("estatus/:id")

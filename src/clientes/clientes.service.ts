@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { BitacoraService } from "src/bitacora/bitacora.service";
 import { S3Service } from "src/s3/s3.service";
 import { Clientes } from "src/entities/Clientes";
@@ -27,6 +27,7 @@ import {
 import { CreateClienteDto } from "./dto/create-cliente.dto";
 import { UpdateClienteDto } from "./dto/update-cliente.dto";
 import { UpdateClienteEstatusDto } from "./dto/update-cliente-estatus.dto";
+import { EmbudoVentasService } from "src/embudo-ventas/embudo-ventas.service";
 
 const ID_MODULE = 1;
 const S3_FOLDER = "Clientes";
@@ -57,7 +58,8 @@ const SELECT_CLIENTE_LIST = `
   ComprobanteDomicilio AS comprobanteDomicilio,
   ActaConstitutiva AS actaConstitutiva,
   Logotipo AS logotipo,
-  Estatus AS estatus
+  Estatus AS estatus,
+  EsProspecto AS esProspecto
 `;
 
 @Injectable()
@@ -67,6 +69,8 @@ export class ClientesService {
     private readonly clientesRepository: Repository<Clientes>,
     private readonly bitacoraLogger: BitacoraService,
     private readonly s3Service: S3Service,
+    private readonly dataSource: DataSource,
+    private readonly embudoVentasService: EmbudoVentasService,
   ) {}
 
   private getMulterFile(value: unknown): Express.Multer.File | undefined {
@@ -130,7 +134,7 @@ export class ClientesService {
   async createCliente(
     createClienteDto: CreateClienteDto,
     idUser: number,
-  ): Promise<ApiCrudResponse> {
+  ): Promise<ApiCrudResponse & { idEmbudoVentas?: number | null }> {
     try {
       const existing = await this.clientesRepository.findOne({
         where: { rfc: createClienteDto.rfc },
@@ -143,16 +147,39 @@ export class ClientesService {
 
       await this.applyClienteArchivos(createClienteDto, idUser);
 
-      const entity = this.clientesRepository.create(createClienteDto);
-      const saved = await this.clientesRepository.save(entity);
+      if (createClienteDto.esProspecto == null) {
+        createClienteDto.esProspecto = false;
+      }
+
+      const esProspecto = createClienteDto.esProspecto === true;
+      let embudoId: number | null = null;
+
+      const saved = await this.dataSource.transaction(async (manager) => {
+        const entity = manager.create(Clientes, createClienteDto);
+        const savedCliente = await manager.save(entity);
+        if (esProspecto) {
+          const embudo = await this.embudoVentasService.crearInicial(
+            Number(savedCliente.id),
+            Number(idUser),
+            manager,
+          );
+          embudoId = Number(embudo.id);
+        }
+        return savedCliente;
+      });
 
       const querylogger = {
         createClienteDto: this.omitClienteArchivos(createClienteDto),
         archivosSubidos: this.archivosSubidosFlags(createClienteDto),
+        esProspecto,
+        id: Number(saved.id),
+        idEmbudoVentas: embudoId,
       };
       await this.bitacoraLogger.logToBitacora(
         "Clientes",
-        `Cliente creado correctamente con RFC: ${createClienteDto.rfc}.`,
+        esProspecto
+          ? `Prospecto creado correctamente con RFC: ${createClienteDto.rfc}.`
+          : `Cliente creado correctamente con RFC: ${createClienteDto.rfc}.`,
         "CREATE",
         querylogger,
         idUser,
@@ -160,22 +187,46 @@ export class ClientesService {
         EstatusEnumBitcora.SUCCESS,
       );
 
+      if (esProspecto && embudoId != null) {
+        await this.bitacoraLogger.logToBitacora(
+          "EmbudoVentas",
+          `Embudo de ventas registrado para el prospecto con ID ${Number(saved.id)} (estatus Registrado).`,
+          "CREATE",
+          {
+            idEmbudoVentas: embudoId,
+            idCliente: Number(saved.id),
+            idUsuario: idUser,
+            estatus: 1,
+          },
+          idUser,
+          ID_MODULE,
+          EstatusEnumBitcora.SUCCESS,
+        );
+      }
+
       return {
         status: "success",
-        message: "El cliente ha sido creado correctamente.",
+        message: esProspecto
+          ? "El prospecto ha sido creado correctamente."
+          : "El cliente ha sido creado correctamente.",
+        idEmbudoVentas: embudoId,
         data: {
           id: Number(saved.id),
           nombre: this.nombreCompleto(saved),
         },
       };
     } catch (error) {
+      const esProspecto = createClienteDto.esProspecto === true;
       const querylogger = {
         createClienteDto: this.omitClienteArchivos(createClienteDto),
         archivosSubidos: this.archivosSubidosFlags(createClienteDto),
+        esProspecto,
       };
       await this.bitacoraLogger.logToBitacora(
         "Clientes",
-        `Error al crear cliente con RFC: ${createClienteDto.rfc}.`,
+        esProspecto
+          ? `Error al crear prospecto con RFC: ${createClienteDto.rfc}.`
+          : `Error al crear cliente con RFC: ${createClienteDto.rfc}.`,
         "CREATE",
         querylogger,
         idUser,
@@ -198,8 +249,44 @@ export class ClientesService {
     page: number,
     limit: number,
   ): Promise<ApiResponseCommon> {
+    return this.findClientesPaginados(
+      cliente,
+      rol,
+      page,
+      limit,
+      false,
+      "Ocurrió un error al obtener clientes paginados.",
+    );
+  }
+
+  async getAllProspectos(
+    idUser: number,
+    cliente: number,
+    rol: number,
+    page: number,
+    limit: number,
+  ): Promise<ApiResponseCommon> {
+    return this.findClientesPaginados(
+      cliente,
+      rol,
+      page,
+      limit,
+      true,
+      "Ocurrió un error al obtener prospectos paginados.",
+    );
+  }
+
+  private async findClientesPaginados(
+    cliente: number,
+    rol: number,
+    page: number,
+    limit: number,
+    esProspecto: boolean,
+    errorMessage: string,
+  ): Promise<ApiResponseCommon> {
     try {
       const offset = (page - 1) * limit;
+      const prospecto = esProspecto ? 1 : 0;
       let rows: any[];
       let totalResult: any[];
 
@@ -208,13 +295,15 @@ export class ClientesService {
           `
 SELECT ${SELECT_CLIENTE_LIST}
 FROM Clientes
+WHERE EsProspecto = ?
 ORDER BY Id ASC
 LIMIT ? OFFSET ?;
           `,
-          [limit, offset],
+          [prospecto, limit, offset],
         );
         totalResult = await this.clientesRepository.query(
-          `SELECT COUNT(*) AS total FROM Clientes`,
+          `SELECT COUNT(*) AS total FROM Clientes WHERE EsProspecto = ?`,
+          [prospecto],
         );
       } else {
         // Rol > 1: solo su propio cliente (y hijos por IdPadre) activos
@@ -224,10 +313,11 @@ SELECT ${SELECT_CLIENTE_LIST}
 FROM Clientes
 WHERE (Id = ? OR IdPadre = ?)
   AND Estatus = 1
+  AND EsProspecto = ?
 ORDER BY Id ASC
 LIMIT ? OFFSET ?;
           `,
-          [cliente, cliente, limit, offset],
+          [cliente, cliente, prospecto, limit, offset],
         );
         totalResult = await this.clientesRepository.query(
           `
@@ -235,8 +325,9 @@ SELECT COUNT(*) AS total
 FROM Clientes
 WHERE (Id = ? OR IdPadre = ?)
   AND Estatus = 1
+  AND EsProspecto = ?
           `,
-          [cliente, cliente],
+          [cliente, cliente, prospecto],
         );
       }
 
@@ -244,6 +335,7 @@ WHERE (Id = ? OR IdPadre = ?)
         ...item,
         id: Number(item.id),
         idPadre: item.idPadre != null ? Number(item.idPadre) : null,
+        esProspecto: Number(item.esProspecto) === 1,
       }));
 
       const total = Number(totalResult[0]?.total || 0);
@@ -258,7 +350,7 @@ WHERE (Id = ? OR IdPadre = ?)
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw new BadRequestException({
-        message: "Ocurrió un error al obtener clientes paginados.",
+        message: errorMessage,
       });
     }
   }
@@ -414,6 +506,68 @@ ORDER BY Id ASC;
       if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException({
         message: `Error al actualizar el cliente con ID: ${id}`,
+        error: error.message,
+      });
+    }
+  }
+
+  async convertirProspectoACliente(
+    id: number,
+    idUser: number,
+  ): Promise<ApiCrudResponse> {
+    try {
+      const cliente = await this.clientesRepository.findOne({ where: { id } });
+      if (!cliente) {
+        throw new NotFoundException(`Cliente con ID: ${id} no encontrado`);
+      }
+
+      const esProspecto =
+        cliente.esProspecto === true || Number(cliente.esProspecto) === 1;
+      if (!esProspecto) {
+        throw new BadRequestException(
+          "Solo se puede cambiar EsProspecto de true a false. Este cliente ya no es prospecto.",
+        );
+      }
+
+      await this.clientesRepository.update(id, { esProspecto: false });
+
+      await this.bitacoraLogger.logToBitacora(
+        "Clientes",
+        `Prospecto con ID ${id} cambió a cliente (EsProspecto de true a false).`,
+        "UPDATE",
+        {
+          id,
+          rfc: cliente.rfc,
+          esProspectoAnterior: true,
+          esProspecto: false,
+        },
+        idUser,
+        ID_MODULE,
+        EstatusEnumBitcora.SUCCESS,
+      );
+
+      return {
+        status: "success",
+        message: "El prospecto se actualizó a cliente correctamente.",
+        data: {
+          id,
+          nombre: this.nombreCompleto(cliente),
+        },
+      };
+    } catch (error) {
+      await this.bitacoraLogger.logToBitacora(
+        "Clientes",
+        `Error al cambiar el prospecto con ID ${id} a cliente.`,
+        "UPDATE",
+        { id, esProspectoAnterior: true, esProspecto: false },
+        idUser,
+        ID_MODULE,
+        EstatusEnumBitcora.ERROR,
+        error.message,
+      );
+      if (error instanceof HttpException) throw error;
+      throw new InternalServerErrorException({
+        message: `Error al actualizar EsProspecto del cliente con ID: ${id}.`,
         error: error.message,
       });
     }

@@ -14,6 +14,7 @@ import { Clientes } from "./Clientes";
 import { Roles } from "./Roles";
 import { UsuariosPermisos } from "./UsuariosPermisos";
 import { Bitacora } from "./Bitacora";
+import { EmbudoVentas } from "./EmbudoVentas";
 
 @Index("UQ_Usuarios_IdCliente_UserName", ["userName", "idCliente"], {
   unique: true,
@@ -107,6 +108,9 @@ export class Usuarios {
 
   @OneToMany(() => Bitacora, (bitacora) => bitacora.idUsuario2)
   bitacoras: Bitacora[];
+
+  @OneToMany(() => EmbudoVentas, (embudo) => embudo.usuario)
+  embudosVentas: EmbudoVentas[];
 
   @ManyToOne(() => Roles, (roles) => roles.usuarios, {
     onDelete: "NO ACTION",

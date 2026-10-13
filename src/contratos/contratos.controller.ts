@@ -7,6 +7,7 @@ import {
   ParseIntPipe,
   Patch,
   Post,
+  Req,
   Res,
   UseGuards,
 } from "@nestjs/common";
@@ -112,6 +113,67 @@ export class ContratosController {
       'attachment; filename="contrato-subarrendamiento.pdf"',
     );
     res.send(pdf);
+  }
+
+  @Post("generados")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Guardar el contrato de la vista previa",
+    description:
+      "Guarda la plantilla capturada en ContratosGenerados, con el usuario que la registra. " +
+      "No crea un contrato de arrendatario ni asigna locales.",
+  })
+  @ApiBody({ type: VistaPreviaPlantillaDto })
+  guardarContratoGenerado(
+    @Body() dto: VistaPreviaPlantillaDto,
+    @Req() req,
+  ) {
+    return this.contratosService.guardarContratoGenerado(
+      dto,
+      Number(req.user.userId),
+    );
+  }
+
+  @Get("generados")
+  @ApiOperation({
+    summary: "Listar los contratos generados",
+    description:
+      "Devuelve los contratos guardados desde la vista previa, con el usuario que los registró.",
+  })
+  listarContratosGenerados() {
+    return this.contratosService.listarContratosGenerados();
+  }
+
+  @Get("generados/:id")
+  @ApiOperation({
+    summary: "Obtener un contrato generado para editarlo",
+    description:
+      "Devuelve la plantilla guardada para volver a abrirla en el editor y regenerar la vista previa.",
+  })
+  @ApiParam({ name: "id", description: "ID del contrato generado" })
+  obtenerContratoGenerado(@Param("id", ParseIntPipe) id: number) {
+    return this.contratosService.obtenerContratoGenerado(id);
+  }
+
+  @Patch("generados/:id")
+  @HttpCode(200)
+  @ApiOperation({
+    summary: "Actualizar un contrato generado",
+    description:
+      "Reemplaza la plantilla guardada. El usuario que lo registró no cambia.",
+  })
+  @ApiParam({ name: "id", description: "ID del contrato generado" })
+  @ApiBody({ type: VistaPreviaPlantillaDto })
+  actualizarContratoGenerado(
+    @Param("id", ParseIntPipe) id: number,
+    @Body() dto: VistaPreviaPlantillaDto,
+    @Req() req,
+  ) {
+    return this.contratosService.actualizarContratoGenerado(
+      id,
+      dto,
+      Number(req.user.userId),
+    );
   }
 
   @Patch("locales/:id/cancelar")

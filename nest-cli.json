@@ -8,6 +8,10 @@
       {
         "include": "contratos/fonts/**/*",
         "watchAssets": true
+      },
+      {
+        "include": "mail-service/logo-spring.png",
+        "watchAssets": true
       }
     ]
   }

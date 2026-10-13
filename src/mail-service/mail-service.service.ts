@@ -1,5 +1,68 @@
+import { existsSync, readFileSync } from "fs";
+import { join } from "path";
 import { Injectable } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
+
+export type ActividadPendienteCorreo = {
+  hora: string;
+  prospecto: string;
+  medio: string;
+  comentario: string | null;
+};
+
+const LOGO_CID = "logo-spring";
+const ENLACE_EMBUDO = "https://springtelecom.mx/inmuebles";
+
+function rutaLogo(): string {
+  const compilada = join(__dirname, "logo-spring.png");
+  if (existsSync(compilada)) return compilada;
+  return join(process.cwd(), "src/mail-service/logo-spring.png");
+}
+
+function plantillaCorreo(titulo: string, cuerpo: string, pie: string): string {
+  return `<!doctype html><html><body style="margin:0;background:#f4f6fa;font-family:Arial,sans-serif;color:#171b26">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
+<table role="presentation" width="520" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:12px;overflow:hidden">
+<tr><td style="height:6px;background:#10266b"></td></tr>
+<tr><td style="padding:22px 28px 0"><img src="cid:${LOGO_CID}" width="96" height="64" alt="Spring Telecom" style="display:block;border:0"></td></tr>
+<tr><td style="padding:16px 28px 8px"><h1 style="margin:0 0 14px;font-size:20px;color:#10266b">${escaparHtml(titulo)}</h1>
+${cuerpo}${pie}</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+function htmlActividadesDelDia(
+  nombre: string,
+  fecha: string,
+  actividades: ActividadPendienteCorreo[],
+): string {
+  const parrafos = [
+    `Buenos días, ${nombre}. Esto es lo que tienes pendiente:`,
+    ...actividades.map((actividad) => {
+      const comentario = actividad.comentario?.trim() || "Sin comentario";
+      return `• ${actividad.prospecto} — ${fecha}, ${actividad.hora} (${actividad.medio}) — ${comentario}`;
+    }),
+  ];
+  const cuerpo = parrafos
+    .map(
+      (parrafo) =>
+        `<p style="margin:0 0 12px;font-size:14px;line-height:1.5">${escaparHtml(parrafo)}</p>`,
+    )
+    .join("");
+  const pie = `<p style="margin:6px 0 24px"><a href="${ENLACE_EMBUDO}" style="display:inline-block;background:#10266b;color:#ffffff;text-decoration:none;padding:11px 18px;border-radius:8px;font-size:14px">Abrir el CRM</a></p>`;
+  return plantillaCorreo(
+    `Tus pendientes de hoy (${actividades.length})`,
+    cuerpo,
+    pie,
+  );
+}
+
+function escaparHtml(valor: string): string {
+  return valor
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 @Injectable()
 export class MailServiceService {
@@ -98,6 +161,29 @@ export class MailServiceService {
       }
     }
   
+    async sendActividadesDelDia(
+      to: string,
+      nombre: string,
+      fecha: string,
+      actividades: ActividadPendienteCorreo[],
+    ) {
+      const titulo = `Tus pendientes de hoy (${actividades.length})`;
+      await this.transporter.sendMail({
+        from: `<${process.env.E_MAIL}>`,
+        to,
+        subject: `${titulo} · ${fecha}`,
+        html: htmlActividadesDelDia(nombre, fecha, actividades),
+        attachments: [
+          {
+            filename: "spring-telecom.png",
+            content: readFileSync(rutaLogo()),
+            contentType: "image/png",
+            cid: LOGO_CID,
+          },
+        ],
+      });
+    }
+
     async sendResetPasswordEmail(to: string,name: string, token: string) {
       try {
         const url = `https://springtelecom.mx/inmuebles/cambio-password?token=${token}`;

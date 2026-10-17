@@ -223,7 +223,7 @@ export class CreateServicioArrendatarioItemDto {
       "- **Edición:** envíalo para ligar/actualizar el servicio a un contrato existente.\n" +
       "- **Registro (contratos nuevos sin id):** omítelo; el backend empareja por índice con contratos[i].\n" +
       "- Si hay un solo contrato en el payload y no mandas idContrato, todos los servicios van a ese contrato.\n" +
-      "- Obligatorio en la práctica para idTipoServicio 3 y 4 (renta/mantenimiento) para notificaciones vs RentaActual.",
+      "- Obligatorio en la práctica para idTipoServicio 3 y 4 (renta/mantenimiento) para notificaciones vs el cargo de renta del contrato.",
   })
   @IsOptional()
   @Type(() => Number)

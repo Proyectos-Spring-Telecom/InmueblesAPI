@@ -62,7 +62,7 @@ export class RentaActualController {
   }
 
   @Post(":id/siguiente-mes")
-  @PerteneceAlCliente('rentaActual')
+  @PerteneceAlCliente('cargo')
   @HttpCode(200)
   @ApiOperation({
     summary: "Duplicar renta actual al mes siguiente",
@@ -77,7 +77,7 @@ export class RentaActualController {
   }
 
   @Put(":id")
-  @PerteneceAlCliente('rentaActual')
+  @PerteneceAlCliente('cargo')
   @HttpCode(200)
   @ApiOperation({
     summary: "Actualizar renta actual por id",
@@ -109,17 +109,17 @@ export class RentaActualController {
   }
 
   @Patch(":id/pagada")
-  @PerteneceAlCliente('rentaActual')
+  @PerteneceAlCliente('cargo')
   @HttpCode(200)
   @ApiOperation({
     summary: "Marcar renta como pagada",
     description:
-      "Mes actual: copia a HistoricoPagosRenta, marca Pagada=1 y conserva el registro en RentaActual " +
-      "(evita duplicar el mismo arrendatario + contrato en el mes). " +
-      "Mes anterior: copia al histórico y elimina de RentaActual.",
+      "Registra un pago por el saldo pendiente del cargo y lo aplica (renta y mantenimiento). " +
+      "El cargo queda liquidado y aparece en el histórico; no cambia de tabla. " +
+      "Se permite aunque el contrato esté cancelado.",
   })
-  marcarPagada(@Param("id", ParseIntPipe) id: number) {
-    return this.rentaActualService.marcarPagada(id);
+  marcarPagada(@Param("id", ParseIntPipe) id: number, @Req() req: any) {
+    return this.rentaActualService.marcarPagada(id, Number(req.user?.userId) || null);
   }
 
   @Get("paginated")
@@ -144,7 +144,7 @@ export class RentaActualController {
   }
 
   @Get(":id")
-  @PerteneceAlCliente('rentaActual')
+  @PerteneceAlCliente('cargo')
   @ApiOperation({ summary: "Obtener renta actual por id" })
   findOne(@Param("id", ParseIntPipe) id: number) {
     return this.rentaActualService.findOne(id);

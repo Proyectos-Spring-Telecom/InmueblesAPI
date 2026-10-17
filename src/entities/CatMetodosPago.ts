@@ -19,4 +19,8 @@ export class CatMetodosPago {
 
   @Column("tinyint", { name: "Estatus", nullable: true, default: () => "'1'" })
   estatus: number | null;
+
+  /** c_FormaPago del SAT que corresponde a este método (para facturación). */
+  @Column("char", { name: "FormaPagoSat", nullable: true, length: 2 })
+  formaPagoSat: string | null;
 }

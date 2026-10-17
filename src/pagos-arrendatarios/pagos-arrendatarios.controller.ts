@@ -162,19 +162,20 @@ export class PagosArrendatariosController {
   }
 
   @Patch(":id/estatus")
-  @PerteneceAlCliente('pagoArrendatario')
+  @PerteneceAlCliente('cargo')
   @HttpCode(200)
   @ApiOperation({ summary: "Actualizar estatus de un pago de arrendatario por id" })
   @ApiBody({ type: UpdatePagosArrendatarioEstatusDto })
   updateEstatus(
     @Param("id", ParseIntPipe) id: number,
     @Body() dto: UpdatePagosArrendatarioEstatusDto,
+    @Req() req: any,
   ) {
-    return this.pagosArrendatariosService.updateEstatus(id, dto.estatus);
+    return this.pagosArrendatariosService.updateEstatus(id, dto.estatus, Number(req.user?.userId) || null);
   }
 
   @Get(":id")
-  @PerteneceAlCliente('pagoArrendatario')
+  @PerteneceAlCliente('cargo')
   @ApiOperation({ summary: "Obtener pago de arrendatario por ID" })
   findOne(@Param("id", ParseIntPipe) id: number) {
     return this.pagosArrendatariosService.findOne(id);

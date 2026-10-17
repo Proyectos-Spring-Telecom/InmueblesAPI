@@ -27,18 +27,6 @@ const PERTENENCIA_SQL = {
     JOIN Arrendatarios t ON t.Id = c.IdArrendatario
     JOIN Arrendadores a ON a.Id = t.IdArrendador
     WHERE c.Id = ? AND a.IdCliente = ?`,
-  pagoArrendatario: `SELECT p.Id FROM PagosArrendatarios p
-    JOIN Arrendatarios t ON t.Id = p.IdArrendatario
-    JOIN Arrendadores a ON a.Id = t.IdArrendador
-    WHERE p.Id = ? AND a.IdCliente = ?`,
-  rentaActual: `SELECT r.Id FROM RentaActual r
-    JOIN Arrendatarios t ON t.Id = r.IdArrendatario
-    JOIN Arrendadores a ON a.Id = t.IdArrendador
-    WHERE r.Id = ? AND a.IdCliente = ?`,
-  historicoPagoRenta: `SELECT h.Id FROM HistoricoPagosRenta h
-    JOIN Arrendatarios t ON t.Id = h.IdArrendatario
-    JOIN Arrendadores a ON a.Id = t.IdArrendador
-    WHERE h.Id = ? AND a.IdCliente = ?`,
   mantenimientoActual: `SELECT m.Id FROM MantenimientoActual m
     JOIN Arrendatarios t ON t.Id = m.IdArrendatario
     JOIN Arrendadores a ON a.Id = t.IdArrendador
@@ -84,6 +72,16 @@ const PERTENENCIA_SQL = {
     JOIN Arrendatarios t ON t.Id = c.IdArrendatario
     JOIN Arrendadores a ON a.Id = t.IdArrendador
     WHERE cl.Id = ? AND a.IdCliente = ?`,
+  /** Cargo del modelo de cobranza (renta, mantenimiento o servicio). */
+  cargo: `SELECT c.Id FROM Cargos c
+    JOIN Arrendatarios t ON t.Id = c.IdArrendatario
+    JOIN Arrendadores a ON a.Id = t.IdArrendador
+    WHERE c.Id = ? AND a.IdCliente = ?`,
+  /** Pago recibido del modelo de cobranza. */
+  pago: `SELECT p.Id FROM Pagos p
+    JOIN Arrendatarios t ON t.Id = p.IdArrendatario
+    JOIN Arrendadores a ON a.Id = t.IdArrendador
+    WHERE p.Id = ? AND a.IdCliente = ?`,
   /** Plantillas guardadas: pertenecen al cliente del usuario que las generó. */
   contratoGenerado: `SELECT g.Id FROM ContratosGenerados g
     JOIN Usuarios u ON u.Id = g.IdUsuario

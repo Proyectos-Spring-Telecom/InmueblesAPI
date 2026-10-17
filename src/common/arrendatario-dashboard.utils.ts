@@ -1,10 +1,9 @@
 import { mapPagoRentaDesglose } from "src/common/pago-mensual.utils";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
-import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
-import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
-import { RentaActual } from "src/entities/RentaActual";
+import { RentaLegacy } from "src/cobranza/cobranza-legacy";
+import { PagoServicioLegacy } from "src/cobranza/cobranza-consultas.service";
 import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
 
 export function collectLocalesAsignados(
@@ -38,9 +37,9 @@ export function assembleArrendatarioPanel(
   contratos: ContratoArrendatarios[],
   zonasRaw: ZonasInmuebles[],
   localesPool: LocalesZonaInmueble[],
-  historicoPagosRenta: HistoricoPagosRenta[],
-  rentaActual: RentaActual[],
-  pagosArrendatarios: PagosArrendatarios[],
+  historicoPagosRenta: RentaLegacy[],
+  rentaActual: RentaLegacy[],
+  pagosArrendatarios: PagoServicioLegacy[],
 ) {
   const idLocalesAsignados = collectLocalesAsignados(contratos);
   const zonas = filterZonasConLocales(zonasRaw, idLocalesAsignados);

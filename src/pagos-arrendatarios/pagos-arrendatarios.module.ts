@@ -3,7 +3,8 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { CatMetodosPago } from "src/entities/CatMetodosPago";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
-import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
+import { Cargos } from "src/entities/Cargos";
+import { Pagos } from "src/entities/Pagos";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { S3Module } from "src/s3/s3.module";
 import { PagosArrendatariosController } from "./pagos-arrendatarios.controller";
@@ -12,7 +13,8 @@ import { PagosArrendatariosService } from "./pagos-arrendatarios.service";
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      PagosArrendatarios,
+      Cargos,
+      Pagos,
       Arrendatarios,
       ContratoArrendatarios,
       ServiciosArrendatarios,

@@ -20,10 +20,10 @@ export class NotificacionesController {
       "**pagoServiciosInmuebles:** base `ServiciosInmuebles` (día de FechaPago proyectado al mes). " +
       "Si hay `Pago` Pagado del mes → fechaPago al mes siguiente. `estatusPago`: 1 Pagado, 2 Pendiente, null si no aplica.\n\n" +
       "**pagosSeguimiento:** base `ServiciosArrendatarios`.\n" +
-      "- **idTipoServicio 3 y 4 (renta/mantenimiento):** el pago del mes se toma de `RentaActual` " +
-      "cruzando `ServiciosArrendatarios.IdContrato` = `RentaActual.IdContrato` del mes actual. " +
+      "- **idTipoServicio 3 y 4 (renta/mantenimiento):** el pago del mes se toma del cargo de renta " +
+      "(`Cargos`) del contrato (`ServiciosArrendatarios.IdContrato`) en el mes actual: liquidado = Pagado. " +
       "Si `Pagada = 1` → se considera pagado y `fechaPago` avanza al mes siguiente.\n" +
-      "- **Otros tipos:** usan `PagosArrendatarios` (Pendiente/Pagado) por IdServicioArrendatario.\n" +
+      "- **Otros tipos:** usan los cargos de servicio del mes por IdServicioArrendatario (liquidado = Pagado).\n" +
       "- Incluye `idContrato` en cada item cuando aplica.",
   })
   obtenerNotificaciones(@Req() req: any) {

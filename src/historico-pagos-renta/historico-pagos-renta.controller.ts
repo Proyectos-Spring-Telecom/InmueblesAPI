@@ -39,7 +39,7 @@ export class HistoricoPagosRentaController {
   }
 
   @Put(":id")
-  @PerteneceAlCliente('historicoPagoRenta')
+  @PerteneceAlCliente('cargo')
   @HttpCode(200)
   @ApiOperation({ summary: "Actualizar registro de histórico por id" })
   update(
@@ -57,8 +57,8 @@ export class HistoricoPagosRentaController {
   @ApiOperation({
     summary: "Último pago de renta por arrendatario y contrato",
     description:
-      "Busca el registro más reciente en HistoricoPagosRenta. Si no existe, " +
-      "consulta RentaActual. Incluye `origen` para indicar de qué tabla proviene.",
+      "Busca el cargo de renta liquidado más reciente (origen `historico`). Si no existe, " +
+      "devuelve el pendiente más reciente (origen `rentaActual`).",
   })
   @ApiQuery({ name: "idArrendatario", required: true, type: Number })
   @ApiQuery({ name: "idContrato", required: true, type: Number })
@@ -131,7 +131,7 @@ export class HistoricoPagosRentaController {
   }
 
   @Get(":id")
-  @PerteneceAlCliente('historicoPagoRenta')
+  @PerteneceAlCliente('cargo')
   @ApiOperation({ summary: "Obtener registro de histórico por id" })
   findOne(@Param("id", ParseIntPipe) id: number) {
     return this.historicoPagosRentaService.findOne(id);

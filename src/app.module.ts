@@ -43,6 +43,7 @@ import { HistoricoPagosMantenimientoModule } from './historico-pagos-mantenimien
 import { EstacionamientosModule } from './estacionamientos/estacionamientos.module';
 import { EntradasSalidasEstacionamientoModule } from './entradas-salidas-estacionamiento/entradas-salidas-estacionamiento.module';
 import { TenantAccessModule } from './common/tenant-access/tenant-access.module';
+import { CobranzaModule } from './cobranza/cobranza.module';
 import Joi from 'joi';
 import { join } from 'path';
 
@@ -95,6 +96,7 @@ import { join } from 'path';
   }),
 
     TenantAccessModule,
+    CobranzaModule,
 
     UsuariosModule,
 

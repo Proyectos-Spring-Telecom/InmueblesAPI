@@ -6,8 +6,8 @@ import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Inmuebles } from "src/entities/Inmuebles";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
 import { Pago } from "src/entities/Pago";
-import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
-import { RentaActual } from "src/entities/RentaActual";
+import { RentaLegacy } from "src/cobranza/cobranza-legacy";
+import { PagoServicioLegacy } from "src/cobranza/cobranza-consultas.service";
 import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
 
 export interface InmuebleDashboardReducedInput {
@@ -15,8 +15,8 @@ export interface InmuebleDashboardReducedInput {
   zonas: ZonasInmuebles[];
   contratos: ContratoArrendatarios[];
   arrendatarios: Arrendatarios[];
-  rentaActual: RentaActual[];
-  pagosArrendatarios: PagosArrendatarios[];
+  rentaActual: RentaLegacy[];
+  pagosArrendatarios: PagoServicioLegacy[];
   pagosInmueble: Pago[];
 }
 
@@ -84,9 +84,9 @@ function pickContratoActivo(
 }
 
 function pickRentaDelMes(
-  rentas: RentaActual[],
+  rentas: RentaLegacy[],
   idContrato: number | null,
-): RentaActual | null {
+): RentaLegacy | null {
   if (rentas.length === 0) return null;
 
   const porContrato =
@@ -129,7 +129,7 @@ function mapContratoActivo(contrato: ContratoArrendatarios | null) {
   };
 }
 
-function mapRentaDelMes(renta: RentaActual | null) {
+function mapRentaDelMes(renta: RentaLegacy | null) {
   if (!renta) return null;
 
   return {
@@ -196,7 +196,7 @@ export function mapInmuebleDashboardReduced(
     contratosByArrendatario.set(id, bucket);
   }
 
-  const rentaByArrendatario = new Map<number, RentaActual[]>();
+  const rentaByArrendatario = new Map<number, RentaLegacy[]>();
   for (const renta of rentaActual) {
     if (renta.idArrendatario == null) continue;
     const id = Number(renta.idArrendatario);
@@ -205,7 +205,7 @@ export function mapInmuebleDashboardReduced(
     rentaByArrendatario.set(id, bucket);
   }
 
-  const pagosByArrendatario = new Map<number, PagosArrendatarios[]>();
+  const pagosByArrendatario = new Map<number, PagoServicioLegacy[]>();
   for (const pago of pagosArrendatarios) {
     if (pago.idArrendatario == null) continue;
     const id = Number(pago.idArrendatario);

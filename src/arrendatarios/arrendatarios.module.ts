@@ -7,10 +7,7 @@ import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { ContratoLocales } from "src/entities/ContratoLocales";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { SociosArrendatarios } from "src/entities/SociosArrendatarios";
-import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
-import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
-import { RentaActual } from "src/entities/RentaActual";
 import { Estacionamientos } from "src/entities/Estacionamientos";
 import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
 import { S3Module } from "src/s3/s3.module";
@@ -31,9 +28,6 @@ import { ArrendatariosService } from "./arrendatarios.service";
       SociosArrendatarios,
       ZonasInmuebles,
       LocalesZonaInmueble,
-      HistoricoPagosRenta,
-      RentaActual,
-      PagosArrendatarios,
       Estacionamientos,
     ]),
     S3Module,

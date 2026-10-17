@@ -3,24 +3,21 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Formulas } from "src/entities/Formulas";
-import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
-import { RentaActual } from "src/entities/RentaActual";
+import { Cargos } from "src/entities/Cargos";
 import { RentaActualController } from "./renta-actual.controller";
-import { RentaActualCronService } from "./renta-actual-cron.service";
 import { RentaActualService } from "./renta-actual.service";
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      RentaActual,
-      HistoricoPagosRenta,
+      Cargos,
       Arrendatarios,
       ContratoArrendatarios,
       Formulas,
     ]),
   ],
   controllers: [RentaActualController],
-  providers: [RentaActualService, RentaActualCronService],
+  providers: [RentaActualService],
   exports: [RentaActualService],
 })
 export class RentaActualModule {}

@@ -14,7 +14,6 @@ import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { ArchivosArrendatarios } from "src/entities/ArchivosArrendatarios";
 import { SociosArrendatarios } from "src/entities/SociosArrendatarios";
 import { Estacionamientos } from "src/entities/Estacionamientos";
-import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
 import { S3Service } from "src/s3/s3.service";
 import { ContratosService } from "src/contratos/contratos.service";
 import { ApiCrudResponse, ApiResponseCommon } from "src/common/ApiResponse";
@@ -285,11 +284,8 @@ export class ArrendatariosService {
         { idArrendatario: id },
         { estatus: 0 },
       );
-      await manager.update(
-        PagosArrendatarios,
-        { idArrendatario: id },
-        { estatus: 0 },
-      );
+      // Los pagos recibidos no se modifican al dar de baja o reactivar: un pago recibido sigue
+      // siendo un pago recibido (antes se cancelaban todos y al reactivar se marcaban como pagados).
 
       const contratos = await manager.find(ContratoArrendatarios, {
         where: { idArrendatario: id },
@@ -399,11 +395,6 @@ export class ArrendatariosService {
       );
       await manager.update(
         Estacionamientos,
-        { idArrendatario: id },
-        { estatus: 1 },
-      );
-      await manager.update(
-        PagosArrendatarios,
         { idArrendatario: id },
         { estatus: 1 },
       );

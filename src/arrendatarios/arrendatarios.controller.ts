@@ -204,7 +204,7 @@ export class ArrendatariosController {
     description:
       "Pone Estatus = 0 en Arrendatarios y en dependencias con IdArrendatario " +
       "(ServiciosArrendatarios, SociosArrendatarios, ArchivosArrendatarios, " +
-      "ContratoArrendatarios + ContratoLocales/locales, Estacionamientos, PagosArrendatarios).",
+      "ContratoArrendatarios + ContratoLocales/locales, Estacionamientos). Los pagos recibidos no se modifican.",
   })
   @ApiParam({ name: "id", description: "ID del arrendatario", example: 1 })
   removeArrendatario(
@@ -260,7 +260,7 @@ export class ArrendatariosController {
       "- `servicios[i].idContrato` liga el servicio a un `ContratoArrendatarios` existente (recomendado en edición).\n" +
       "- Si creas un servicio nuevo **sin** `idContrato`: se empareja por índice con `contratos[i]` del mismo payload; " +
       "si solo hay un contrato en el payload, todos los servicios nuevos sin `idContrato` van a ese.\n" +
-      "- Tipos 3 y 4 (renta/mantenimiento) deben tener `idContrato` para que las notificaciones usen `RentaActual`.\n\n" +
+      "- Tipos 3 y 4 (renta/mantenimiento) deben tener `idContrato` para que las notificaciones usen el cargo de renta del contrato.\n\n" +
       "archivos[i].id / imagenes[i].id / socios[i].id: con id actualizan; sin id crean.",
   })
   async actualizar(

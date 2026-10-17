@@ -5,8 +5,7 @@ import { PagoEstatus } from "src/common/pago-estatus.enum";
 import { Arrendadores } from "src/entities/Arrendadores";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Pago } from "src/entities/Pago";
-import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
-import { RentaActual } from "src/entities/RentaActual";
+import { Cargos } from "src/entities/Cargos";
 import { ServiciosArrendatarios } from "src/entities/ServiciosArrendatarios";
 import { ServiciosInmuebles } from "src/entities/ServiciosInmuebles";
 import {
@@ -20,7 +19,7 @@ import {
   fechaPagoParaNotificacion,
 } from "./utils/notificacion-color.util";
 
-/** Renta / mantenimiento: el pago del mes se evalúa en RentaActual por IdContrato. */
+/** Renta / mantenimiento: el pago del mes se evalúa en el cargo de renta del contrato. */
 const TIPOS_SERVICIO_RENTA_ACTUAL = new Set([3, 4]);
 
 export interface NotificacionVencimientoContrato {
@@ -80,10 +79,8 @@ export class NotificacionesService {
     private readonly serviciosArrendatariosRepo: Repository<ServiciosArrendatarios>,
     @InjectRepository(Pago)
     private readonly pagoRepo: Repository<Pago>,
-    @InjectRepository(PagosArrendatarios)
-    private readonly pagosArrendatariosRepo: Repository<PagosArrendatarios>,
-    @InjectRepository(RentaActual)
-    private readonly rentaActualRepo: Repository<RentaActual>,
+    @InjectRepository(Cargos)
+    private readonly cargosRepo: Repository<Cargos>,
     @InjectRepository(Arrendadores)
     private readonly arrendadoresRepo: Repository<Arrendadores>,
   ) {}
@@ -256,24 +253,24 @@ export class NotificacionesService {
   ): Promise<Map<number, number>> {
     if (idsServicio.length === 0) return new Map();
 
-    const rows = await this.pagosArrendatariosRepo
-      .createQueryBuilder("pago")
-      .select("pago.idServicioArrendatario", "idServicio")
-      .addSelect("pago.estatus", "estatus")
-      .where("pago.idServicioArrendatario IN (:...ids)", { ids: idsServicio })
-      .andWhere("pago.estatus IN (:...estatus)", {
-        estatus: [PagoEstatus.Pagado, PagoEstatus.Pendiente],
-      })
-      .andWhere("YEAR(pago.fechaPago) = :anio", { anio })
-      .andWhere("MONTH(pago.fechaPago) = :mes", { mes })
+    // Cargos de servicio del mes: liquidado → Pagado; con saldo → Pendiente.
+    const rows = await this.cargosRepo
+      .createQueryBuilder("c")
+      .innerJoin("c.conceptos", "cc")
+      .select("cc.idServicioArrendatario", "idServicio")
+      .addSelect(`CASE WHEN c.liquidado = 1 THEN ${PagoEstatus.Pagado} ELSE ${PagoEstatus.Pendiente} END`, "estatus")
+      .where("cc.idServicioArrendatario IN (:...ids)", { ids: idsServicio })
+      .andWhere("c.clase = 'SERVICIO' AND c.estatus = 1 AND cc.estatus = 1")
+      .andWhere("YEAR(c.mes) = :anio", { anio })
+      .andWhere("MONTH(c.mes) = :mes", { mes })
       .getRawMany<{ idServicio: string; estatus: string }>();
 
     return this.mergeEstatusPago(rows);
   }
 
   /**
-   * Estatus por IdContrato desde RentaActual del mes:
-   * Pagada=1 → Pagado, Pagada=0 → Pendiente.
+   * Estatus por IdContrato desde el cargo de renta del mes:
+   * liquidado → Pagado; con saldo (pendiente o parcial) → Pendiente.
    */
   private async findEstatusRentaActualMes(
     idsContrato: number[],
@@ -282,11 +279,12 @@ export class NotificacionesService {
   ): Promise<Map<number, number>> {
     if (idsContrato.length === 0) return new Map();
 
-    const rows = await this.rentaActualRepo
+    const rows = await this.cargosRepo
       .createQueryBuilder("r")
       .select("r.idContrato", "idContrato")
-      .addSelect("r.pagada", "pagada")
+      .addSelect("r.liquidado", "pagada")
       .where("r.idContrato IN (:...ids)", { ids: idsContrato })
+      .andWhere("r.clase = 'RENTA' AND r.estatus = 1")
       .andWhere("YEAR(r.mes) = :anio", { anio })
       .andWhere("MONTH(r.mes) = :mes", { mes })
       .getRawMany<{ idContrato: string; pagada: string }>();

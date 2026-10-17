@@ -5,10 +5,8 @@ import { assembleArrendatarioPanel } from "src/common/arrendatario-dashboard.uti
 import { parseRangoFechas, parseRangoMeses, sqlMesEnRango } from "src/common/pago-mensual.utils";
 import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
-import { HistoricoPagosRenta } from "src/entities/HistoricoPagosRenta";
 import { LocalesZonaInmueble } from "src/entities/LocalesZonaInmueble";
-import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
-import { RentaActual } from "src/entities/RentaActual";
+import { CobranzaConsultasService } from "src/cobranza/cobranza-consultas.service";
 import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
 
 @Injectable()
@@ -22,12 +20,7 @@ export class ArrendatariosDashboardService {
     private readonly zonasRepository: Repository<ZonasInmuebles>,
     @InjectRepository(LocalesZonaInmueble)
     private readonly localesRepository: Repository<LocalesZonaInmueble>,
-    @InjectRepository(HistoricoPagosRenta)
-    private readonly historicoRepository: Repository<HistoricoPagosRenta>,
-    @InjectRepository(RentaActual)
-    private readonly rentaActualRepository: Repository<RentaActual>,
-    @InjectRepository(PagosArrendatarios)
-    private readonly pagosArrendatariosRepository: Repository<PagosArrendatarios>,
+    private readonly cobranzaConsultas: CobranzaConsultasService,
   ) {}
 
   async getDashboard(
@@ -122,37 +115,10 @@ export class ArrendatariosDashboardService {
                 : Promise.resolve([]);
             })()
           : Promise.resolve([]),
-        this.historicoRepository
-          .createQueryBuilder("h")
-          .leftJoinAndSelect("h.contrato", "contrato")
-          .leftJoinAndSelect("contrato.inmueble", "inmueble")
-          .leftJoinAndSelect("h.formula", "formula")
-          .where("h.idArrendatario = :idArrendatario", { idArrendatario })
-          .andWhere(sqlMesEnRango("h.mes"), { mesKeyInicio, mesKeyFin })
-          .orderBy("h.mes", "DESC")
-          .addOrderBy("h.id", "DESC")
-          .getMany(),
-        this.rentaActualRepository
-          .createQueryBuilder("r")
-          .leftJoinAndSelect("r.contrato", "contrato")
-          .leftJoinAndSelect("contrato.inmueble", "inmueble")
-          .leftJoinAndSelect("r.formula", "formula")
-          .where("r.idArrendatario = :idArrendatario", { idArrendatario })
-          .andWhere(sqlMesEnRango("r.mes"), { mesKeyInicio, mesKeyFin })
-          .orderBy("r.mes", "DESC")
-          .addOrderBy("r.id", "DESC")
-          .getMany(),
-        this.pagosArrendatariosRepository
-          .createQueryBuilder("p")
-          .leftJoinAndSelect("p.servicioArrendatario", "servicioArrendatario")
-          .leftJoinAndSelect("servicioArrendatario.tipoServicio", "tipoServicio")
-          .leftJoinAndSelect("p.metodoPago", "metodoPago")
-          .where("p.idArrendatario = :idArrendatario", { idArrendatario })
-          .andWhere("p.fechaPago >= :inicio", { inicio })
-          .andWhere("p.fechaPago <= :fin", { fin })
-          .orderBy("p.fechaPago", "DESC")
-          .addOrderBy("p.id", "DESC")
-          .getMany(),
+        // Histórico = cargos de renta liquidados; renta actual = pendientes o parciales.
+        this.cobranzaConsultas.rentasDeArrendatario(idArrendatario, { mesKeyInicio, mesKeyFin }, 1),
+        this.cobranzaConsultas.rentasDeArrendatario(idArrendatario, { mesKeyInicio, mesKeyFin }, 0),
+        this.cobranzaConsultas.serviciosDeArrendatarios([idArrendatario], inicio, fin),
       ]);
 
     return assembleArrendatarioPanel(

@@ -6,8 +6,7 @@ import { Arrendatarios } from "src/entities/Arrendatarios";
 import { ContratoArrendatarios } from "src/entities/ContratoArrendatarios";
 import { Inmuebles } from "src/entities/Inmuebles";
 import { Pago } from "src/entities/Pago";
-import { PagosArrendatarios } from "src/entities/PagosArrendatarios";
-import { RentaActual } from "src/entities/RentaActual";
+import { CobranzaConsultasService } from "src/cobranza/cobranza-consultas.service";
 import { ZonasInmuebles } from "src/entities/ZonasInmuebles";
 import { mapInmuebleDashboardReduced } from "./inmuebles-dashboard.mapper";
 
@@ -22,10 +21,7 @@ export class InmueblesDashboardService {
     private readonly contratoRepository: Repository<ContratoArrendatarios>,
     @InjectRepository(ZonasInmuebles)
     private readonly zonasRepository: Repository<ZonasInmuebles>,
-    @InjectRepository(RentaActual)
-    private readonly rentaActualRepository: Repository<RentaActual>,
-    @InjectRepository(PagosArrendatarios)
-    private readonly pagosArrendatariosRepository: Repository<PagosArrendatarios>,
+    private readonly cobranzaConsultas: CobranzaConsultasService,
     @InjectRepository(Pago)
     private readonly pagoRepository: Repository<Pago>,
   ) {}
@@ -84,28 +80,8 @@ export class InmueblesDashboardService {
               order: { id: "ASC" },
             })
           : Promise.resolve([]),
-        idContratos.length > 0
-          ? this.rentaActualRepository
-              .createQueryBuilder("r")
-              .leftJoinAndSelect("r.formula", "formula")
-              .where("r.idContrato IN (:...idContratos)", { idContratos })
-              .andWhere(sqlMesEnRango("r.mes"), { mesKeyInicio, mesKeyFin })
-              .orderBy("r.mes", "DESC")
-              .addOrderBy("r.id", "DESC")
-              .getMany()
-          : Promise.resolve([]),
-        idArrendatarios.length > 0
-          ? this.pagosArrendatariosRepository
-              .createQueryBuilder("p")
-              .where("p.idArrendatario IN (:...idArrendatarios)", {
-                idArrendatarios,
-              })
-              .andWhere("p.fechaPago >= :inicio", { inicio })
-              .andWhere("p.fechaPago <= :fin", { fin })
-              .orderBy("p.fechaPago", "DESC")
-              .addOrderBy("p.id", "DESC")
-              .getMany()
-          : Promise.resolve([]),
+        this.cobranzaConsultas.rentasActualesDeContratos(idContratos, { mesKeyInicio, mesKeyFin }),
+        this.cobranzaConsultas.serviciosDeArrendatarios(idArrendatarios, inicio, fin),
         this.pagoRepository
           .createQueryBuilder("p")
           .where("p.idInmueble = :idInmueble", { idInmueble })

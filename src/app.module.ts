@@ -42,6 +42,7 @@ import { MantenimientoActualModule } from './mantenimiento-actual/mantenimiento-
 import { HistoricoPagosMantenimientoModule } from './historico-pagos-mantenimiento/historico-pagos-mantenimiento.module';
 import { EstacionamientosModule } from './estacionamientos/estacionamientos.module';
 import { EntradasSalidasEstacionamientoModule } from './entradas-salidas-estacionamiento/entradas-salidas-estacionamiento.module';
+import { TenantAccessModule } from './common/tenant-access/tenant-access.module';
 import Joi from 'joi';
 import { join } from 'path';
 
@@ -92,6 +93,8 @@ import { join } from 'path';
       timezone: 'America/Mexico_City',
     }),
   }),
+
+    TenantAccessModule,
 
     UsuariosModule,
 

@@ -1,3 +1,4 @@
+import { PerteneceAlCliente } from "src/common/tenant-access/pertenece-al-cliente.decorator";
 import {
   Body,
   Controller,
@@ -140,11 +141,15 @@ export class ContratosController {
     description:
       "Devuelve los contratos guardados desde la vista previa, con el usuario que los registró.",
   })
-  listarContratosGenerados() {
-    return this.contratosService.listarContratosGenerados();
+  listarContratosGenerados(@Req() req) {
+    return this.contratosService.listarContratosGenerados(
+      Number(req.user?.cliente || 0),
+      Number(req.user?.rol || 0),
+    );
   }
 
   @Get("generados/:id")
+  @PerteneceAlCliente('contratoGenerado')
   @ApiOperation({
     summary: "Obtener un contrato generado para editarlo",
     description:
@@ -156,6 +161,7 @@ export class ContratosController {
   }
 
   @Patch("generados/:id")
+  @PerteneceAlCliente('contratoGenerado')
   @HttpCode(200)
   @ApiOperation({
     summary: "Actualizar un contrato generado",
@@ -177,6 +183,7 @@ export class ContratosController {
   }
 
   @Patch("locales/:id/cancelar")
+  @PerteneceAlCliente('contratoLocal')
   @HttpCode(200)
   @ApiOperation({
     summary: "Cancelar asignación de local en contrato",
@@ -189,6 +196,7 @@ export class ContratosController {
   }
 
   @Patch(":id/cancelar")
+  @PerteneceAlCliente('contrato')
   @HttpCode(200)
   @ApiOperation({
     summary: "Cancelar contrato de arrendatario",

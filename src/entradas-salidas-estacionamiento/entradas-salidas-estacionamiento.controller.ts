@@ -1,3 +1,4 @@
+import { PerteneceAlCliente } from "src/common/tenant-access/pertenece-al-cliente.decorator";
 import {
   BadRequestException,
   Controller,
@@ -96,6 +97,7 @@ export class EntradasSalidasEstacionamientoController {
   }
 
   @Get("paginated")
+  @PerteneceAlCliente('inmueble', 'idInmueble', { enQuery: true })
   @ApiOperation({
     summary:
       "Listado paginado por idInmueble y rango de fechas (FechaEntrada).",

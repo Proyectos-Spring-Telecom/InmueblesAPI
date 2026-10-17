@@ -1,3 +1,4 @@
+import { PerteneceAlCliente } from "src/common/tenant-access/pertenece-al-cliente.decorator";
 import {
   Body,
   Controller,
@@ -61,6 +62,7 @@ export class RentaActualController {
   }
 
   @Post(":id/siguiente-mes")
+  @PerteneceAlCliente('rentaActual')
   @HttpCode(200)
   @ApiOperation({
     summary: "Duplicar renta actual al mes siguiente",
@@ -75,6 +77,7 @@ export class RentaActualController {
   }
 
   @Put(":id")
+  @PerteneceAlCliente('rentaActual')
   @HttpCode(200)
   @ApiOperation({
     summary: "Actualizar renta actual por id",
@@ -106,6 +109,7 @@ export class RentaActualController {
   }
 
   @Patch(":id/pagada")
+  @PerteneceAlCliente('rentaActual')
   @HttpCode(200)
   @ApiOperation({
     summary: "Marcar renta como pagada",
@@ -140,6 +144,7 @@ export class RentaActualController {
   }
 
   @Get(":id")
+  @PerteneceAlCliente('rentaActual')
   @ApiOperation({ summary: "Obtener renta actual por id" })
   findOne(@Param("id", ParseIntPipe) id: number) {
     return this.rentaActualService.findOne(id);

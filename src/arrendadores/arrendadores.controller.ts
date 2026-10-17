@@ -1,3 +1,4 @@
+import { PerteneceAlCliente } from "src/common/tenant-access/pertenece-al-cliente.decorator";
 import {
   BadRequestException,
   Body,
@@ -129,12 +130,14 @@ export class ArrendadoresController {
   }
 
   @Get(":id")
+  @PerteneceAlCliente('arrendador')
   getOneArrendador(@Param("id") id: string, @Req() req) {
     const rol = Number(req.user?.rol || 0);
     return this.clientesService.getOneArrendador(+id, rol);
   }
 
   @Patch("estatus/:id")
+  @PerteneceAlCliente('arrendador')
   updateEstatusArrendadores(
     @Param("id") id: string,
     @Req() req,
@@ -149,6 +152,7 @@ export class ArrendadoresController {
   }
 
   @Put(":id")
+  @PerteneceAlCliente('arrendador')
   @UseInterceptors(AnyFilesInterceptor(arrendadorMultipartOptions as any))
   @ApiOperation({
     summary: "Actualizar información completa del arrendador",
@@ -198,6 +202,7 @@ export class ArrendadoresController {
   }
 
   @Delete("socios/:idSocioArrendador")
+  @PerteneceAlCliente('socioArrendador', 'idSocioArrendador')
   @ApiOperation({
     summary: "Eliminar (desactivar) socio arrendador",
     description: "Pone Estatus = 0 en SociosArrendadores por idSocioArrendador.",
@@ -217,6 +222,7 @@ export class ArrendadoresController {
   }
 
   @Delete(":id")
+  @PerteneceAlCliente('arrendador')
   async removeArrendadors(
     @Param("id") id: string,
     @Req() req,

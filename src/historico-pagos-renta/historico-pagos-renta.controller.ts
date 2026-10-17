@@ -1,4 +1,8 @@
 import {
+  PerteneceAlCliente,
+  PerteneceAlClienteTodos,
+} from "src/common/tenant-access/pertenece-al-cliente.decorator";
+import {
   Body,
   Controller,
   Get,
@@ -35,6 +39,7 @@ export class HistoricoPagosRentaController {
   }
 
   @Put(":id")
+  @PerteneceAlCliente('historicoPagoRenta')
   @HttpCode(200)
   @ApiOperation({ summary: "Actualizar registro de histórico por id" })
   update(
@@ -45,6 +50,10 @@ export class HistoricoPagosRentaController {
   }
 
   @Get("ultimo")
+  @PerteneceAlClienteTodos(
+    { recurso: 'arrendatario', param: 'idArrendatario', enQuery: true },
+    { recurso: 'contrato', param: 'idContrato', enQuery: true },
+  )
   @ApiOperation({
     summary: "Último pago de renta por arrendatario y contrato",
     description:
@@ -122,6 +131,7 @@ export class HistoricoPagosRentaController {
   }
 
   @Get(":id")
+  @PerteneceAlCliente('historicoPagoRenta')
   @ApiOperation({ summary: "Obtener registro de histórico por id" })
   findOne(@Param("id", ParseIntPipe) id: number) {
     return this.historicoPagosRentaService.findOne(id);

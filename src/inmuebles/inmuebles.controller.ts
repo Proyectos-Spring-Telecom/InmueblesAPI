@@ -1,4 +1,8 @@
 import {
+  PerteneceAlCliente,
+  PerteneceAlClienteTodos,
+} from "src/common/tenant-access/pertenece-al-cliente.decorator";
+import {
   BadRequestException,
   Controller,
   Delete,
@@ -52,6 +56,7 @@ export class InmueblesController {
   ) {}
 
   @Put(":id")
+  @PerteneceAlCliente('inmueble')
   @HttpCode(200)
   @UseInterceptors(AnyFilesInterceptor(MULTIPART_FILE_OPTIONS as any))
   @ApiConsumes("multipart/form-data")
@@ -142,6 +147,7 @@ export class InmueblesController {
   }
 
   @Get("dashboard/:idInmueble")
+  @PerteneceAlCliente('inmueble', 'idInmueble')
   @ApiOperation({
     summary: "Dashboard reducido del inmueble por rango de fechas",
     description:
@@ -187,6 +193,7 @@ export class InmueblesController {
   }
 
   @Get("servicios/:idInmueble")
+  @PerteneceAlCliente('inmueble', 'idInmueble')
   @ApiOperation({
     summary:
       "Listar servicios (ServiciosInmuebles) de un inmueble por idInmueble.",
@@ -200,6 +207,7 @@ export class InmueblesController {
   }
 
   @Get("zonas/:idInmueble")
+  @PerteneceAlCliente('inmueble', 'idInmueble')
   @ApiOperation({
     summary: "Listar zonas de un inmueble por idInmueble (con locales).",
   })
@@ -212,6 +220,7 @@ export class InmueblesController {
   }
 
   @Get("locales-libres/:idInmueble")
+  @PerteneceAlCliente('inmueble', 'idInmueble')
   @ApiOperation({
     summary:
       "Listar locales disponibles (LocalesEstatus.Disponible) de un inmueble por idInmueble.",
@@ -223,6 +232,10 @@ export class InmueblesController {
   }
 
   @Get("locales-contrato/:idInmueble/:idContrato")
+  @PerteneceAlClienteTodos(
+    { recurso: 'inmueble', param: 'idInmueble' },
+    { recurso: 'contrato', param: 'idContrato' },
+  )
   @ApiOperation({
     summary:
       "Listar locales libres y locales asignados a un contrato (para edición de contrato).",
@@ -241,6 +254,7 @@ export class InmueblesController {
   }
 
   @Get("locales/:idInmueble")
+  @PerteneceAlCliente('inmueble', 'idInmueble')
   @ApiOperation({
     summary:
       "Listar locales (LocalesZonaInmueble) de un inmueble por idInmueble.",
@@ -252,6 +266,7 @@ export class InmueblesController {
   }
 
   @Get("area-ocupada/:idInmueble")
+  @PerteneceAlCliente('inmueble', 'idInmueble')
   @ApiOperation({
     summary: "Área ocupada del inmueble",
     description:
@@ -264,6 +279,7 @@ export class InmueblesController {
   }
 
   @Patch("locales/:idLocal/estatus")
+  @PerteneceAlCliente('local', 'idLocal')
   @HttpCode(200)
   @ApiOperation({ summary: "Actualizar estatus de un local por idLocal." })
   @ApiBody({ type: UpdateLocalEstatusDto })
@@ -275,6 +291,7 @@ export class InmueblesController {
   }
 
   @Delete("servicios/:id")
+  @PerteneceAlCliente('servicioInmueble')
   @HttpCode(200)
   @ApiOperation({
     summary: "Dar de baja un servicio del inmueble",
@@ -288,6 +305,7 @@ export class InmueblesController {
   }
 
   @Delete("zonas/:id")
+  @PerteneceAlCliente('zona')
   @HttpCode(200)
   @ApiOperation({
     summary: "Dar de baja una zona del inmueble",
@@ -302,6 +320,7 @@ export class InmueblesController {
   }
 
   @Delete("archivos/:id")
+  @PerteneceAlCliente('archivoInmueble')
   @HttpCode(200)
   @ApiOperation({
     summary: "Dar de baja un archivo del inmueble",
@@ -315,6 +334,7 @@ export class InmueblesController {
   }
 
   @Patch("mapa/:id")
+  @PerteneceAlCliente('inmueble')
   @HttpCode(200)
   @ApiOperation({ summary: "Actualizar solo MapaInmueble (JSON) del inmueble." })
   @ApiBody({ type: UpdateMapaInmuebleDto })
@@ -326,6 +346,7 @@ export class InmueblesController {
   }
 
   @Delete(":id")
+  @PerteneceAlCliente('inmueble')
   @HttpCode(200)
   @ApiOperation({
     summary: "Dar de baja un inmueble (soft-delete)",
@@ -342,6 +363,7 @@ export class InmueblesController {
   }
 
   @Get(":id")
+  @PerteneceAlCliente('inmueble')
   @ApiOperation({
     summary: "Obtener inmueble por ID (con todas sus relaciones).",
   })

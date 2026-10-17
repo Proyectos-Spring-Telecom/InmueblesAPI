@@ -1,3 +1,4 @@
+import { PerteneceAlCliente } from "src/common/tenant-access/pertenece-al-cliente.decorator";
 import {
   Controller,
   Get,
@@ -5,6 +6,7 @@ import {
   ParseIntPipe,
   Query,
   UseGuards,
+  Req,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
@@ -29,6 +31,7 @@ export class HistoricoPagosMantenimientoController {
   @ApiQuery({ name: "idArrendatario", required: false, type: Number })
   @ApiQuery({ name: "idContrato", required: false, type: Number })
   findAllPaginated(
+    @Req() req: any,
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
     @Query("fechaInicio") fechaInicio: string,
@@ -52,10 +55,13 @@ export class HistoricoPagosMantenimientoController {
           "idContrato",
         ),
       },
+      Number(req.user?.cliente || 0),
+      Number(req.user?.rol || 0),
     );
   }
 
   @Get(":id")
+  @PerteneceAlCliente('historicoPagoMantenimiento')
   @ApiOperation({ summary: "Obtener registro de histórico por id" })
   findOne(@Param("id", ParseIntPipe) id: number) {
     return this.historicoPagosMantenimientoService.findOne(id);

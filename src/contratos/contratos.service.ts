@@ -1,3 +1,4 @@
+import { isSuperAdmin } from "src/utils/cliente-utils";
 import {
   BadRequestException,
   HttpException,
@@ -250,8 +251,10 @@ export class ContratosService {
     }
   }
 
-  async listarContratosGenerados(): Promise<ApiResponseCommon> {
+  async listarContratosGenerados(cliente: number, rol: number): Promise<ApiResponseCommon> {
     try {
+      // Rol > 1: sólo contratos generados por usuarios de su cliente.
+      const scope = isSuperAdmin(rol) ? { sql: "", params: [] as number[] } : { sql: "WHERE u.IdCliente = ?", params: [cliente] };
       const rows = await this.contratosGeneradosRepository.query(
         `
 SELECT
@@ -266,8 +269,10 @@ SELECT
   u.ApellidoMaterno AS apellidoMaternoUsuario
 FROM ContratosGenerados c
 LEFT JOIN Usuarios u ON u.Id = c.IdUsuario
+${scope.sql}
 ORDER BY c.Id DESC;
         `,
+        scope.params,
       );
       return {
         data: rows.map((row) => ({

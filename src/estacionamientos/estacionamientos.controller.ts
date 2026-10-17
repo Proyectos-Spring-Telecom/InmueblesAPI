@@ -1,3 +1,4 @@
+import { PerteneceAlCliente } from "src/common/tenant-access/pertenece-al-cliente.decorator";
 import {
   Body,
   Controller,
@@ -41,6 +42,7 @@ export class EstacionamientosController {
   }
 
   @Patch("desactivar/:id")
+  @PerteneceAlCliente('estacionamiento')
   @HttpCode(200)
   @ApiOperation({ summary: "Dar de baja estacionamiento (estatus 0)." })
   desactivar(@Param("id", ParseIntPipe) id: number) {
@@ -48,6 +50,7 @@ export class EstacionamientosController {
   }
 
   @Patch("activar/:id")
+  @PerteneceAlCliente('estacionamiento')
   @HttpCode(200)
   @ApiOperation({ summary: "Activar estacionamiento (estatus 1)." })
   activar(@Param("id", ParseIntPipe) id: number) {
@@ -55,6 +58,7 @@ export class EstacionamientosController {
   }
 
   @Patch(":id/estatus")
+  @PerteneceAlCliente('estacionamiento')
   @HttpCode(200)
   @ApiOperation({ summary: "Cambiar estatus (0 baja, 1 activo)." })
   @ApiBody({ type: UpdateEstacionamientoEstatusDto })
@@ -66,6 +70,7 @@ export class EstacionamientosController {
   }
 
   @Patch(":id")
+  @PerteneceAlCliente('estacionamiento')
   @HttpCode(200)
   @ApiOperation({ summary: "Actualizar datos del estacionamiento." })
   @ApiBody({ type: UpdateEstacionamientoDto })
@@ -77,6 +82,7 @@ export class EstacionamientosController {
   }
 
   @Get("inmueble/:idInmueble")
+  @PerteneceAlCliente('inmueble', 'idInmueble')
   @ApiOperation({
     summary: "Listar estacionamientos por idInmueble.",
   })
@@ -89,6 +95,7 @@ export class EstacionamientosController {
   }
 
   @Get("arrendatario/:idArrendatario")
+  @PerteneceAlCliente('arrendatario', 'idArrendatario')
   @ApiOperation({
     summary: "Listar estacionamientos por idArrendatario.",
   })
@@ -104,6 +111,7 @@ export class EstacionamientosController {
   }
 
   @Get(":id")
+  @PerteneceAlCliente('estacionamiento')
   @ApiOperation({ summary: "Obtener estacionamiento por ID." })
   findOne(@Req() req: any, @Param("id", ParseIntPipe) id: number) {
     const rol = Number(req.user?.rol || 0);

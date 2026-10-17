@@ -1,3 +1,4 @@
+import { isSuperAdmin } from "src/utils/cliente-utils";
 import {
   BadRequestException,
   ConflictException,
@@ -150,17 +151,25 @@ export class MantenimientoActualService {
   async findAllPaginated(
     page: number,
     limit: number,
+    idCliente: number,
+    rol: number,
   ): Promise<ApiResponseCommon> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
     const skip = (safePage - 1) * safeLimit;
 
-    const [idRows, total] = await this.mantenimientoRepository.findAndCount({
-      select: ["id"],
-      order: { id: "DESC" },
-      skip,
-      take: safeLimit,
-    });
+    const idsQb = this.mantenimientoRepository
+      .createQueryBuilder("m")
+      .leftJoin("m.arrendatario", "arrendatario")
+      .select("m.id")
+      .orderBy("m.id", "DESC")
+      .skip(skip)
+      .take(safeLimit);
+    // Rol > 1: sólo mantenimientos de arrendatarios de arrendadores del cliente.
+    if (!isSuperAdmin(rol)) {
+      idsQb.where("arrendatario.idArrendador IN (SELECT a.Id FROM Arrendadores a WHERE a.IdCliente = :cliente)", { cliente: idCliente });
+    }
+    const [idRows, total] = await idsQb.getManyAndCount();
 
     if (idRows.length === 0) {
       return {

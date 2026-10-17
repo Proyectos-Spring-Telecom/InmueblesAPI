@@ -1,3 +1,4 @@
+import { PerteneceAlCliente } from "src/common/tenant-access/pertenece-al-cliente.decorator";
 import {
   Body,
   Controller,
@@ -161,6 +162,7 @@ export class PagosArrendatariosController {
   }
 
   @Patch(":id/estatus")
+  @PerteneceAlCliente('pagoArrendatario')
   @HttpCode(200)
   @ApiOperation({ summary: "Actualizar estatus de un pago de arrendatario por id" })
   @ApiBody({ type: UpdatePagosArrendatarioEstatusDto })
@@ -172,6 +174,7 @@ export class PagosArrendatariosController {
   }
 
   @Get(":id")
+  @PerteneceAlCliente('pagoArrendatario')
   @ApiOperation({ summary: "Obtener pago de arrendatario por ID" })
   findOne(@Param("id", ParseIntPipe) id: number) {
     return this.pagosArrendatariosService.findOne(id);

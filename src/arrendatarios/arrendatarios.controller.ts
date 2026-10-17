@@ -1,3 +1,4 @@
+import { PerteneceAlCliente } from "src/common/tenant-access/pertenece-al-cliente.decorator";
 import {
   BadRequestException,
   Body,
@@ -62,6 +63,7 @@ export class ArrendatariosController {
   }
 
   @Get("dashboard/:idArrendatario")
+  @PerteneceAlCliente('arrendatario', 'idArrendatario')
   @ApiOperation({
     summary: "Dashboard del arrendatario por rango de fechas",
     description:
@@ -108,6 +110,7 @@ export class ArrendatariosController {
   }
 
   @Get("inmueble/:idInmueble")
+  @PerteneceAlCliente('inmueble', 'idInmueble')
   @ApiOperation({
     summary:
       "Listar arrendatarios por idInmueble (vía ContratoArrendatarios).",
@@ -121,6 +124,7 @@ export class ArrendatariosController {
   }
 
   @Get("servicios/:idArrendatario")
+  @PerteneceAlCliente('arrendatario', 'idArrendatario')
   @ApiOperation({
     summary:
       "Listar servicios (ServiciosArrendatarios) de un arrendatario por idArrendatario.",
@@ -137,6 +141,7 @@ export class ArrendatariosController {
   }
 
   @Delete("contratos/:id")
+  @PerteneceAlCliente('contrato')
   @HttpCode(200)
   @ApiOperation({
     summary: "Dar de baja un contrato de arrendatario",
@@ -150,6 +155,7 @@ export class ArrendatariosController {
   }
 
   @Delete("servicios/:id")
+  @PerteneceAlCliente('servicioArrendatario')
   @HttpCode(200)
   @ApiOperation({
     summary: "Dar de baja un servicio de arrendatario",
@@ -163,6 +169,7 @@ export class ArrendatariosController {
   }
 
   @Delete("socios/:id")
+  @PerteneceAlCliente('socioArrendatario')
   @HttpCode(200)
   @ApiOperation({
     summary: "Dar de baja un socio de arrendatario",
@@ -176,6 +183,7 @@ export class ArrendatariosController {
   }
 
   @Delete("archivos/:id")
+  @PerteneceAlCliente('archivoArrendatario')
   @HttpCode(200)
   @ApiOperation({
     summary: "Dar de baja un archivo de arrendatario",
@@ -189,6 +197,7 @@ export class ArrendatariosController {
   }
 
   @Delete(":id")
+  @PerteneceAlCliente('arrendatario')
   @HttpCode(200)
   @ApiOperation({
     summary: "Dar de baja un arrendatario (soft-delete)",
@@ -205,6 +214,7 @@ export class ArrendatariosController {
   }
 
   @Patch(":id/alta")
+  @PerteneceAlCliente('arrendatario')
   @HttpCode(200)
   @ApiOperation({
     summary: "Reactivar un arrendatario dado de baja",
@@ -224,6 +234,7 @@ export class ArrendatariosController {
   }
 
   @Get(":id")
+  @PerteneceAlCliente('arrendatario')
   @ApiOperation({
     summary: "Obtener arrendatario por ID (con relaciones).",
   })
@@ -233,6 +244,7 @@ export class ArrendatariosController {
   }
 
   @Put(":id")
+  @PerteneceAlCliente('arrendatario')
   @HttpCode(200)
   @UseInterceptors(AnyFilesInterceptor(MULTIPART_FILE_OPTIONS as any))
   @ApiConsumes("multipart/form-data")

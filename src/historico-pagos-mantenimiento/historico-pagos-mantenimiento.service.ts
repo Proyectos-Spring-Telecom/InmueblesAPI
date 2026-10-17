@@ -1,3 +1,4 @@
+import { isSuperAdmin } from "src/utils/cliente-utils";
 import {
   BadRequestException,
   Injectable,
@@ -44,6 +45,8 @@ export class HistoricoPagosMantenimientoService {
     page: number,
     limit: number,
     filters: HistoricoPagosMantenimientoFilters,
+    idCliente: number,
+    rol: number,
   ): Promise<ApiResponseCommon> {
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, limit);
@@ -63,6 +66,10 @@ export class HistoricoPagosMantenimientoService {
       .leftJoinAndSelect("h.formula", "formula")
       .where(sqlMesEnRango("h.mes"), { mesKeyInicio, mesKeyFin });
 
+    // Rol > 1: sólo pagos de arrendatarios de arrendadores del cliente.
+    if (!isSuperAdmin(rol)) {
+      qb.andWhere("arrendatario.idArrendador IN (SELECT a.Id FROM Arrendadores a WHERE a.IdCliente = :cliente)", { cliente: idCliente });
+    }
     if (filters.idArrendatario != null) {
       qb.andWhere("h.idArrendatario = :idArrendatario", {
         idArrendatario: filters.idArrendatario,

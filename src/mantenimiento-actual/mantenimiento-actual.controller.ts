@@ -1,3 +1,4 @@
+import { PerteneceAlCliente } from "src/common/tenant-access/pertenece-al-cliente.decorator";
 import {
   Body,
   Controller,
@@ -10,6 +11,7 @@ import {
   Put,
   Query,
   UseGuards,
+  Req,
 } from "@nestjs/common";
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
@@ -38,6 +40,7 @@ export class MantenimientoActualController {
   }
 
   @Put(":id")
+  @PerteneceAlCliente('mantenimientoActual')
   @HttpCode(200)
   @ApiOperation({
     summary: "Actualizar mantenimiento actual por id",
@@ -51,6 +54,7 @@ export class MantenimientoActualController {
   }
 
   @Patch(":id/pagada")
+  @PerteneceAlCliente('mantenimientoActual')
   @HttpCode(200)
   @ApiOperation({
     summary: "Marcar mantenimiento como pagado",
@@ -64,13 +68,20 @@ export class MantenimientoActualController {
   @Get("paginated")
   @ApiOperation({ summary: "Listar mantenimientos actuales paginado" })
   findAllPaginated(
+    @Req() req: any,
     @Query("page", ParseIntPipe) page: number,
     @Query("limit", ParseIntPipe) limit: number,
   ) {
-    return this.mantenimientoActualService.findAllPaginated(page, limit);
+    return this.mantenimientoActualService.findAllPaginated(
+      page,
+      limit,
+      Number(req.user?.cliente || 0),
+      Number(req.user?.rol || 0),
+    );
   }
 
   @Get(":id")
+  @PerteneceAlCliente('mantenimientoActual')
   @ApiOperation({ summary: "Obtener mantenimiento actual por id" })
   findOne(@Param("id", ParseIntPipe) id: number) {
     return this.mantenimientoActualService.findOne(id);

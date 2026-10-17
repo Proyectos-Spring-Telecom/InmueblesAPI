@@ -23,9 +23,13 @@ APP=/home/ubuntu/development/node/inmueblesAPI
 BACKUPS=/home/ubuntu/backups
 CNF=/home/ubuntu/.respaldoMySQL.cnf
 API=http://localhost:3002/api
-FECHA=$(date +%Y%m%d-%H%M)
+FECHA=$(date +%Y%m%d-%H%M%S)
 CONSERVAR=10
 cd "$APP"
+
+# Un despliegue a la vez: dos corridas simultáneas se pisan el compilado y el reinicio.
+exec 9>/tmp/desplegar-inmueblesAPI.lock
+flock -n 9 || { echo "Ya hay un despliegue de inmueblesAPI en curso; espere a que termine." >&2; exit 1; }
 
 DB=$(grep '^DB_DATABASE=' .env | cut -d= -f2)
 ANTES=$(git rev-parse --short HEAD)
@@ -113,14 +117,14 @@ if [ "$FALLAS" -ne 0 ]; then
   exit 1
 fi
 echo "==> 7. Respaldos de despliegue: se conservan los últimos $CONSERVAR"
-# Sólo nombres generados por este script: <Base>-antes-despliegue-AAAAMMDD-HHMM.sql.gz e
-# inmueblesAPI-dist-<commit>-antes-despliegue-AAAAMMDD-HHMM, dentro de $BACKUPS. Del más nuevo al más viejo.
+# Sólo nombres generados por este script: <Base>-antes-despliegue-AAAAMMDD-HHMM[SS].sql.gz e
+# inmueblesAPI-dist-<commit>-antes-despliegue-AAAAMMDD-HHMM[SS], dentro de $BACKUPS. Del más nuevo al más viejo.
 viejos() { # regex del nombre
   find "$BACKUPS" -mindepth 1 -maxdepth 1 -regextype posix-extended -regex "$BACKUPS/$1" -printf '%T@ %p\n' \
     | sort -rn | tail -n +$((CONSERVAR + 1)) | cut -d' ' -f2-
 }
 [ -d "$BACKUPS" ] && [ "$BACKUPS" = /home/ubuntu/backups ] || { echo "BACKUPS inesperado; no se poda." >&2; exit 1; }
-viejos "${DB}-antes-despliegue-[0-9]{8}-[0-9]{4}\.sql\.gz" | while read -r f; do rm -f -- "$f" && echo "    borrado $(basename "$f")"; done
-viejos "inmueblesAPI-dist-[0-9a-f]{7,40}-antes-despliegue-[0-9]{8}-[0-9]{4}" | while read -r d; do rm -r -- "$d" && echo "    borrado $(basename "$d")"; done
+viejos "${DB}-antes-despliegue-[0-9]{8}-[0-9]{4}([0-9]{2})?\.sql\.gz" | while read -r f; do rm -f -- "$f" && echo "    borrado $(basename "$f")"; done
+viejos "inmueblesAPI-dist-[0-9a-f]{7,40}-antes-despliegue-[0-9]{8}-[0-9]{4}([0-9]{2})?" | while read -r d; do rm -r -- "$d" && echo "    borrado $(basename "$d")"; done
 
 echo "==> Listo: $ANTES → $DESPUES"

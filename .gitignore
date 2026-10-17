@@ -50,3 +50,5 @@
 # archives / backups
 *.zip
 InmueblesAPI.zip
+# Respuestas guardadas por test/integracion/regresion.js
+regresion-*.json

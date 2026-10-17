@@ -1,6 +1,8 @@
 #!/bin/bash
 # Despliegue verificado de inmueblesAPI en el servidor (springfieldDev). Ejecutar como ubuntu:
 #   bash ~/development/node/inmueblesAPI/deploy/desplegar.sh <rama-o-commit>
+# La primera vez (el script aún no está en el servidor), tomarlo de GitHub:
+#   cd ~/development/node/inmueblesAPI && git fetch -q origin && git show origin/dev-isra:deploy/desplegar.sh > /tmp/desplegar.sh && bash /tmp/desplegar.sh dev-isra
 #
 # 1. Respaldos: base de datos completa y compilado actual en ~/backups.
 # 2. Regresión "antes": guarda las respuestas de los GET con la versión que está corriendo.
@@ -47,14 +49,23 @@ cp -a dist "$DIST_RESPALDO"
 echo "    $BACKUPS/$DB-antes-despliegue-$FECHA.sql.gz y $DIST_RESPALDO"
 
 echo "==> 2. Regresión antes"
+# Con el script de la versión que se va a desplegar (la que corre puede no tenerlo todavía).
+git fetch --quiet origin
 REGRESION=$(mktemp /tmp/regresion-antes-XXXX.json)
-npm run -s test:regresion -- guardar "$REGRESION"
+REGRESION_JS=$(mktemp /tmp/regresion-XXXX.js)
+git show "origin/$REF:test/integracion/regresion.js" > "$REGRESION_JS" 2>/dev/null \
+  || git show "$REF:test/integracion/regresion.js" > "$REGRESION_JS"
+node "$REGRESION_JS" guardar "$REGRESION"
+rm -f "$REGRESION_JS"
 
 echo "==> 3. Código"
-git fetch --quiet origin
 git checkout --quiet "$REF"
-git pull --quiet --ff-only 2>/dev/null || true
+# Si es una rama, se adelanta a la de GitHub (sin depender de que tenga upstream configurado).
+if git show-ref --verify --quiet "refs/remotes/origin/$REF"; then
+  git merge --quiet --ff-only "origin/$REF"
+fi
 DESPUES=$(git rev-parse --short HEAD)
+[ "$DESPUES" != "$ANTES" ] || echo "    Aviso: $REF ya estaba en $ANTES; se recompila y verifica igual."
 npm ci --no-audit --no-fund --loglevel=error
 npm run -s build
 

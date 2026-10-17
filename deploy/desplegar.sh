@@ -1,6 +1,6 @@
 #!/bin/bash
 # Despliegue verificado de inmueblesAPI en el servidor (springfieldDev). Ejecutar como ubuntu:
-#   bash ~/development/node/inmueblesAPI/deploy/desplegar.sh <rama-o-commit>
+#   bash ~/development/node/inmueblesAPI/deploy/desplegar.sh <rama-o-commit> [--aceptar-diferencias]
 # La primera vez (el script aún no está en el servidor), tomarlo de GitHub:
 #   cd ~/development/node/inmueblesAPI && git fetch -q origin && git show origin/dev-isra:deploy/desplegar.sh > /tmp/desplegar.sh && bash /tmp/desplegar.sh dev-isra
 #
@@ -10,11 +10,13 @@
 # 4. Migraciones: ensayo (--dry-run) y, si sale bien, la real.
 # 5. Reinicio del servicio (systemd lo levanta: Restart=always) y espera a que responda.
 # 6. Verificación: pruebas de flujos (transacción revertida), HTTP y regresión "después".
-#    Si flujos o HTTP fallan y no hubo migración, regresa solo al compilado anterior.
-#    Las diferencias de regresión se muestran para revisarlas (pueden ser esperadas).
+#    Si algo falla (incluida cualquier diferencia de regresión) y no hubo migración, regresa solo al
+#    compilado anterior. Para un cambio de respuestas intencional: --aceptar-diferencias (las muestra igual).
 set -euo pipefail
 
-REF="${1:?Uso: desplegar.sh <rama-o-commit>}"
+REF="${1:?Uso: desplegar.sh <rama-o-commit> [--aceptar-diferencias]}"
+ACEPTAR_DIFERENCIAS=0
+[ "${2:-}" = "--aceptar-diferencias" ] && ACEPTAR_DIFERENCIAS=1
 APP=/home/ubuntu/development/node/inmueblesAPI
 BACKUPS=/home/ubuntu/backups
 CNF=/home/ubuntu/.respaldoMySQL.cnf
@@ -85,7 +87,14 @@ echo "==> 6. Verificación"
 FALLAS=0
 npm run -s test:flujos || FALLAS=1
 npm run -s test:http || FALLAS=1
-npm run -s test:regresion -- comparar "$REGRESION" || echo "    (revisar las diferencias de regresión: pueden ser esperadas)"
+if ! npm run -s test:regresion -- comparar "$REGRESION"; then
+  if [ "$ACEPTAR_DIFERENCIAS" -eq 1 ]; then
+    echo "    Diferencias de regresión aceptadas (--aceptar-diferencias)."
+  else
+    echo "    Las respuestas cambiaron respecto a la versión anterior." >&2
+    FALLAS=1
+  fi
+fi
 rm -f "$REGRESION"
 
 if [ "$FALLAS" -ne 0 ]; then

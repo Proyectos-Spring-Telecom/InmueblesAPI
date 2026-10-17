@@ -91,8 +91,10 @@ import { join } from 'path';
       bigNumberStrings: false,
       dateStrings: false,
 
-      // mysql2 sólo acepta 'local', 'Z' o desplazamientos; México centro es -06:00 todo el año (sin horario de verano desde 2022).
-      timezone: '-06:00',
+      // 'Z' = el comportamiento de siempre: la base guarda hora local de México y la API la entrega tal cual con
+      // sufijo Z (con el valor anterior, 'America/Mexico_City', mysql2 avisaba y usaba 'Z'). Cambiar a '-06:00'
+      // corre todas las fechas 6 h y requiere coordinarlo con el front y con los datos ya guardados.
+      timezone: 'Z',
     }),
   }),
 

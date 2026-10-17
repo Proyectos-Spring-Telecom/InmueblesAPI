@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -36,7 +37,8 @@ const COMPROBANTE_OPTIONS = {
   fileFilter: (_req: unknown, file: { mimetype: string }, cb: (error: Error | null, accept: boolean) => void) => {
     const permitidos = ["image/png", "image/jpeg", "image/jpg", "application/pdf"];
     if (!permitidos.includes(file.mimetype)) {
-      return cb(new Error("El comprobante debe ser PNG, JPG o PDF"), false);
+      // BadRequestException: un archivo no permitido es error del cliente (400), no del servidor.
+      return cb(new BadRequestException("El comprobante debe ser PNG, JPG o PDF"), false);
     }
     cb(null, true);
   },

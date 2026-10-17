@@ -51,7 +51,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Cambiar contraseña (revoca todas las sesiones refresh del usuario)' })
-  async resetPassword(@Body() loginAuthResetDto: LoginAuthResetDto) {
-    return await this.authService.resetPassword(loginAuthResetDto);
+  async resetPassword(@Body() loginAuthResetDto: LoginAuthResetDto, @Req() req) {
+    return await this.authService.resetPassword(loginAuthResetDto, req.user);
   }
 }

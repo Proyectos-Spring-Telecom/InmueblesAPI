@@ -1,4 +1,4 @@
-import { BadRequestException, HttpException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException, Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common';
 import { LoginAuthDto } from './dto/login-auth.dto';
 import { JwtService } from '@nestjs/jwt';
 import { Repository, IsNull } from 'typeorm';
@@ -15,6 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import { RefreshSessions } from 'src/entities/RefreshSessions';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { createHash, randomUUID } from 'crypto';
+import { isSuperAdmin } from 'src/utils/cliente-utils';
 
 @Injectable()
 export class AuthService {
@@ -303,12 +304,20 @@ export class AuthService {
     // ========================================
     //actualizar contraseña
     // ========================================
-    async resetPassword(loginAuthResetDto: LoginAuthResetDto) {
+    async resetPassword(
+        loginAuthResetDto: LoginAuthResetDto,
+        solicitante: { userId: number; rol: number },
+    ) {
         try {
             const user = await this.usuariosRepository.findOne({
                 where: { userName: loginAuthResetDto.userName },
             });
             if (!user) throw new BadRequestException('Usuario no encontrado');
+
+            // Sólo el propio usuario puede cambiar su contraseña; el súper administrador puede cambiar cualquiera.
+            if (!isSuperAdmin(solicitante?.rol) && Number(user.id) !== Number(solicitante?.userId)) {
+                throw new ForbiddenException('Sólo puedes cambiar tu propia contraseña.');
+            }
 
             const hashedPassword = await bcrypt.hash(loginAuthResetDto.password, 10); //encriptamos la contraseña
             loginAuthResetDto.password = hashedPassword;

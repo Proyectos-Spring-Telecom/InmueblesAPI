@@ -6,8 +6,11 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Req,
+  UseGuards,
 } from "@nestjs/common";
 import {
+  ApiBearerAuth,
   ApiBody,
   ApiOperation,
   ApiParam,
@@ -23,8 +26,11 @@ import {
 } from "./dto/bitacora-registro.dto";
 import { BuscarBitacoraDto } from "./dto/buscar-bitacora.dto";
 import { CreateBitacoraDto } from "./dto/create-bitac ora.dto";
+import { JwtAuthGuard } from "src/guard/jwt-auth.guard";
 
 @ApiTags("Bitácora")
+@ApiBearerAuth("access-token")
+@UseGuards(JwtAuthGuard)
 @Controller("bitacora")
 export class BitacoraController {
   constructor(private readonly bitacoraService: BitacoraService) { }
@@ -43,8 +49,11 @@ export class BitacoraController {
       "con datos del usuario y del módulo asociado.",
   })
   @ApiOkResponse({ type: BitacoraListResponseDto })
-  async findAllListBitacora(): Promise<ApiResponseCommon> {
-    return await this.bitacoraService.findAllListBitacora();
+  async findAllListBitacora(@Req() req: any): Promise<ApiResponseCommon> {
+    return await this.bitacoraService.findAllListBitacora(
+      Number(req.user?.cliente || 0),
+      Number(req.user?.rol || 0),
+    );
   }
 
   @Post("paginated")
@@ -60,8 +69,13 @@ export class BitacoraController {
   @ApiOkResponse({ type: BitacoraPaginatedResponseDto })
   findAllPaginated(
     @Body() dto: BuscarBitacoraDto,
+    @Req() req: any,
   ): Promise<ApiResponseCommon> {
-    return this.bitacoraService.findAllPaginated(dto);
+    return this.bitacoraService.findAllPaginated(
+      dto,
+      Number(req.user?.cliente || 0),
+      Number(req.user?.rol || 0),
+    );
   }
 
   @Get(":id")
@@ -71,7 +85,11 @@ export class BitacoraController {
   })
   @ApiParam({ name: "id", example: 15, description: "ID del registro de bitácora" })
   @ApiOkResponse({ type: BitacoraOneResponseDto })
-  async findOne(@Param("id", ParseIntPipe) id: number) {
-    return await this.bitacoraService.findOne(id);
+  async findOne(@Param("id", ParseIntPipe) id: number, @Req() req: any) {
+    return await this.bitacoraService.findOne(
+      id,
+      Number(req.user?.cliente || 0),
+      Number(req.user?.rol || 0),
+    );
   }
 }

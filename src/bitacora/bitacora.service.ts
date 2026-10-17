@@ -1,3 +1,4 @@
+import { isSuperAdmin } from 'src/utils/cliente-utils';
 import {
   BadRequestException,
   HttpException,
@@ -44,6 +45,12 @@ function mapBitacoraRows(rows: Record<string, unknown>[]) {
   }));
 }
 
+/** Alcance por cliente: el súper administrador ve todo; el resto sólo la bitácora de usuarios de su cliente. */
+function scopeClause(cliente: number, rol: number): { sql: string; params: number[] } {
+  if (isSuperAdmin(rol)) return { sql: '', params: [] };
+  return { sql: 'u.IdCliente = ?', params: [Number(cliente) || 0] };
+}
+
 @Injectable()
 export class BitacoraService {
      constructor(
@@ -54,8 +61,9 @@ export class BitacoraService {
     return 'This action adds a new bitacora';
   }
 
-  async findAllListBitacora() {
+  async findAllListBitacora(cliente: number, rol: number) {
     try {
+      const scope = scopeClause(cliente, rol);
       const bitacora = await this.bitacoraRepository.query(
         `
 SELECT
@@ -85,11 +93,10 @@ SELECT
 FROM Bitacora b
 INNER JOIN Usuarios u ON b.IdUsuario = u.Id
 INNER JOIN Modulos m ON b.IdModulo = m.Id
-
-
-
+${scope.sql ? `WHERE ${scope.sql}` : ''}
 ORDER BY b.FechaCreacion DESC;
             `,
+        scope.params,
       );
 
       const data = bitacora.map((item) => ({
@@ -111,7 +118,7 @@ ORDER BY b.FechaCreacion DESC;
     }
   }
 
-  async findAllPaginated(dto: BuscarBitacoraDto) {
+  async findAllPaginated(dto: BuscarBitacoraDto, cliente: number, rol: number) {
     try {
       const { page, limit, fechaInicio, fechaFin } = dto;
 
@@ -124,6 +131,7 @@ ORDER BY b.FechaCreacion DESC;
       const { whereSql, filterParams } = this.buildFechaRangoClause(
         fechaInicio,
         fechaFin,
+        scopeClause(cliente, rol),
       );
       const offset = (page - 1) * limit;
 
@@ -165,9 +173,18 @@ ${whereSql}`,
     }
   }
 
-  private buildFechaRangoClause(fechaInicio?: string, fechaFin?: string) {
+  private buildFechaRangoClause(
+    fechaInicio: string | undefined,
+    fechaFin: string | undefined,
+    scope: { sql: string; params: number[] },
+  ) {
     const conditions: string[] = [];
-    const filterParams: string[] = [];
+    const filterParams: (string | number)[] = [];
+
+    if (scope.sql) {
+      conditions.push(scope.sql);
+      filterParams.push(...scope.params);
+    }
 
     if (fechaInicio) {
       conditions.push("b.FechaCreacion >= ?");
@@ -184,8 +201,9 @@ ${whereSql}`,
     return { whereSql, filterParams };
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, cliente: number, rol: number) {
     try {
+      const scope = scopeClause(cliente, rol);
       const bitacora = await this.bitacoraRepository.query(
         `
 SELECT
@@ -216,11 +234,11 @@ FROM Bitacora b
 INNER JOIN Usuarios u ON b.IdUsuario = u.Id
 INNER JOIN Modulos m ON b.IdModulo = m.Id
 
-WHERE b.Id = ?
+WHERE b.Id = ?${scope.sql ? ` AND ${scope.sql}` : ''}
 
 ORDER BY b.FechaCreacion DESC;
             `,
-            [id]
+            [id, ...scope.params]
       );
 
       if (bitacora.length === 0) {

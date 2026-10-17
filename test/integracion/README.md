@@ -14,3 +14,9 @@ estar corriendo (`API_URL`, por defecto `http://localhost:3002/api`). Variables 
 `REGRESION_CLIENTE` (2) y `REGRESION_USUARIO` (46).
 
 Las unitarias (`npm test`) no necesitan base de datos.
+
+**En cada despliegue** se corren solas con `deploy/desplegar.sh <rama-o-commit>` en el servidor: respalda base y
+compilado, guarda la regresión con la versión anterior, compila, ensaya y aplica migraciones, reinicia y corre
+flujos, HTTP y la comparación de regresión (si flujos o HTTP fallan sin migración, regresa solo al compilado anterior).
+En GitHub, `.github/workflows/ci.yml` compila y corre las unitarias en cada push y pull request.
+

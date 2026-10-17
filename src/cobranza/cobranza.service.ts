@@ -9,7 +9,7 @@ import { CargoConceptos, TipoConceptoCargo } from "src/entities/CargoConceptos";
 import { Cargos, ClaseCargo } from "src/entities/Cargos";
 import { PagoAplicaciones } from "src/entities/PagoAplicaciones";
 import { PagoRecibidoEstatus, Pagos } from "src/entities/Pagos";
-import { cents, desglosarIva, money, moneyOrNull, TASA_IVA, totalConcepto } from "./money";
+import { cents, desglosarIva, desgloseDeContrato, money, moneyOrNull, MontosContrato, TASA_IVA, totalConcepto } from "./money";
 
 export interface ConceptoInput {
   tipo: TipoConceptoCargo;
@@ -97,7 +97,7 @@ export class CobranzaService {
         idLegacyPagoArrendatario: input.idLegacyPagoArrendatario ?? null,
       }),
     );
-    for (const concepto of input.conceptos) {
+    for (const concepto of await this.conDesgloseDeContrato(m, input.idContrato, input.conceptos)) {
       await m.save(m.create(CargoConceptos, this.buildConcepto(Number(cargo.id), concepto)));
     }
     await this.recalcularCargo(m, Number(cargo.id));
@@ -112,11 +112,14 @@ export class CobranzaService {
     const existente = await m.findOne(CargoConceptos, {
       where: { idCargo, tipo: input.tipo, estatus: 1 },
     });
+    const [cargo] = await m.query(`SELECT IdContrato AS idContrato FROM Cargos WHERE Id = ?`, [idCargo]);
+    const idContrato = cargo?.idContrato != null ? Number(cargo.idContrato) : null;
     if (!existente) {
-      await m.save(m.create(CargoConceptos, this.buildConcepto(idCargo, input)));
+      const [conDesglose] = await this.conDesgloseDeContrato(m, idContrato, [input]);
+      await m.save(m.create(CargoConceptos, this.buildConcepto(idCargo, conDesglose)));
       return;
     }
-    const nuevo = this.buildConcepto(idCargo, {
+    const [nuevoInput] = await this.conDesgloseDeContrato(m, idContrato, [{
       tipo: input.tipo,
       montoBase: input.montoBase !== undefined ? input.montoBase : existente.montoBase,
       montoFinal: input.montoFinal !== undefined ? input.montoFinal : existente.montoFinal,
@@ -125,7 +128,8 @@ export class CobranzaService {
       idTipoServicio: input.idTipoServicio ?? existente.idTipoServicio,
       idServicioArrendatario: input.idServicioArrendatario ?? existente.idServicioArrendatario,
       descripcion: input.descripcion ?? existente.descripcion,
-    });
+    }]);
+    const nuevo = this.buildConcepto(idCargo, nuevoInput);
     if (cents(nuevo.total) < cents(existente.pagado)) {
       throw new ConflictException(
         `El nuevo monto de ${input.tipo.toLowerCase()} (${nuevo.total}) es menor a lo ya pagado (${existente.pagado}).`,
@@ -139,6 +143,36 @@ export class CobranzaService {
       iva: nuevo.iva,
       desgloseEstimado: nuevo.desgloseEstimado,
       descripcion: nuevo.descripcion,
+    });
+  }
+
+  /**
+   * Para renta y mantenimiento sin desglose capturado: si el total es el del contrato, usa el
+   * subtotal y el IVA del contrato (desglose no estimado). Si no, se deja para estimar al 16 %.
+   */
+  private async conDesgloseDeContrato(
+    m: EntityManager,
+    idContrato: number | null,
+    conceptos: ConceptoInput[],
+  ): Promise<ConceptoInput[]> {
+    const sinDesglose = (c: ConceptoInput) =>
+      (c.tipo === "RENTA" || c.tipo === "MANTENIMIENTO") &&
+      (c.subtotal === undefined || c.subtotal === null || c.iva === undefined || c.iva === null);
+    if (!idContrato || !conceptos.some(sinDesglose)) return conceptos;
+    const [ct] = await m.query(
+      `SELECT RentaTotal, SubTotalRenta, IVARenta, MantenimientoTotal, SubTotalMantenimiento, IVAMantenimiento
+         FROM ContratoArrendatarios WHERE Id = ?`,
+      [idContrato],
+    );
+    if (!ct) return conceptos;
+    return conceptos.map((c) => {
+      if (!sinDesglose(c)) return c;
+      const ref: MontosContrato =
+        c.tipo === "RENTA"
+          ? { total: ct.RentaTotal, subtotal: ct.SubTotalRenta, iva: ct.IVARenta }
+          : { total: ct.MantenimientoTotal, subtotal: ct.SubTotalMantenimiento, iva: ct.IVAMantenimiento };
+      const desglose = desgloseDeContrato(totalConcepto(c.montoBase ?? null, c.montoFinal ?? null), ref);
+      return desglose ? { ...c, subtotal: money(desglose.subtotal), iva: money(desglose.iva) } : c;
     });
   }
 

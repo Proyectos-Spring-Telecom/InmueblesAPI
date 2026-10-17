@@ -180,6 +180,24 @@ function montoRentaLegacy(r: RentaRow): number {
   return totalConcepto(r.Total, r.MontoFinal) + totalConcepto(r.TotalMantenimiento, r.MontoFinalMantenimiento);
 }
 
+/** Catálogo SAT de formas de pago (03 transferencia, 01 efectivo/depósito, 02 cheque, 04 crédito, 28 débito). */
+export async function catalogoFormasPago(db: Connection): Promise<void> {
+  await db.query(
+    `UPDATE CatMetodosPago SET FormaPagoSat = CASE Id WHEN 1 THEN '03' WHEN 2 THEN '01' WHEN 3 THEN '01' WHEN 4 THEN '02' WHEN 5 THEN '04' ELSE FormaPagoSat END`,
+  );
+  await db.query(
+    `INSERT INTO CatMetodosPago (Nombre, Estatus, FormaPagoSat)
+     SELECT 'Tarjeta de Débito', 1, '28' FROM DUAL
+      WHERE NOT EXISTS (SELECT 1 FROM CatMetodosPago WHERE Nombre = 'Tarjeta de Débito')`,
+  );
+}
+
+/** Datos de la 001 (catálogo SAT + migración del modelo anterior). */
+export async function aplicar(db: Connection): Promise<ResultadoMigracion> {
+  await catalogoFormasPago(db);
+  return migrarDatos(db);
+}
+
 export async function migrarDatos(db: Connection): Promise<ResultadoMigracion> {
   const [[{ n }]] = await db.query<RowDataPacket[]>(`SELECT COUNT(*) AS n FROM Cargos`);
   if (Number(n) > 0) {

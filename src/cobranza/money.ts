@@ -24,6 +24,29 @@ export function desglosarIva(totalCents: number, tasa = TASA_IVA): { subtotal: n
   return { subtotal, iva: totalCents - subtotal };
 }
 
+/** Montos de un concepto en el contrato (ContratoArrendatarios: RentaTotal/SubTotalRenta/IVARenta, etc.). */
+export interface MontosContrato {
+  total: string | number | null | undefined;
+  subtotal: string | number | null | undefined;
+  iva: string | number | null | undefined;
+}
+
+/**
+ * Desglose tomado del contrato cuando el total del concepto es exactamente el del contrato y el
+ * contrato cuadra (subtotal + IVA = total). El contrato calcula el IVA sobre el subtotal; estimarlo
+ * desde el total puede diferir por un centavo. Si no aplica, null (el desglose queda estimado).
+ */
+export function desgloseDeContrato(
+  totalCents: number,
+  contrato: MontosContrato | null | undefined,
+): { subtotal: number; iva: number } | null {
+  if (!contrato || contrato.total == null || contrato.subtotal == null || contrato.iva == null) return null;
+  const subtotal = cents(contrato.subtotal);
+  const iva = cents(contrato.iva);
+  if (totalCents <= 0 || cents(contrato.total) !== totalCents || subtotal + iva !== totalCents) return null;
+  return { subtotal, iva };
+}
+
 /** Total a cobrar de un concepto: monto final si existe, si no el monto base. */
 export function totalConcepto(montoBase: string | number | null, montoFinal: string | number | null): number {
   return montoFinal !== null && montoFinal !== undefined && montoFinal !== ""

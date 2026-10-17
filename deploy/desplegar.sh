@@ -12,6 +12,8 @@
 # 6. Verificación: pruebas de flujos (transacción revertida), HTTP y regresión "después".
 #    Si algo falla (incluida cualquier diferencia de regresión) y no hubo migración, regresa solo al
 #    compilado anterior. Para un cambio de respuestas intencional: --aceptar-diferencias (las muestra igual).
+# 7. Si todo salió bien, conserva sólo los últimos CONSERVAR respaldos de despliegue (base y compilado).
+#    No toca otros respaldos de ~/backups; si el despliegue falla, no borra nada.
 set -euo pipefail
 
 REF="${1:?Uso: desplegar.sh <rama-o-commit> [--aceptar-diferencias]}"
@@ -22,6 +24,7 @@ BACKUPS=/home/ubuntu/backups
 CNF=/home/ubuntu/.respaldoMySQL.cnf
 API=http://localhost:3002/api
 FECHA=$(date +%Y%m%d-%H%M)
+CONSERVAR=10
 cd "$APP"
 
 DB=$(grep '^DB_DATABASE=' .env | cut -d= -f2)
@@ -109,4 +112,15 @@ if [ "$FALLAS" -ne 0 ]; then
   fi
   exit 1
 fi
+echo "==> 7. Respaldos de despliegue: se conservan los últimos $CONSERVAR"
+# Sólo nombres generados por este script: <Base>-antes-despliegue-AAAAMMDD-HHMM.sql.gz e
+# inmueblesAPI-dist-<commit>-antes-despliegue-AAAAMMDD-HHMM, dentro de $BACKUPS. Del más nuevo al más viejo.
+viejos() { # regex del nombre
+  find "$BACKUPS" -mindepth 1 -maxdepth 1 -regextype posix-extended -regex "$BACKUPS/$1" -printf '%T@ %p\n' \
+    | sort -rn | tail -n +$((CONSERVAR + 1)) | cut -d' ' -f2-
+}
+[ -d "$BACKUPS" ] && [ "$BACKUPS" = /home/ubuntu/backups ] || { echo "BACKUPS inesperado; no se poda." >&2; exit 1; }
+viejos "${DB}-antes-despliegue-[0-9]{8}-[0-9]{4}\.sql\.gz" | while read -r f; do rm -f -- "$f" && echo "    borrado $(basename "$f")"; done
+viejos "inmueblesAPI-dist-[0-9a-f]{7,40}-antes-despliegue-[0-9]{8}-[0-9]{4}" | while read -r d; do rm -r -- "$d" && echo "    borrado $(basename "$d")"; done
+
 echo "==> Listo: $ANTES → $DESPUES"

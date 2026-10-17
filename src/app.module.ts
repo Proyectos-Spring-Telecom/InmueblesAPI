@@ -91,7 +91,8 @@ import { join } from 'path';
       bigNumberStrings: false,
       dateStrings: false,
 
-      timezone: 'America/Mexico_City',
+      // mysql2 sólo acepta 'local', 'Z' o desplazamientos; México centro es -06:00 todo el año (sin horario de verano desde 2022).
+      timezone: '-06:00',
     }),
   }),
 

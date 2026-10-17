@@ -7,7 +7,7 @@ const { DataSource } = require(base + "/node_modules/typeorm");
 const { CobranzaService } = require(base + "/dist/cobranza/cobranza.service");
 const e = process.env;
 const ds = new DataSource({ type: "mysql", host: e.DB_HOST, port: Number(e.DB_PORT || 3306), username: e.DB_USER, password: e.DB_PASSWORD,
-  database: e.DB_DATABASE, entities: [base + "/dist/entities/*.js"], synchronize: false, timezone: "America/Mexico_City" });
+  database: e.DB_DATABASE, entities: [base + "/dist/entities/*.js"], synchronize: false, timezone: "-06:00" });
 const svc = new CobranzaService();
 let ok = 0, fallas = 0;
 const check = (cond, msg) => { if (cond) { ok++; console.log("  ✔", msg); } else { fallas++; console.log("  ✘", msg); } };

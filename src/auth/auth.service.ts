@@ -309,14 +309,27 @@ export class AuthService {
         solicitante: { userId: number; rol: number },
     ) {
         try {
-            const user = await this.usuariosRepository.findOne({
-                where: { userName: loginAuthResetDto.userName },
-            });
-            if (!user) throw new BadRequestException('Usuario no encontrado');
-
             // Sólo el propio usuario puede cambiar su contraseña; el súper administrador puede cambiar cualquiera.
-            if (!isSuperAdmin(solicitante?.rol) && Number(user.id) !== Number(solicitante?.userId)) {
-                throw new ForbiddenException('Sólo puedes cambiar tu propia contraseña.');
+            // Se valida antes de buscar por userName para no revelar si un usuario existe.
+            let user: Usuarios;
+            if (isSuperAdmin(solicitante?.rol)) {
+                const encontrado = await this.usuariosRepository.findOne({
+                    where: { userName: loginAuthResetDto.userName },
+                });
+                if (!encontrado) throw new BadRequestException('Usuario no encontrado');
+                user = encontrado;
+            } else {
+                const propio = await this.usuariosRepository.findOne({
+                    where: { id: Number(solicitante?.userId) || 0 },
+                });
+                const mismoUsuario =
+                    !!propio &&
+                    String(propio.userName ?? '').trim().toLowerCase() ===
+                        String(loginAuthResetDto.userName ?? '').trim().toLowerCase();
+                if (!mismoUsuario || !propio) {
+                    throw new ForbiddenException('Sólo puedes cambiar tu propia contraseña.');
+                }
+                user = propio;
             }
 
             const hashedPassword = await bcrypt.hash(loginAuthResetDto.password, 10); //encriptamos la contraseña

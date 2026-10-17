@@ -93,21 +93,8 @@ export class InstalacionCentralService {
           });
         }
       } else {
-        // Sin cliente - obtener todas
-        data = await this.instalacionCentralRepository.find({         
-          relations: [
-            'cliente', 
-            'instalaciones',
-            'instalaciones.cliente',
-            'instalaciones.instalacionCentral',
-            'instalaciones.instalacionCentral.cliente',
-            'instalaciones.equipo',
-            'instalaciones.equipo.modelo',
-            'instalaciones.equipo.estadoEquipo',
-            'instalaciones.equipo.cliente',
-            'instalaciones.departamento'
-          ] 
-        });
+        // Sin cliente en el token: no se devuelven datos de otros clientes.
+        data = [];
       }
       const mappedData = data.map(({ cliente, ...rest }) => {
         const c = cliente;
@@ -225,24 +212,8 @@ export class InstalacionCentralService {
           });
         }
       } else {
-        // Sin cliente - obtener todas
-        [data, total] = await this.instalacionCentralRepository.findAndCount({
-          relations: [
-            'cliente', 
-            'instalaciones',
-            'instalaciones.cliente',
-            'instalaciones.instalacionCentral',
-            'instalaciones.instalacionCentral.cliente',
-            'instalaciones.equipo',
-            'instalaciones.equipo.modelo',
-            'instalaciones.equipo.estadoEquipo',
-            'instalaciones.equipo.cliente',
-            'instalaciones.departamento'
-          ],
-          skip,
-          take: limit,
-          order: { id: 'ASC' },
-        });
+        // Sin cliente en el token: no se devuelven datos de otros clientes.
+        [data, total] = [[], 0];
       }
 
       // Mapear resultados

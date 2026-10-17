@@ -114,13 +114,8 @@ WHERE e.IdCliente IN (${placeholders});
           }
         }
       } else {
-        // Sin cliente - obtener todos
-        [data, total] = await this.equiposRepository.findAndCount({
-          skip,
-          take: limit,
-          relations:['estadoEquipo','modelo','cliente'],
-          order: { id: 'DESC' }, 
-        });
+        // Sin cliente en el token: no se devuelven datos de otros clientes.
+        [data, total] = [[], 0];
       }
 
       const result: ApiResponseCommon = {
@@ -171,8 +166,8 @@ WHERE e.IdCliente IN (${placeholders});
           }
         }
       } else {
-        // Sin cliente - obtener todos
-        data = await this.equiposRepository.find({relations:['cliente','modelo']});
+        // Sin cliente en el token: no se devuelven datos de otros clientes.
+        data = [];
       }
 
       const result: ApiResponseCommon = {
@@ -222,11 +217,8 @@ WHERE e.IdCliente IN (${placeholders})
           }
         }
       } else {
-        // Sin cliente - obtener todos los disponibles
-        data = await this.equiposRepository.find({
-          where: { idEstadoEquipo: EstadoEquipoEnum.DISPONIBLE },
-          relations:['cliente','modelo','estadoEquipo']
-        });
+        // Sin cliente en el token: no se devuelven datos de otros clientes.
+        data = [];
       }
 
       const result: ApiResponseCommon = {

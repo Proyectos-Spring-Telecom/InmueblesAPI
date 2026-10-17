@@ -63,6 +63,22 @@ const SELECT_CLIENTE_LIST = `
   EsProspecto AS esProspecto
 `;
 
+/**
+ * Prospecto visible para un cliente: le pertenece por IdPadre, o lo registró en el
+ * embudo un usuario de ese cliente (los prospectos existentes no tienen IdPadre).
+ * Parámetros: [idCliente, idCliente].
+ */
+const SQL_PROSPECTO_DEL_CLIENTE = `(
+  Clientes.IdPadre = ?
+  OR EXISTS (
+    SELECT 1
+    FROM EmbudoVentas ev
+    INNER JOIN Usuarios uv ON uv.Id = ev.IdUsuario
+    WHERE ev.IdCliente = Clientes.Id
+      AND uv.IdCliente = ?
+  )
+)`;
+
 @Injectable()
 export class ClientesService {
   constructor(
@@ -262,7 +278,7 @@ export class ClientesService {
 
   async getAllProspectos(
     idUser: number,
-    _cliente: number,
+    cliente: number,
     rol: number,
     page: number,
     limit: number,
@@ -270,18 +286,23 @@ export class ClientesService {
     try {
       const offset = (page - 1) * limit;
       const esVendedor = Number(rol) === ROL_VENDEDOR;
-      const filtroVendedor = esVendedor
-        ? `AND EXISTS (
+      // Vendedor: sólo sus prospectos. SA: todos. Resto: prospectos de su cliente.
+      let filtroVendedor = "";
+      let filtroParams: number[] = [];
+      if (esVendedor) {
+        filtroVendedor = `AND EXISTS (
             SELECT 1
             FROM EmbudoVentas e
             WHERE e.IdCliente = Clientes.Id
               AND e.IdUsuario = ?
-          )`
-        : "";
-      const paramsLista = esVendedor
-        ? [1, idUser, limit, offset]
-        : [1, limit, offset];
-      const paramsTotal = esVendedor ? [1, idUser] : [1];
+          )`;
+        filtroParams = [idUser];
+      } else if (!isSuperAdmin(rol)) {
+        filtroVendedor = `AND ${SQL_PROSPECTO_DEL_CLIENTE}`;
+        filtroParams = [cliente, cliente];
+      }
+      const paramsLista = [1, ...filtroParams, limit, offset];
+      const paramsTotal = [1, ...filtroParams];
 
       const rows = await this.clientesRepository.query(
         `
@@ -459,7 +480,7 @@ ORDER BY Id ASC;
     }
   }
 
-  async getOneCliente(id: number, rol = 1, idUser = 0) {
+  async getOneCliente(id: number, rol = 1, idUser = 0, idClienteJwt = 0) {
     try {
       const where: { id: number; estatus?: number } = { id };
       if (!canSeeInactive(rol)) {
@@ -488,6 +509,22 @@ LIMIT 1
           [id, idUser],
         );
         if (!propios.length) {
+          throw new NotFoundException(
+            `El cliente con ID: ${id} no fue encontrado.`,
+          );
+        }
+      }
+
+      // Rol > 1 (excepto el caso del vendedor validado arriba): sólo su cliente, sus hijos o sus prospectos.
+      if (!isSuperAdmin(rol) && !(Number(rol) === ROL_VENDEDOR && cliente.esProspecto)) {
+        const permitido = cliente.esProspecto
+          ? await this.clientesRepository.query(
+              `SELECT Clientes.Id FROM Clientes WHERE Clientes.Id = ? AND ${SQL_PROSPECTO_DEL_CLIENTE} LIMIT 1`,
+              [id, idClienteJwt, idClienteJwt],
+            )
+          : Number(cliente.id) === Number(idClienteJwt) ||
+            Number(cliente.idPadre) === Number(idClienteJwt);
+        if (Array.isArray(permitido) ? !permitido.length : !permitido) {
           throw new NotFoundException(
             `El cliente con ID: ${id} no fue encontrado.`,
           );

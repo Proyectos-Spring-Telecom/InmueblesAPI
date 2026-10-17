@@ -120,10 +120,8 @@ WHERE ie.IdCliente IN (${placeholders})
           }
         }
       } else {
-        // Sin cliente - obtener todas
-        data = await this.instalacionEquipo.find({
-          relations:['equipo','instalacionCentral','instalacionCentral.cliente','equipo.modelo','equipo.estadoEquipo','equipo.cliente','departamento']
-        });
+        // Sin cliente en el token: no se devuelven datos de otros clientes.
+        data = [];
       }
        
        // Mapear los datos asegurando que el equipo completo esté incluido

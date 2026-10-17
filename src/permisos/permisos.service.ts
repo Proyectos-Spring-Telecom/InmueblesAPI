@@ -317,16 +317,16 @@ export class PermisosService {
                   Permisos.Nombre AS PermisoNombre,
                   Permisos.Descripcion AS PermisoDescripcion
                 FROM 
-                TransmoviDev.UsuariosPermisos
+                UsuariosPermisos
                 INNER JOIN 
-                  TransmoviDev.Permisos ON UsuariosPermisos.IdPermiso = Permisos.Id
+                  Permisos ON UsuariosPermisos.IdPermiso = Permisos.Id
                 INNER JOIN 
-                 TransmoviDev.Modulos ON Permisos.IdModulo = Modulos.Id
+                 Modulos ON Permisos.IdModulo = Modulos.Id
                 WHERE 
-                  UsuariosPermisos.IdUsuario = '${idUsuario}'`;
+                  UsuariosPermisos.IdUsuario = ?`;
     
-          // Ejecutar la consulta
-          const results = await this.permisoRepository.query(query);
+          // Ejecutar la consulta (parametrizada: el id no se interpola en el SQL)
+          const results = await this.permisoRepository.query(query, [idUsuario]);
     
           if (!Array.isArray(results)) {
             throw new Error('El resultado de la consulta no es un array');

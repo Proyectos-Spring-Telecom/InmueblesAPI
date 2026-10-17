@@ -147,7 +147,7 @@ export class ClientesController {
   getOneCliente(@Param("id") id: string, @Req() req) {
     const rol = Number(req.user?.rol || 0);
     const idUser = Number(req.user?.userId || 0);
-    return this.clientesService.getOneCliente(+id, rol, idUser);
+    return this.clientesService.getOneCliente(+id, rol, idUser, Number(req.user?.cliente || 0));
   }
 
   @Patch("prospecto/:id")

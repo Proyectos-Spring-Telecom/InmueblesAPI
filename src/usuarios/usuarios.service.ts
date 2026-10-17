@@ -1,3 +1,4 @@
+import { isSuperAdmin } from 'src/utils/cliente-utils';
 import { BadRequestException, HttpException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { ApiCrudResponse, ApiResponseCommon, EstatusEnumBitcora } from 'src/common/ApiResponse';
 import { UpdateUsuarioDto } from './dto/update-usuario.dto';
@@ -320,10 +321,11 @@ export class UsuariosService {
       }
     
       //Obtener todos los usuarios por cliente
-      async getAllListUsuariosCliente(id: number): Promise<ApiResponseCommon> {
+      async getAllListUsuariosCliente(id: number, rol: number): Promise<ApiResponseCommon> {
         try {
+          // Súper administrador: todos los usuarios activos (comportamiento previo); resto: sólo su cliente.
           const usuarios = await this.usuarioRepository.find({
-            where: { estatus: 1, idCliente: id },
+            where: isSuperAdmin(rol) ? { estatus: 1 } : { estatus: 1, idCliente: id },
           });
           if (usuarios.length === 0) {
             throw new NotFoundException('Usuarios no encontrados');

@@ -132,7 +132,11 @@ export class UsuariosController {
     async findAllListUsuarioCliente(
       @Req() req
     ): Promise<ApiResponseCommon> {
-      return await this.usuariosService.getAllListUsuariosCliente(req.user.idCliente);
+      // El JWT expone `cliente` (no `idCliente`); con `idCliente` el filtro quedaba vacío y devolvía usuarios de todos los clientes.
+      return await this.usuariosService.getAllListUsuariosCliente(
+        Number(req.user?.cliente || 0),
+        Number(req.user?.rol || 0),
+      );
     }
   
     @Get(':page/:limit')
